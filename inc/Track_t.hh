@@ -8,34 +8,60 @@
 // ROOT includes
 #include "Rtypes.h"
 
+// Event Ntuple includes
+#include "EventNtuple/inc/TrkInfo.hh"
+#include "EventNtuple/inc/TrkCaloHitInfo.hh"
+#include "EventNtuple/inc/TrkSegInfo.hh"
+#include "EventNtuple/utils/rooutil/inc/Track.hh"
+
 // local includes
 #include "Mu2eEvtAna/inc/GlobalConstants.h"
-#include "Mu2eEvtAna/inc/TrackCaloHit_t.hh"
 
 namespace Mu2eEvtAna {
   struct Track_t {
-    Int_t    index_           = -1; // index in the original track collection (for matching)
-    Int_t    status_          = -1; // track fit information
-    Int_t    pdg_             = -1;
-    Int_t    nhits_           = -1; // track hit information
-    Int_t    nactive_         = -1;
-    Int_t    ndouble_         = -1;
-    Int_t    nplanes_         = -1;
-    Int_t    nnull_           = -1;
-    Int_t    first_hit_       = -1;
-    Int_t    last_hit_        = -1;
-    Int_t    ndof_            = -1; // fit quality information
-    Float_t  chisq_           = -1;
-    Float_t  fitcon_          = -1;
-    Int_t    reco_id_         = -1; // quality and selection IDs
-    Float_t  trk_qual_        = -1;
-    Float_t  p_corr_          = -1; // corrections
-    Float_t  id_weight_       = -1;
-    Int_t    gen_trk_index_   = -1; // pointers to associated indices in other collections
-    Int_t    seg_first_index_ = -1;
-    Int_t    trk_calo_index_  = -1;
+    Track*   track_             = nullptr; // pointer to the EventNtuple::Track object
+    mu2e::TrkInfo* info_        = nullptr; // info about track fit
+    mu2e::TrkCaloHitInfo* tch_  = nullptr; // info about track-calo hit
 
-    TrackCaloHit_t calo_hit_; //list of associated track-calo hits
+    //----------------------------------------------
+    // Track information accessors
+
+    //----------------------------------------------
+    // Basic track fit checks
+    bool IsGood() {
+      if(!track_) return false;
+      if(!track_->trk) return false;
+      if(track_->trk->status < 0) return false;
+      if(track_->trk->goodfit == 0) return false;
+      return true;
+    }
+
+    //----------------------------------------------
+    // Particle hypothesis used in the fit
+    int FitPDG() {
+      if(!track_ || !track_->trk) return 0;
+      return track_->trk->pdg;
+    }
+
+    //----------------------------------------------
+    // Tracker front segment info
+    mu2e::TrkSegInfo* FrontSeg() {
+      if(!track_ || !track_->trksegs) return nullptr;
+      for(auto& seg : *(track_->trksegs)) {
+        if(seg.sid == mu2e::SurfaceIdDetail::TT_Front) return &seg;
+      }
+      return nullptr;
+    }
+
+    //----------------------------------------------
+    // Reset the input info
+    void Reset() {
+      track_   = nullptr;
+      info_    = nullptr;
+      tch_     = nullptr;
+    }
+
+    Track_t() { Reset(); }
   };
 }
 #endif

@@ -8,10 +8,12 @@
 // standard includes
 #include <vector>
 #include <utility>
+#include <fstream>
 
 // ROOT includes
 #include "Rtypes.h"
 #include "TTree.h"
+#include "TChain.h"
 #include "TFile.h"
 #include "TDirectory.h"
 #include "TString.h"
@@ -26,37 +28,21 @@
 #include "EventNtuple/inc/EventInfo.hh"
 #include "EventNtuple/inc/EventInfoMC.hh"
 #include "EventNtuple/inc/TrkInfo.hh"
-// #include "EventNtuple/inc/TrkInfoMC.hh"
-// #include "EventNtuple/inc/TrkSegInfo.hh"
-// #include "EventNtuple/inc/LoopHelixInfo.hh"
-// #include "EventNtuple/inc/CentralHelixInfo.hh"
-// #include "EventNtuple/inc/KinematicLineInfo.hh"
-// #include "EventNtuple/inc/SimInfo.hh"
-// #include "EventNtuple/inc/EventWeightInfo.hh"
-// #include "EventNtuple/inc/TrkStrawHitInfo.hh"
-// #include "EventNtuple/inc/TrkStrawHitInfoMC.hh"
 #include "EventNtuple/inc/TrkCaloHitInfo.hh"
-// #include "EventNtuple/inc/CaloClusterInfoMC.hh"
-// #include "EventNtuple/inc/TrkPIDInfo.hh"
-// #include "EventNtuple/inc/HelixInfo.hh"
-// #include "EventNtuple/inc/InfoStructHelper.hh"
-// #include "EventNtuple/inc/CrvInfoHelper.hh"
-// #include "EventNtuple/inc/InfoMCStructHelper.hh"
-// #include "EventNtuple/inc/RecoQualInfo.hh"
 #include "EventNtuple/inc/MVAResultInfo.hh"
-// #include "EventNtuple/inc/MCStepInfo.hh"
-// #include "EventNtuple/inc/SurfaceStepInfo.hh"
-// #include "EventNtuple/inc/MCStepSummaryInfo.hh"
+
+// Mu2e EventNtuple RooUtil includes
+#include "EventNtuple/utils/rooutil/inc/Event.hh"
+#include "EventNtuple/utils/rooutil/inc/Track.hh"
+#include "EventNtuple/utils/rooutil/inc/RooUtil.hh"
 
 // local includes
 #include "Mu2eEvtAna/inc/GlobalConstants.h"
 #include "Mu2eEvtAna/inc/Norm_t.hh"
 #include "Mu2eEvtAna/inc/Event_t.hh"
 #include "Mu2eEvtAna/inc/Track_t.hh"
-#include "Mu2eEvtAna/inc/Tracks_t.hh"
-#include "Mu2eEvtAna/inc/TrackCaloHit_t.hh"
-#include "Mu2eEvtAna/inc/TrackCaloHits_t.hh"
 #include "Mu2eEvtAna/inc/EventHist_t.hh"
+#include "Mu2eEvtAna/inc/TrackHist_t.hh"
 
 using namespace mu2e;
 namespace Mu2eEvtAna {
@@ -66,41 +52,39 @@ namespace Mu2eEvtAna {
     virtual ~Mu2eEvtAna() {};
 
     int Process(Long64_t nentries = -1, Long64_t first = 0);
-    void AddTrack(Tracks_t& trks, Int_t index);
-    void AddTrackCollection(TTree* t, Tracks_t& trk, const char* name);
     void BookHistograms(TDirectory* dir);
 
-    void SetInput(TTree* tree) { ntuple_ = tree; }
+    int  AddFile(TString file_name);
+    void SetInput(TChain* tree) { ntuple_ = tree; }
     void SetName(TString name) { name_ = name; }
 
     virtual bool ProcessEvent();
     virtual void InitializeEvent();
+    virtual void InitTrack(Track* track, Track_t& track_par);
     virtual void FillOutput();
 
     virtual int InitializeInput();
     virtual int InitializeOutput();
     virtual void AddOutputBranches(TTree* t);
     virtual void BookEventHist(EventHist_t* Hist);
+    virtual void BookTrackHist(TrackHist_t* Hist);
     virtual void FillEventHist(EventHist_t* Hist);
+    virtual void FillTrackHist(TrackHist_t* Hist, Track_t* Track);
 
     virtual TString OutputFileName() { return "evtana_" + name_ + ".root"; }
 
-    TTree* ntuple_; //input ntuple
-    EventInfo* evt_info_;
-    EventInfoMC* evt_info_mc_;
-    std::vector<TrkInfo>* trk_;
-    std::vector<TrkCaloHitInfo>* trk_calo_hit_;
-    std::vector<MVAResultInfo>* trk_qual_;
-    HitCount* hit_cnt_;
-    TrkCount* trk_cnt_;
+    Event*  event_ ; //input TChain wrapper
+    TChain* ntuple_; //input ntuple
 
     TFile* fout_; //output file
     TTree* tout_; //output ntuple
     TTree* tnorm_; //output normalization information
     Norm_t norm_; //normalization info
-    TDirectory* top_dir_;
-    TDirectory* evt_dirs_[kMaxEventHists];
+    TDirectory*  top_dir_;
+    TDirectory*  evt_dirs_ [kMaxEventHists];
     EventHist_t* evt_hists_[kMaxEventHists];
+    TDirectory*  trk_dirs_ [kMaxEventHists];
+    TrackHist_t* trk_hists_[kMaxEventHists];
 
     TString name_; //name for output file
 
@@ -109,10 +93,10 @@ namespace Mu2eEvtAna {
 
     // useful fields during processing
     Event_t evt_; //event information
-    Tracks_t tracks_; //tracks identified
-    Tracks_t electron_; //electron tracks
-    Tracks_t muon_; //muon tracks
-    Tracks_t proton_; //proton tracks
+    Track_t tracks_  [kMaxTracks]; //tracks identified
+    Track_t electron_[kMaxTracks]; //electron tracks
+    Track_t muon_    [kMaxTracks]; //muon tracks
+    Track_t proton_  [kMaxTracks]; //proton tracks
     Long64_t entry_; //current entry
   };
 }

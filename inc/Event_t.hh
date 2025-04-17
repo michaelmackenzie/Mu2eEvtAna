@@ -10,15 +10,18 @@
 
 namespace Mu2eEvtAna {
   struct Event_t {
+    // Event info
     Double_t weight_ = 1.;
-    Int_t ndigis_ = 0;
-    Int_t ntrks_ = 0;
+    Int_t ndigis_    = 0;
+    Int_t ngoodtrks_ = 0;
+    Int_t ntrks_id_  = 0;
     Int_t nclusters_ = 0;
 
+    // Track counters
+    Int_t ntracks_    = 0;
     Int_t nelectrons_ = 0;
-    Int_t npositrons_ = 0;
-    Int_t nmu_minus_  = 0;
-    Int_t nmu_plus_   = 0;
+    Int_t nmuons_     = 0;
+    Int_t nprotons_   = 0;
   };
 }
 #endif

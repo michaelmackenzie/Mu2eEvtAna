@@ -12,6 +12,8 @@
 namespace Mu2eEvtAna {
   struct EventHist_t {
     TH1* hNTrks;
+    TH1* hNGoodTrks;
+    TH1* hNIDTrks;
     TH1* hNDigis;
     TH1* hNClusters;
   };

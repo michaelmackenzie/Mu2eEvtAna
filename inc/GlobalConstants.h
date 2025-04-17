@@ -9,6 +9,6 @@
 #include "Rtypes.h"
 
 namespace Mu2eEvtAna {
-  enum {kMaxTracks = 20, kMaxEventHists = 1000};
+  enum {kMaxTracks = 50, kMaxEventHists = 10000};
 }
 #endif
