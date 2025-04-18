@@ -47,7 +47,7 @@ namespace Mu2eEvtAna {
           if(verbose_ > -1 && (ifile-1) % 10 == 0) {printf("\r%s: Loading file %3i (%.1f%%)", __func__, ifile, ifile*100./nfiles); fflush(stdout);}
           ntuple_->Add(line.c_str());
           if(max_entries > 0 && ntuple_->GetEntries() > max_entries) {
-            if(verbose_ > -1) printf("%s: Loaded %i files of %i with %llu entries\n", __func__, ifile, nfiles, ntuple_->GetEntries());
+            if(verbose_ > -1) printf("\r%s: Loaded %i files of %i with %llu entries", __func__, ifile, nfiles, ntuple_->GetEntries());
             break;
           }
         }
@@ -57,6 +57,7 @@ namespace Mu2eEvtAna {
         return 1;
       }
     }
+    if(verbose_ > -1) printf("\n");
     return 0;
   }
 
@@ -88,12 +89,81 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Initialize the histograms for a track selection
-  void Mu2eEvtAna::BookTrackHist(TrackHist_t* Hist) {
+  void Mu2eEvtAna::BookTrackHist(TrackHist_t* Hist, const char* Folder) {
     if(!Hist) {
       throw std::runtime_error("Attempting to book histograms in a null TrackHist_t\n");
     }
-    Hist->fP[0]     = new TH1F("p"        , "Track momentum", 600, -150,  150);
-    Hist->fP[1]     = new TH1F("p_2"      , "Track momentum", 400,   80,  120);
+    Hist->fP[0]        = new TH1F("p"           ,Form("%s: Track momentum"                       ,Folder),  300,    0.,  150.);
+    Hist->fP[1]        = new TH1F("p_2"         ,Form("%s: Track momentum"                       ,Folder),  400,   80.,  120.);
+    Hist->fObs         = new TH1F("obs"         ,Form("%s: Track momentum"                       ,Folder),  150,   80.,  110.); // fit histogram
+    Hist->fPt          = new TH1F("pt"          ,Form("%s: track transverse momentum"            ,Folder),  300,    0.,  300.);
+    Hist->fPCenter[0]  = new TH1F("pCenter"     ,Form("%s: track momentum at tracker center"     ,Folder),  600, -300.,  300.);
+    Hist->fPCenter[1]  = new TH1F("pCenter_2"   ,Form("%s: track momentum at tracker center"     ,Folder),  600,   80.,  110.);
+    Hist->fPExit       = new TH1F("pExit"       ,Form("%s: track momentum at tracker exit"       ,Folder),  300,    0.,  300.);
+    Hist->fPST[0]      = new TH1F("pST"         ,Form("%s: track momentum at ST exit"            ,Folder),  300,    0.,  300.);
+    Hist->fPST[1]      = new TH1F("pST_2"       ,Form("%s: track momentum at ST exit"            ,Folder),  300,   80.,  110.);
+    Hist->fPSTDiff     = new TH1F("pST_diff"    ,Form("%s: track p(ST) - p(Front)"               ,Folder),  400,   -1.,    9.);
+    Hist->fPExitDiff   = new TH1F("pExit_diff"  ,Form("%s: track p(Front) - p(Exit)"             ,Folder),  400,   -1.,    4.);
+    Hist->fT0          = new TH1F("t0"          ,Form("%s: track t_{0}"                          ,Folder),  400,    0., 2000.);
+    Hist->fT0Err       = new TH1F("t0err"       ,Form("%s: track t_{0} uncertainty"              ,Folder),  100,    0.,   20.);
+    Hist->fD0          = new TH1F("d0"          ,Form("%s: track d0"                             ,Folder),  200, -200.,  200.);
+    Hist->fDP          = new TH1F("dP"          ,Form("%s: track p_reco - p_mc"                  ,Folder),  400,  -20.,   20.);
+    Hist->fChi2NDof    = new TH1F("chi2NDof"    ,Form("%s: track chi2/ndof"                      ,Folder),  200,    0.,   10.);
+    Hist->fFitCons[0]  = new TH1F("fitCons"     ,Form("%s: track p(chi2,ndof)"                   ,Folder),  200,    0.,    1.);
+    Hist->fFitCons[1]  = new TH1F("fitCons_log" ,Form("%s: track log10(p(chi2,ndof))"            ,Folder),  200,   -6.,    0.);
+    Hist->fFitMomErr   = new TH1F("fitMomErr"   ,Form("%s: track momentum uncertainty"           ,Folder),  200,    0.,    5.);
+    Hist->fTanDip      = new TH1F("tanDip"      ,Form("%s: track tanDip"                         ,Folder),  200,    0.,    2.);
+    Hist->fRadius      = new TH1F("radius"      ,Form("%s: track radius"                         ,Folder), 1000,    0., 1000.);
+    Hist->fRMax        = new TH1F("rMax"        ,Form("%s: track rMax"                           ,Folder), 2000,    0., 2000.);
+    Hist->fNActive     = new TH1F("nActive"     ,Form("%s: nHits used in fit"                    ,Folder),  150,    0.,  150.);
+    Hist->fTrkQual     = new TH1F("trkQual"     ,Form("%s: track MVA score"                      ,Folder),  200,   -1.,    1.);
+    Hist->fClusterE    = new TH1F("clusterE"    ,Form("%s: track's cluster energy"               ,Folder),  600,    0.,  300.);
+    Hist->fDt          = new TH1F("dt"          ,Form("%s: track - cluster time"                 ,Folder),  200,  -10.,   10.);
+    Hist->fEp          = new TH1F("ep"          ,Form("%s: cluster E / track P"                  ,Folder),  200,    0.,    2.);
+    Hist->fBestAlg     = new TH1F("bestAlg"     ,Form("%s: Best fit algorithm"                   ,Folder),   10,    0.,   10.);
+    Hist->fAlgMask     = new TH1F("algMask"     ,Form("%s: Algorithm mask"                       ,Folder),   10,    0.,   10.);
+    Hist->fTrackID     = new TH1F("track_id"    ,Form("%s: Track ID bits"                        ,Folder),   33,    0.,   33.);
+    Hist->fExlTrackID  = new TH1F("track_exl_id",Form("%s: Track ID bits for exclusive rejection",Folder),   32,    0.,   32.);
+
+    // Initialize bin labels for the Track ID histograms
+    Hist->fTrackID   ->GetXaxis()->SetBinLabel(1, "Passed");
+    Hist->fExlTrackID->GetXaxis()->SetBinLabel(1, "Passed");
+    // int current_bin = 2;
+    // for(int bit = 0; bit <= Hist->fTrackID->GetNbinsX(); ++bit) {
+    //   if(!kTrackIDNames.count(bit)) continue;
+    //   TString name(kTrackIDNames[bit]);
+    //   Hist->fTrackID   ->GetXaxis()->SetBinLabel(current_bin, name.Data());
+    //   Hist->fExlTrackID->GetXaxis()->SetBinLabel(current_bin, name.Data());
+    //   ++current_bin;
+    // }
+
+    // Matched CRV cluster info
+    Hist->fCRVDeltaT       = new TH1F("crv_deltat"       ,Form("%s: Track t_{0} - CRV t_{0}"                     ,Folder), 200, -250., 250.);
+    Hist->fCRVDeltaTCRV    = new TH1F("crv_deltat_crv"   ,Form("%s: Track t_{0} - CRV t_{0}"                     ,Folder), 200, -250., 500.);
+    Hist->fCRVDeltaTST     = new TH1F("crv_deltat_st"    ,Form("%s: Track t_{0} - CRV through ST t_{0}"          ,Folder), 200, -250., 250.);
+    Hist->fCRVDeltaTCalo   = new TH1F("crv_deltat_calo"  ,Form("%s: Track t_{0} - CRV through Calo t_{0}"        ,Folder), 200, -250., 250.);
+    Hist->fCRVDeltaTExtrap = new TH1F("crv_deltat_extrap",Form("%s: Track t_{0} - CRV through Extrapolated t_{0}",Folder), 200, -250., 250.);
+    Hist->fCRVMinDeltaT    = new TH1F("crv_min_deltat"   ,Form("%s: Min #Deltat_{0} for ST and Calo paths"       ,Folder), 200, -250., 250.);
+    Hist->fCRVXZ           = new TH2F("crv_x_vs_z"       ,Form("%s: CRV X vs Z"                                  ,Folder), 250, -5000, 20000, 200, -10000, 10000);
+    Hist->fCRVYZ           = new TH2F("crv_y_vs_z"       ,Form("%s: CRV Y vs Z"                                  ,Folder), 250, -5000, 20000, 200,      0,  4000);
+    Hist->fCRVdTZ          = new TH2F("crv_dt_vs_z"      ,Form("%s: #Deltat vs CRV Z"                            ,Folder), 250, -5000, 20000, 200,   -200,   200);
+    Hist->fCRVdTZCRV       = new TH2F("crv_dtcrv_vs_z"   ,Form("%s: #Deltat(CRV) vs CRV Z"                       ,Folder), 250, -5000, 20000, 200,   -200,   200);
+
+    // Matched upstream track info
+    Hist->fUpstreamDt      = new TH1F("us_dt",Form("%s: Upstream track #Deltat_{0}"          ,Folder), 150,  -50.,  250.);
+    Hist->fUpstreamDp      = new TH1F("us_dp",Form("%s: Upstream track #Deltap"              ,Folder), 100,  -10.,    5.);
+
+    // MC truth
+    Hist->fMCPFront      = new TH1F("MC_PFront",Form("%s: MC track P(tracker front)"         ,Folder), 600, -300.,  300.);
+    Hist->fMCPStOut      = new TH1F("MC_PSTOut",Form("%s: MC track P(ST exit)"               ,Folder), 600, -300.,  300.);
+    Hist->fMCGenE        = new TH1F("MC_GenE"  ,Form("%s: MC generated energy"               ,Folder), 400,    0.,  200.);
+    Hist->fMCPSig        = new TH1F("MC_PSig"  ,Form("%s: MC P(front) error / uncertainty"   ,Folder), 400,  -20.,   20.);
+    Hist->fMCPdg[0]      = new TH1F("MC_PDG_0",Form("%s: MC Particle PDG code"               ,Folder),  40,  -20.,   20.);
+    Hist->fMCPdg[1]      = new TH1F("MC_PDG_1",Form("%s: MC Particle |PDG code|"             ,Folder), 220,    0., 2200.);
+    Hist->fMCStrawHits   = new TH1F("MC_strawhits",Form("%s: MC Particle N(straw hits)"      ,Folder), 100,    0.,  100.);
+    Hist->fMCGoodHits    = new TH1F("MC_goodhits",Form("%s: MC Particle N(good hits)"        ,Folder), 100,    0.,  100.);
+    Hist->fMCTrajectory  = new TH1F("MC_trajectory",Form("%s: MC track p_{z} trajectory"     ,Folder),   3,  -1.5,   1.5);
+    Hist->fMCSimProc     = new TH1F("MC_simProc",Form("%s: MC Sim process code"              ,Folder), 200,  -0.5, 199.5);
   }
 
   //------------------------------------------------------------------------------------
@@ -109,9 +179,10 @@ namespace Mu2eEvtAna {
         evt_dirs_[ihist] = subdir;
       }
       if(trk_hists_[ihist]) {
-        auto subdir = dir->mkdir(Form("trk_%i", ihist));
+        const char* folder = Form("trk_%i", ihist);
+        auto subdir = dir->mkdir(folder);
         subdir->cd();
-        BookTrackHist(trk_hists_[ihist]);
+        BookTrackHist(trk_hists_[ihist], folder);
         dir->cd();
         trk_dirs_[ihist] = subdir;
       }
@@ -147,8 +218,89 @@ namespace Mu2eEvtAna {
       if(verbose_ > 0) printf("Mu2eEvtAna::%s: Filling track histogram set with null track\n", __func__);
       return;
     }
-    Hist->fP[0] ->Fill(Track->PFront(), evt_.weight_);
-    Hist->fP[1] ->Fill(Track->PFront(), evt_.weight_);
+    const float Weight(evt_.weight_);
+    Hist->fP[0] ->Fill(Track->PFront(), Weight);
+    Hist->fP[1] ->Fill(Track->PFront(), Weight);
+    Hist->fObs->Fill(Track->Obs(), Weight); //FIXME: Should this be Ana module dependent?
+    Hist->fPt->Fill(Track->PTFront(), Weight);
+    Hist->fPCenter[0]->Fill(Track->PMiddle()*Track->Charge(), Weight);
+    Hist->fPCenter[1]->Fill(Track->PMiddle(), Weight);
+    Hist->fPExit->Fill(Track->PBack(), Weight);
+    Hist->fPST[0]->Fill(Track->PSTBack(), Weight);
+    Hist->fPST[1]->Fill(Track->PSTBack(), Weight);
+    Hist->fPSTDiff->Fill(Track->PSTBack()-Track->PFront(), Weight);
+    Hist->fPExitDiff->Fill(Track->PFront()-Track->PBack(), Weight);
+    Hist->fT0->Fill(Track->TFront(), Weight);
+    Hist->fT0Err->Fill(Track->TErrFront(), Weight);
+    Hist->fD0->Fill(Track->D0Front(), Weight);
+    Hist->fDP->Fill(Track->PFront()-Track->MCPFront(), Weight);
+    Hist->fChi2NDof->Fill(Track->Chi2Dof(), Weight);
+    Hist->fFitCons[0]->Fill(Track->FitCon(), Weight);
+    Hist->fFitCons[1]->Fill(std::log10(std::max(1.e-10f, Track->FitCon())), Weight);
+    Hist->fFitMomErr->Fill(Track->MomErrFront(), Weight);
+    Hist->fTanDip->Fill(Track->TanDipFront(), Weight);
+    Hist->fRadius->Fill(Track->RadiusFront(), Weight);
+    Hist->fRMax->Fill(Track->RMaxFront(), Weight);
+    Hist->fNActive->Fill(Track->NActive(), Weight);
+    Hist->fTrkQual->Fill(Track->TrkQual(), Weight);
+    Hist->fClusterE->Fill(Track->ECluster(), Weight);
+    Hist->fDt->Fill(Track->Dt(), Weight);
+    Hist->fEp->Fill(Track->EPFront(), Weight);
+    // Hist->fBestAlg->Fill(TrkPar->fTrack->BestAlg(), Weight);
+    // Hist->fAlgMask->Fill(TrkPar->fTrack->AlgMask(), Weight);
+    // if(TrkPar->fIDWord[0] == 0) {
+    //   Hist->fTrackID   ->Fill("Passed", Weight);
+    //   Hist->fExlTrackID->Fill("Passed", Weight);
+    // } else {
+    //   for(int bit = 0; bit < 30; ++bit) {
+    //     if((TrkPar->fIDWord[0] & (1 << bit)) != 0) {
+    //       TString name((kTrackIDNames.count(bit)) ? kTrackIDNames[bit] : Form("Unknown-%i", bit));
+    //       Hist->fTrackID->Fill(name.Data(), Weight);
+    //       if((TrkPar->fIDWord[0] & ~(1 << bit)) == 0) Hist->fExlTrackID->Fill(name.Data(), Weight);
+    //     }
+    //   }
+    // }
+
+    // auto crv_stub_par = TrkPar->fCRVStubPar;
+    // if(crv_stub_par) {
+    //   auto crv_stub = crv_stub_par->fCluster;
+    //   const float deltat_st   = TrkPar->fTrack->fT0 - crv_stub_par->fApproxTimeSTToFront;
+    //   const float deltat_calo = TrkPar->fTrack->fT0 - crv_stub_par->fApproxTimeCaloToFront;
+    //   const float deltat_extrap = TrkPar->fTrack->fT0 - crv_stub_par->fApproxTimeExtrapToFront;
+    //   const float min_deltat = (std::fabs(deltat_st) < std::fabs(deltat_calo)) ? deltat_st : deltat_calo;
+    //   Hist->fCRVDeltaT->Fill(TrkPar->fTrack->fT0 - crv_stub_par->fCorrTime, Weight);
+    //   Hist->fCRVDeltaTCRV->Fill(TrkPar->fTrack->fT0 - crv_stub_par->fTime, Weight);
+    //   Hist->fCRVDeltaTST->Fill(deltat_st, Weight);
+    //   Hist->fCRVDeltaTCalo->Fill(deltat_calo, Weight);
+    //   Hist->fCRVDeltaTExtrap->Fill(deltat_extrap, Weight);
+    //   Hist->fCRVMinDeltaT->Fill(min_deltat, Weight);
+    //   const float x = crv_stub->Position()->X();
+    //   const float y = crv_stub->Position()->Y();
+    //   const float z = crv_stub->Position()->Z();
+    //   Hist->fCRVXZ->Fill(z,x,Weight);
+    //   Hist->fCRVYZ->Fill(z,y,Weight);
+    //   const float dt = TrkPar->fTrack->fT0 - crv_stub_par->fCorrTime;
+    //   const float dt_crv = TrkPar->fTrack->fT0 - crv_stub_par->fTime;
+    //   Hist->fCRVdTZ->Fill(z,dt,Weight);
+    //   Hist->fCRVdTZCRV->Fill(z,dt_crv,Weight);
+    // }
+
+    // auto us_trk = TrkPar->fUpstreamTrack;
+    // if(us_trk) {
+    //   Hist->fUpstreamDt->Fill(TrkPar->fTrack->fT0 - us_trk->fT0,Weight);
+    //   Hist->fUpstreamDp->Fill(TrkPar->fTrack->fP  - us_trk->fP ,Weight);
+    // }
+
+    Hist->fMCPFront->Fill(Track->MCPFront(), Weight);
+    // Hist->fMCPStOut->Fill(TrkPar->fTrack->fPStOut, Weight);
+    // Hist->fMCGenE->Fill(TrkPar->fGenE, Weight);
+    // Hist->fMCPSig->Fill((TrkPar->fTrack->fFitMomErr > 0.) ? (TrkPar->fTrack->fP - TrkPar->fTrack->fPFront) / TrkPar->fTrack->fFitMomErr : -999., Weight);
+    // Hist->fMCPdg[0]->Fill(TrkPar->fTrack->fPdgCode, Weight);
+    // Hist->fMCPdg[1]->Fill(std::abs(TrkPar->fTrack->fPdgCode), Weight);
+    // Hist->fMCStrawHits->Fill(TrkPar->fTrack->NMcStrawHits(), Weight);
+    // Hist->fMCGoodHits->Fill(TrkPar->fTrack->NGoodMcHits(), Weight);
+    // Hist->fMCTrajectory->Fill(TrkPar->fTrack->fMcDirection, Weight);
+    // Hist->fMCSimProc->Fill((TrkPar->fSimp) ? TrkPar->fSimp->CreationCode() : 0, Weight);
   }
 
   //------------------------------------------------------------------------------------
@@ -232,21 +384,26 @@ namespace Mu2eEvtAna {
     trk_par.Reset();
     trk_par.track_ = track;
     if(!track) return;
+    trk_par.SetObs(trk_par.PFront(), 0); // default to the track momentum as the key observable
+    trk_par.SetObs(trk_par.TFront(), 1); // default to the track time as the secondary key observable
   }
 
   //------------------------------------------------------------------------------------
   // Main event-by-event processing
   bool Mu2eEvtAna::ProcessEvent() {
+    timers_["Event"].Increment();
     if(verbose_ > 4) {
       printf("Mu2eEvtAna::%s: Printing event information:\n", __func__);
     }
     FillEventHist(evt_hists_[0]); //all events with well defined inputs
     for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) { // all tracks
       FillTrackHist(trk_hists_[0], &tracks_[itrk]);
-      if(tracks_[itrk].IsGood() && tracks_[itrk].FitPDG() == -11) FillTrackHist(trk_hists_[1], &tracks_[itrk]);
+      bool trk_id = tracks_[itrk].IsGood() && tracks_[itrk].FitPDG() == 11;
+      trk_id &= tracks_[itrk].PZFront() > 0.f;
+      if(trk_id) FillTrackHist(trk_hists_[1], &tracks_[itrk]);
     }
 
-    return true;
+    return false; // default to not writing output trees
   }
 
   //------------------------------------------------------------------------------------
@@ -294,8 +451,9 @@ namespace Mu2eEvtAna {
       ntuple_->GetEntry(entry);
       event_->Update(verbose_ > 3);
       if((verbose_ > -1 && nseen % report_rate_ == 0) || verbose_ > 1) {
-        printf("Mu2eEvtAna::%s: Processing event %7lld (entry %8lld, event %6i/%7i/%7i): N(accept) = %7lld (%6.2f%%)\n", __func__, nseen, entry,
-               event_->evtinfo->run,event_->evtinfo->subrun,event_->evtinfo->event, naccepted, naccepted*100./((nseen <= 0) ? 1 : nseen));
+        printf("Mu2eEvtAna::%s: Processing event %7lld (entry %8lld, event %6i/%7i/%7i): N(accept) = %7lld (%6.2f%%) (%.0f Hz)\n", __func__, nseen, entry,
+               event_->evtinfo->run,event_->evtinfo->subrun,event_->evtinfo->event, naccepted, naccepted*100./((nseen <= 0) ? 1 : nseen),
+               Timer("Event").AvgRate());
       }
       ++nseen;
 

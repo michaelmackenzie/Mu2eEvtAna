@@ -47,10 +47,10 @@ namespace Mu2eEvtAna {
     TH1*    fCRVDeltaTCalo; //assuming path from Calo
     TH1*    fCRVDeltaTExtrap; //assuming path from extrapolation
     TH1*    fCRVMinDeltaT; //minimum delta T between ST and Calo paths
-    TH2F*    fCRVXZ;
-    TH2F*    fCRVYZ;
-    TH2F*    fCRVdTZ; //using the corrected time
-    TH2F*    fCRVdTZCRV; //using the stub time
+    TH2*    fCRVXZ;
+    TH2*    fCRVYZ;
+    TH2*    fCRVdTZ; //using the corrected time
+    TH2*    fCRVdTZCRV; //using the stub time
 
     //Matched upstream track info
     TH1*    fUpstreamDt;

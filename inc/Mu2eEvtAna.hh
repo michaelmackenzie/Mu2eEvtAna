@@ -67,7 +67,7 @@ namespace Mu2eEvtAna {
     virtual int InitializeOutput();
     virtual void AddOutputBranches(TTree* t);
     virtual void BookEventHist(EventHist_t* Hist);
-    virtual void BookTrackHist(TrackHist_t* Hist);
+    virtual void BookTrackHist(TrackHist_t* Hist, const char* Folder);
     virtual void FillEventHist(EventHist_t* Hist);
     virtual void FillTrackHist(TrackHist_t* Hist, Track_t* Track);
 
@@ -98,6 +98,30 @@ namespace Mu2eEvtAna {
     Track_t muon_    [kMaxTracks]; //muon tracks
     Track_t proton_  [kMaxTracks]; //proton tracks
     Long64_t entry_; //current entry
+
+    // Timer info
+    struct Time_t {
+      TString name;
+      std::chrono::steady_clock::time_point last_time;
+      double duration ;
+      unsigned count;
+      Time_t(TString name = "default") : name(name), last_time(std::chrono::steady_clock::now()), duration(0.), count(0) {}
+      void Increment() {
+        const auto time_now = std::chrono::steady_clock::now();
+        duration += std::chrono::duration_cast<std::chrono::microseconds>(time_now-last_time).count();
+        ++count;
+        last_time = time_now;
+      }
+      void SetTime() { last_time = std::chrono::steady_clock::now(); }
+      void Reset()   { duration = 0.; count = 0; }
+      double AvgTime() { return (count > 0) ? (duration/1.e6) / count : 0.; }
+      double AvgRate() { return (duration > 0.) ? count / (duration/1.e6) : 0.; }
+    };
+    std::map<TString, Time_t> timers_; // for tracking processing time
+    Time_t& Timer(TString name) {
+      if(!timers_.count(name)) timers_[name] = Time_t(name);
+      return timers_[name];
+    }
   };
 }
 
