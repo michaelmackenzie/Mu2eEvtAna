@@ -1,6 +1,6 @@
 //
 // Normalization information
-// Michael MacKenzie (2024)
+// Michael MacKenzie (2025)
 
 #ifndef MU2EEVTANA_NORM_T_HH
 #define MU2EEVTANA_NORM_T_HH

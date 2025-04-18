@@ -1,6 +1,6 @@
 //
 // RMCAna: RMC analysis ntupling
-// Michael MacKenzie (2024)
+// Michael MacKenzie (2025)
 
 #ifndef MU2EEVTANA_RMCANA_HH
 #define MU2EEVTANA_RMCANA_HH

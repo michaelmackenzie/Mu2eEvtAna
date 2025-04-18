@@ -1,6 +1,6 @@
 //
-// A signle Track
-// Michael MacKenzie (2024)
+// A single Track
+// Michael MacKenzie (2025)
 
 #ifndef MU2EEVTANA_TRACK_T_HH
 #define MU2EEVTANA_TRACK_T_HH
@@ -44,14 +44,38 @@ namespace Mu2eEvtAna {
     }
 
     //----------------------------------------------
-    // Tracker front segment info
-    mu2e::TrkSegInfo* FrontSeg() {
+    // Sgment info
+    mu2e::TrkSegInfo* Segment(mu2e::SurfaceIdDetail::enum_type surface) {
       if(!track_ || !track_->trksegs) return nullptr;
       for(auto& seg : *(track_->trksegs)) {
-        if(seg.sid == mu2e::SurfaceIdDetail::TT_Front) return &seg;
+        if(seg.sid == surface) return &seg;
       }
       return nullptr;
     }
+
+    //----------------------------------------------
+    // Tracker front segment info
+    mu2e::TrkSegInfo* FrontSeg() {
+      return Segment(mu2e::SurfaceIdDetail::TT_Front);
+    }
+
+    //----------------------------------------------
+    // Track kinematics at a given segment
+    float PSegment     (mu2e::SurfaceIdDetail::enum_type surface) { auto seg = Segment(surface); return (seg) ? seg->mom.r()               :  0.; }
+    float PTSegment    (mu2e::SurfaceIdDetail::enum_type surface) { auto seg = Segment(surface); return (seg) ? seg->mom.rho()             :  0.; }
+    float PZSegment    (mu2e::SurfaceIdDetail::enum_type surface) { auto seg = Segment(surface); return (seg) ? seg->mom.z()               :  0.; }
+    float DMomSegment  (mu2e::SurfaceIdDetail::enum_type surface) { auto seg = Segment(surface); return (seg) ? seg->dmom                  :  0.; }
+    float MomErrSegment(mu2e::SurfaceIdDetail::enum_type surface) { auto seg = Segment(surface); return (seg) ? seg->momerr                : -1.; }
+    float TSegment     (mu2e::SurfaceIdDetail::enum_type surface) { auto seg = Segment(surface); return (seg) ? seg->time                  :  0.; }
+
+    //----------------------------------------------
+    // Track kinematics at the tracker front
+    float PFront     () { return PSegment     (mu2e::SurfaceIdDetail::TT_Front); }
+    float PTFront    () { return PTSegment    (mu2e::SurfaceIdDetail::TT_Front); }
+    float PZFront    () { return PZSegment    (mu2e::SurfaceIdDetail::TT_Front); }
+    float DMomFront  () { return DMomSegment  (mu2e::SurfaceIdDetail::TT_Front); }
+    float MomErrFront() { return MomErrSegment(mu2e::SurfaceIdDetail::TT_Front); }
+    float TFront     () { return TSegment     (mu2e::SurfaceIdDetail::TT_Front); }
 
     //----------------------------------------------
     // Reset the input info
@@ -59,6 +83,19 @@ namespace Mu2eEvtAna {
       track_   = nullptr;
       info_    = nullptr;
       tch_     = nullptr;
+    }
+
+    //----------------------------------------------
+    // Print the track
+    void Print(TString opt = "") {
+      opt.ToLower();
+      if(opt.Contains("banner")) {
+        std::string filler(100, '-');
+        printf("%s\n", filler.c_str());
+        printf("Idx: %5s %10s %10s %10s %10s %5s\n", "Hyp", "p", "pT", "pz", "t", "good");
+        printf("%s\n", filler.c_str());
+      }
+      printf("Idx: %5i %10.2f %10.2f %10.2f %10.1f %5i\n", FitPDG(), PFront(), PTFront(), PZFront(), TFront(), IsGood());
     }
 
     Track_t() { Reset(); }

@@ -1,6 +1,6 @@
 //
 // Mu2eEvtAna: ntuple and analysis package
-// Michael MacKenzie (2024)
+// Michael MacKenzie (2025)
 
 #ifndef MU2EEVTANA_MU2EEVTANA_HH
 #define MU2EEVTANA_MU2EEVTANA_HH
@@ -54,7 +54,7 @@ namespace Mu2eEvtAna {
     int Process(Long64_t nentries = -1, Long64_t first = 0);
     void BookHistograms(TDirectory* dir);
 
-    int  AddFile(TString file_name);
+    int  AddFile(TString file_name, Long64_t max_entries = -1);
     void SetInput(TChain* tree) { ntuple_ = tree; }
     void SetName(TString name) { name_ = name; }
 

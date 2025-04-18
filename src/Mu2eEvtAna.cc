@@ -23,7 +23,7 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Retrieve the input ntuple from the given file/file list
-  int Mu2eEvtAna::AddFile(TString file_name) {
+  int Mu2eEvtAna::AddFile(TString file_name, Long64_t max_entries) {
     if(!ntuple_) ntuple_ = new TChain("EventNtuple/ntuple");
     // Check if the given filename contains .root at the end
     if (file_name.EndsWith(".root")) { // assume it's a single file FIXME: Allow for wildcards
@@ -31,9 +31,25 @@ namespace Mu2eEvtAna {
     } else { // assume it's a file list
       std::ifstream filelist(file_name.Data());
       if (filelist.is_open()) {
+        // Count the number of input files in the text file
+        const int nfiles = std::count(std::istreambuf_iterator<char>(filelist),
+                                      std::istreambuf_iterator<char>(), '\n');
+        // Clear any error flags and reset to the beginning
+        filelist.clear();
+        filelist.seekg(0, std::ios::beg);
+
+        // Add each file to the TChain
+        if(verbose_ > -1) printf("%s: Loading file list %s with %i files\n", __func__, file_name.Data(), nfiles);
         std::string line;
+        int ifile = 0;
         while (std::getline(filelist, line)) {
+          ++ifile;
+          if(verbose_ > -1 && (ifile-1) % 10 == 0) {printf("\r%s: Loading file %3i (%.1f%%)", __func__, ifile, ifile*100./nfiles); fflush(stdout);}
           ntuple_->Add(line.c_str());
+          if(max_entries > 0 && ntuple_->GetEntries() > max_entries) {
+            if(verbose_ > -1) printf("%s: Loaded %i files of %i with %llu entries\n", __func__, ifile, nfiles, ntuple_->GetEntries());
+            break;
+          }
         }
         filelist.close();
       } else {
@@ -131,14 +147,8 @@ namespace Mu2eEvtAna {
       if(verbose_ > 0) printf("Mu2eEvtAna::%s: Filling track histogram set with null track\n", __func__);
       return;
     }
-    auto front_seg = Track->FrontSeg();
-    if(front_seg) {
-      Hist->fP[0] ->Fill(std::sqrt(front_seg->mom.mag2()), evt_.weight_);
-      Hist->fP[1] ->Fill(std::sqrt(front_seg->mom.mag2()), evt_.weight_);
-    } else {
-      Hist->fP[0] ->Fill(0.f, evt_.weight_);
-      Hist->fP[1] ->Fill(0.f, evt_.weight_);
-    }
+    Hist->fP[0] ->Fill(Track->PFront(), evt_.weight_);
+    Hist->fP[1] ->Fill(Track->PFront(), evt_.weight_);
   }
 
   //------------------------------------------------------------------------------------
@@ -207,6 +217,7 @@ namespace Mu2eEvtAna {
     for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
       InitTrack(&tracks[itrk], tracks_[itrk]);
       if(tracks_[itrk].IsGood()) ++evt_.ngoodtrks_;
+      if(verbose_ > 1) tracks_[itrk].Print((itrk == 0) ? "banner" : "");
     }
 
     if(verbose_ > 4) {
@@ -281,9 +292,9 @@ namespace Mu2eEvtAna {
     for(Long64_t entry = first; entry < max_entry; ++entry) {
       entry_ = entry;
       ntuple_->GetEntry(entry);
-      event_->Update(verbose_ > 1);
-      if((verbose_ > -1 && nseen % report_rate_ == 0) || verbose_ > 5) {
-        printf("Mu2eEvtAna::%s: Processing event %7lld (entry %8lld, event %6i/%6i/%6i): N(accept) = %7lld (%6.2f%%)\n", __func__, nseen, entry,
+      event_->Update(verbose_ > 3);
+      if((verbose_ > -1 && nseen % report_rate_ == 0) || verbose_ > 1) {
+        printf("Mu2eEvtAna::%s: Processing event %7lld (entry %8lld, event %6i/%7i/%7i): N(accept) = %7lld (%6.2f%%)\n", __func__, nseen, entry,
                event_->evtinfo->run,event_->evtinfo->subrun,event_->evtinfo->event, naccepted, naccepted*100./((nseen <= 0) ? 1 : nseen));
       }
       ++nseen;
