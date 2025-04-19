@@ -163,7 +163,7 @@ namespace Mu2eEvtAna {
     float TErrSegment  (mu2e::SurfaceIdDetail::enum_type surface) { auto seg = LHSegment(surface); return (seg) ? seg->t0err                 : -1.; }
     float RMaxSegment  (mu2e::SurfaceIdDetail::enum_type surface) { auto seg = LHSegment(surface); return (seg) ? seg->maxr                  :  0.; }
     float RadiusSegment(mu2e::SurfaceIdDetail::enum_type surface) { auto seg = LHSegment(surface); return (seg) ? std::fabs(seg->rad)        :  0.; }
-    float RMinSegment  (mu2e::SurfaceIdDetail::enum_type surface) { return std::fabs(RMaxSegment(surface) - RadiusSegment(surface)); }
+    float RMinSegment  (mu2e::SurfaceIdDetail::enum_type surface) { return std::fabs(RMaxSegment(surface) - 2.f*RadiusSegment(surface)); }
 
     float D0Segment(mu2e::SurfaceIdDetail::enum_type surface) {
       auto seg = LHSegment(surface);
