@@ -19,6 +19,7 @@
 #include "TString.h"
 #include "TH1.h"
 #include "TH2.h"
+#include "TLorentzVector.h"
 
 // Mu2e Offline includes
 
@@ -41,6 +42,7 @@
 #include "Mu2eEvtAna/inc/Norm_t.hh"
 #include "Mu2eEvtAna/inc/Event_t.hh"
 #include "Mu2eEvtAna/inc/Track_t.hh"
+#include "Mu2eEvtAna/inc/SimParticle_t.hh"
 #include "Mu2eEvtAna/inc/EventHist_t.hh"
 #include "Mu2eEvtAna/inc/TrackHist_t.hh"
 
@@ -81,10 +83,10 @@ namespace Mu2eEvtAna {
     TTree* tnorm_; //output normalization information
     Norm_t norm_; //normalization info
     TDirectory*  top_dir_;
-    TDirectory*  evt_dirs_ [kMaxEventHists];
-    EventHist_t* evt_hists_[kMaxEventHists];
-    TDirectory*  trk_dirs_ [kMaxEventHists];
-    TrackHist_t* trk_hists_[kMaxEventHists];
+    TDirectory*  evt_dirs_ [kMaxHists];
+    EventHist_t* evt_hists_[kMaxHists];
+    TDirectory*  trk_dirs_ [kMaxHists];
+    TrackHist_t* trk_hists_[kMaxHists];
 
     TString name_; //name for output file
 
@@ -93,10 +95,11 @@ namespace Mu2eEvtAna {
 
     // useful fields during processing
     Event_t evt_; //event information
-    Track_t tracks_  [kMaxTracks]; //tracks identified
-    Track_t electron_[kMaxTracks]; //electron tracks
-    Track_t muon_    [kMaxTracks]; //muon tracks
-    Track_t proton_  [kMaxTracks]; //proton tracks
+    SimParticle_t simps_[kMaxSimps ]; //Relevant sim particles
+    Track_t tracks_     [kMaxTracks]; //tracks identified
+    Track_t electron_   [kMaxTracks]; //electron tracks
+    Track_t muon_       [kMaxTracks]; //muon tracks
+    Track_t proton_     [kMaxTracks]; //proton tracks
     Long64_t entry_; //current entry
 
     // Timer info

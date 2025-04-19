@@ -7,12 +7,15 @@
 
 // ROOT includes
 #include "Rtypes.h"
+#include "TString.h"
 
 // Event Ntuple includes
 #include "EventNtuple/inc/TrkInfo.hh"
 #include "EventNtuple/inc/TrkCaloHitInfo.hh"
 #include "EventNtuple/inc/TrkSegInfo.hh"
 #include "EventNtuple/inc/LoopHelixInfo.hh"
+#include "EventNtuple/inc/SimInfo.hh"
+
 #include "EventNtuple/utils/rooutil/inc/Track.hh"
 
 // local includes
@@ -56,9 +59,9 @@ namespace Mu2eEvtAna {
       const int abs_pdg = std::abs(pdg);
       const bool negative = std::signbit(pdg); // true if negative
       switch(abs_pdg) {
-      case 11: case 13: case 15: case 211:
+      case 11: case 13: case 15:
         return (negative) ?  1 : -1;
-      case 2212:
+      case 211: case 2212:
         return (negative) ? -1 :  1;
       case 0: return 0;
       default:
@@ -68,10 +71,39 @@ namespace Mu2eEvtAna {
       return 0;
     }
 
-    int MCPDG() { return 0; }
+    //----------------------------------------------
+    // MC Particle info
+    mu2e::SimInfo* SimInfo() {
+      if(!track_) return nullptr;
+      if(!track_->trkmcsim) return nullptr;
+
+      // Find the sim particle with the most active hits
+      int max_hits(-1);
+      mu2e::SimInfo* sim_info(nullptr);
+      for(auto& info : *(track_->trkmcsim)) {
+        if(info.nactive > max_hits) {
+          max_hits = info.nactive;
+          sim_info = &info;
+        }
+      }
+      return sim_info;
+    }
+
+    int MCPDG    () { auto sim_info = SimInfo(); return (sim_info) ? sim_info->pdg            : 0; }
+    int MCHits   () { auto sim_info = SimInfo(); return (sim_info) ? sim_info->nhits          : 0; }
+    int MCActive () { auto sim_info = SimInfo(); return (sim_info) ? sim_info->nactive        : 0; }
+    int MCProcess() { auto sim_info = SimInfo(); return (sim_info) ? sim_info->startCode      : 0; }
+    int MCGenP   () { auto sim_info = SimInfo(); return (sim_info) ? sim_info->mom.r()        : 0; }
+    int MCGenE   () {
+      auto sim_info = SimInfo();
+      if(!sim_info) return 0.;
+      // Retrieve the particle mass and add it to the momentum
+      const double mass(ParticleMass(sim_info->pdg));
+      return std::sqrt(std::pow(sim_info->mom.r(), 2) + mass*mass);
+    }
 
     //----------------------------------------------
-    // Segment info
+    // Track-Calo hit retrieval
     mu2e::TrkCaloHitInfo* TCH() { return (track_) ? track_->trkcalohit : nullptr; }
 
     //----------------------------------------------
@@ -131,13 +163,14 @@ namespace Mu2eEvtAna {
     float TErrSegment  (mu2e::SurfaceIdDetail::enum_type surface) { auto seg = LHSegment(surface); return (seg) ? seg->t0err                 : -1.; }
     float RMaxSegment  (mu2e::SurfaceIdDetail::enum_type surface) { auto seg = LHSegment(surface); return (seg) ? seg->maxr                  :  0.; }
     float RadiusSegment(mu2e::SurfaceIdDetail::enum_type surface) { auto seg = LHSegment(surface); return (seg) ? std::fabs(seg->rad)        :  0.; }
+    float RMinSegment  (mu2e::SurfaceIdDetail::enum_type surface) { return std::fabs(RMaxSegment(surface) - RadiusSegment(surface)); }
 
     float D0Segment(mu2e::SurfaceIdDetail::enum_type surface) {
       auto seg = LHSegment(surface);
       // return (seg) ? seg->d0 : -1.e6;
       if(!seg) return -1.e6;
       // FIXME: Evaluating this locally to get the sign
-      const double radius = seg->rad;
+      const double radius = std::fabs(seg->rad);
       const double max_r  = seg->maxr;
       return max_r - 2.*radius;
     }
@@ -175,10 +208,11 @@ namespace Mu2eEvtAna {
     float RMaxFront  () { return RMaxSegment  (mu2e::SurfaceIdDetail::TT_Front); }
     float RadiusFront() { return RadiusSegment(mu2e::SurfaceIdDetail::TT_Front); }
 
-    float MCPFront   () { return MCPSegment   (mu2e::SurfaceIdDetail::TT_Front); }
-    float MCPTFront  () { return MCPTSegment  (mu2e::SurfaceIdDetail::TT_Front); }
-    float MCPZFront  () { return MCPZSegment  (mu2e::SurfaceIdDetail::TT_Front); }
-    float MCTFront   () { return MCTSegment   (mu2e::SurfaceIdDetail::TT_Front); }
+    float MCPFront     () { return MCPSegment   (mu2e::SurfaceIdDetail::TT_Front); }
+    float MCPTFront    () { return MCPTSegment  (mu2e::SurfaceIdDetail::TT_Front); }
+    float MCPZFront    () { return MCPZSegment  (mu2e::SurfaceIdDetail::TT_Front); }
+    float MCTFront     () { return MCTSegment   (mu2e::SurfaceIdDetail::TT_Front); }
+    float MCDeltaPFront() { return PFront() - MCPFront(); }
 
     //----------------------------------------------
     // Track kinematics at the tracker middle
@@ -219,6 +253,12 @@ namespace Mu2eEvtAna {
     float TanDipSTBack() { return TanDipSegment(mu2e::SurfaceIdDetail::ST_Back); }
     float RMaxSTBack  () { return RMaxSegment  (mu2e::SurfaceIdDetail::ST_Back); }
 
+    float MCPSTBack     () { return MCPSegment   (mu2e::SurfaceIdDetail::ST_Back); }
+    float MCPTSTBack    () { return MCPTSegment  (mu2e::SurfaceIdDetail::ST_Back); }
+    float MCPZSTBack    () { return MCPZSegment  (mu2e::SurfaceIdDetail::ST_Back); }
+    float MCTSTBack     () { return MCTSegment   (mu2e::SurfaceIdDetail::ST_Back); }
+    float MCDeltaPSTBack() { return PSTBack() - MCPSTBack(); }
+
     //----------------------------------------------
     // Track CaloHit info
     float ECluster() { auto tch = TCH(); return (!tch) ?    0. : tch->edep  ; }
@@ -254,13 +294,14 @@ namespace Mu2eEvtAna {
     void Print(TString opt = "") {
       opt.ToLower();
       if(opt.Contains("banner")) {
-        std::string filler(100, '-');
+        std::string filler(130, '-');
         printf("%s\n", filler.c_str());
-        printf("Idx: %5s %10s %10s %10s %10s %7s %6s %10s %5s %5s\n", "Hyp", "p", "pT", "pz", "t", "Ecl", "tandip", "p(MC)", "PDG", "good");
+        printf("Idx: %5s %10s %10s %10s %10s %7s %6s %10s %5s %5s %8s %8s\n", "Hyp", "p", "pT", "pz", "t", "Ecl", "tandip", "p(MC)", "PDG", "good", "fitcon", "trkqual");
         printf("%s\n", filler.c_str());
       }
-      printf("Idx: %5i %10.2f %10.2f %10.2f %10.1f %7.1f %6.2f %10.1f %5i %5i\n", FitPDG(), PFront(), PTFront(), PZFront(), TFront(), ECluster(), TanDipFront(),
-             MCPFront(), MCPDG(), IsGood());
+      if(!track_) return;
+      printf("Idx: %5i %10.2f %10.2f %10.2f %10.1f %7.1f %6.2f %10.1f %5i %5i %.2e %8.5f\n", FitPDG(), PFront(), PTFront(), PZFront(), TFront(), ECluster(), TanDipFront(),
+             MCPFront(), MCPDG(), IsGood(), FitCon(), TrkQual());
     }
 
     Track_t() { Reset(); }

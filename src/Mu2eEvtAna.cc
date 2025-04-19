@@ -9,7 +9,7 @@ namespace Mu2eEvtAna {
                                         fout_(nullptr), tout_(nullptr), tnorm_(nullptr), name_("test"),
                                         report_rate_(1000), verbose_(verbose) {
     //initialize the arrays to null
-    for(int ihist = 0; ihist < kMaxEventHists; ++ihist) {
+    for(int ihist = 0; ihist < kMaxHists; ++ihist) {
       evt_hists_[ihist] = nullptr;
       trk_hists_[ihist] = nullptr;
     }
@@ -170,7 +170,7 @@ namespace Mu2eEvtAna {
   // Initialize the histogram sets
   void Mu2eEvtAna::BookHistograms(TDirectory* dir) {
 
-    for(int ihist = 0; ihist < kMaxEventHists; ++ihist) {
+    for(int ihist = 0; ihist < kMaxHists; ++ihist) {
       if(evt_hists_[ihist]) {
         auto subdir = dir->mkdir(Form("evt_%i", ihist));
         subdir->cd();
@@ -233,7 +233,7 @@ namespace Mu2eEvtAna {
     Hist->fT0->Fill(Track->TFront(), Weight);
     Hist->fT0Err->Fill(Track->TErrFront(), Weight);
     Hist->fD0->Fill(Track->D0Front(), Weight);
-    Hist->fDP->Fill(Track->PFront()-Track->MCPFront(), Weight);
+    Hist->fDP->Fill(Track->MCDeltaPFront(), Weight);
     Hist->fChi2NDof->Fill(Track->Chi2Dof(), Weight);
     Hist->fFitCons[0]->Fill(Track->FitCon(), Weight);
     Hist->fFitCons[1]->Fill(std::log10(std::max(1.e-10f, Track->FitCon())), Weight);
@@ -292,15 +292,15 @@ namespace Mu2eEvtAna {
     // }
 
     Hist->fMCPFront->Fill(Track->MCPFront(), Weight);
-    // Hist->fMCPStOut->Fill(TrkPar->fTrack->fPStOut, Weight);
-    // Hist->fMCGenE->Fill(TrkPar->fGenE, Weight);
-    // Hist->fMCPSig->Fill((TrkPar->fTrack->fFitMomErr > 0.) ? (TrkPar->fTrack->fP - TrkPar->fTrack->fPFront) / TrkPar->fTrack->fFitMomErr : -999., Weight);
-    // Hist->fMCPdg[0]->Fill(TrkPar->fTrack->fPdgCode, Weight);
-    // Hist->fMCPdg[1]->Fill(std::abs(TrkPar->fTrack->fPdgCode), Weight);
-    // Hist->fMCStrawHits->Fill(TrkPar->fTrack->NMcStrawHits(), Weight);
-    // Hist->fMCGoodHits->Fill(TrkPar->fTrack->NGoodMcHits(), Weight);
-    // Hist->fMCTrajectory->Fill(TrkPar->fTrack->fMcDirection, Weight);
-    // Hist->fMCSimProc->Fill((TrkPar->fSimp) ? TrkPar->fSimp->CreationCode() : 0, Weight);
+    Hist->fMCPStOut->Fill(Track->MCPSTBack(), Weight);
+    Hist->fMCGenE->Fill(Track->MCGenE(), Weight);
+    Hist->fMCPSig->Fill((Track->MomErrFront() > 0.) ? Track->MCDeltaPFront() / Track->MomErrFront() : -999., Weight);
+    Hist->fMCPdg[0]->Fill(Track->MCPDG(), Weight);
+    Hist->fMCPdg[1]->Fill(std::abs(Track->MCPDG()), Weight);
+    Hist->fMCStrawHits->Fill(Track->MCHits(), Weight);
+    Hist->fMCGoodHits->Fill(Track->MCActive(), Weight);
+    Hist->fMCTrajectory->Fill((Track->MCPZFront() < 0.) ? -1 : 1, Weight);
+    Hist->fMCSimProc->Fill(Track->MCProcess(), Weight);
   }
 
   //------------------------------------------------------------------------------------
@@ -356,20 +356,45 @@ namespace Mu2eEvtAna {
     // Add tracks to the output collections
 
     // Reset the event info
-    evt_.ntracks_    = 0;
-    evt_.ngoodtrks_  = 0;
-    evt_.ntrks_id_   = 0;
-    evt_.nelectrons_ = 0;
-    evt_.nmuons_     = 0;
-    evt_.nprotons_   = 0;
+    evt_.Reset();
+
+    // Initialize the sim particle info (if available)
+    // FIXME: Currently need to do this within the track collection
 
     // Loop through the tracks
     auto tracks = event_->GetTracks();
     evt_.ntracks_ = tracks.size();
     for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
+      // First initialize any new sim particle info
+      if(tracks[itrk].trkmcsim) {
+        for(size_t index = 0; index < tracks[itrk].trkmcsim->size(); ++index) {
+          auto& simp = tracks[itrk].trkmcsim->at(index);
+          // Check if this sim particle has already been seen
+          bool found = false;
+          for(int isimp = 0; isimp < evt_.nsimps_; ++isimp) {
+            if(simp.id == simps_[isimp].id_) {
+              found = true;
+              break;
+            }
+          }
+          if(!found) {
+            if(evt_.nsimps_ + 1 >= kMaxSimps) throw std::runtime_error("Exceeded the maximum number of sim particles!\n");
+            if(verbose_ > 2) printf("%s: Adding Sim particle: ID = %2i, PDG = %5i, Start Code = %3i\n", __func__, simp.id, simp.pdg, simp.startCode);
+            auto& simp_t = simps_[evt_.nsimps_];
+            ++evt_.nsimps_;
+            simp_t.Initialize(&simp);
+          }
+        }
+      }
+
+      // Initialize the track info
       InitTrack(&tracks[itrk], tracks_[itrk]);
       if(tracks_[itrk].IsGood()) ++evt_.ngoodtrks_;
       if(verbose_ > 1) tracks_[itrk].Print((itrk == 0) ? "banner" : "");
+    }
+    // Reset remaining tracks
+    for(int itrk = evt_.ntracks_; itrk < kMaxTracks; ++itrk) {
+      tracks_[itrk].Reset();
     }
 
     if(verbose_ > 4) {
@@ -400,7 +425,9 @@ namespace Mu2eEvtAna {
       FillTrackHist(trk_hists_[0], &tracks_[itrk]);
       bool trk_id = tracks_[itrk].IsGood() && tracks_[itrk].FitPDG() == 11;
       trk_id &= tracks_[itrk].PZFront() > 0.f;
-      if(trk_id) FillTrackHist(trk_hists_[1], &tracks_[itrk]);
+      if(trk_id) {
+        FillTrackHist(trk_hists_[1], &tracks_[itrk]);
+      }
     }
 
     return false; // default to not writing output trees
