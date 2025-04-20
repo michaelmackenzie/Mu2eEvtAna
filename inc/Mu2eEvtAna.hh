@@ -50,6 +50,7 @@ using namespace mu2e;
 namespace Mu2eEvtAna {
   class Mu2eEvtAna {
   public:
+
     Mu2eEvtAna(int verbose = 0);
     virtual ~Mu2eEvtAna() {};
 
@@ -62,16 +63,37 @@ namespace Mu2eEvtAna {
 
     virtual bool ProcessEvent();
     virtual void InitializeEvent();
+    virtual void InitEvent(Event_t& evt);
     virtual void InitTrack(Track* track, Track_t& track_par);
     virtual void FillOutput();
 
     virtual int InitializeInput();
     virtual int InitializeOutput();
     virtual void AddOutputBranches(TTree* t);
-    virtual void BookEventHist(EventHist_t* Hist);
+    virtual void BookEventHist(EventHist_t* Hist, const char* Folder);
     virtual void BookTrackHist(TrackHist_t* Hist, const char* Folder);
     virtual void FillEventHist(EventHist_t* Hist);
     virtual void FillTrackHist(TrackHist_t* Hist, Track_t* Track);
+
+    virtual int TrackID(Track_t* track);
+    static TString TrackIDBitName(const int bit) {
+      switch(bit) {
+      case kP: return "P";
+      case kRMax: return "R(max)";
+      case kTrkQual: return "TrkQual";
+      case kT0: return "T_case 0}";
+      case kFitCon: return "p(#chi^2)";
+      case kClusterE: return "E_case CL}";
+      case kD0: return "D_case 0}";
+      case kTDip: return "tan(dip)";
+      case kT0Loose: return "T_case 0} (loose)";
+      case kUpstream: return "Upstream";
+      case kPID: return "PID";
+      case kCRV: return "CRV";
+      case kMC: return "MC";
+      }
+      return Form("Unknown-%i", bit);
+    }
 
     virtual TString OutputFileName() { return "evtana_" + name_ + ".root"; }
 

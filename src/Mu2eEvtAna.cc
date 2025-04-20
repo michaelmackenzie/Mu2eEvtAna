@@ -19,6 +19,7 @@ namespace Mu2eEvtAna {
     trk_hists_[0] = new TrackHist_t;
 
     trk_hists_[1] = new TrackHist_t; // good electron tracks
+    trk_hists_[2] = new TrackHist_t; // electron tracks + track ID
   }
 
   //------------------------------------------------------------------------------------
@@ -76,15 +77,36 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Initialize the histograms for an event selection
-  void Mu2eEvtAna::BookEventHist(EventHist_t* Hist) {
+  void Mu2eEvtAna::BookEventHist(EventHist_t* Hist, const char* Folder) {
     if(!Hist) {
       throw std::runtime_error("Attempting to book histograms in a null EventHist_t\n");
     }
-    Hist->hNTrks     = new TH1D("ntrks"    , "N(tracks)"  ,  10, 0,  10);
-    Hist->hNGoodTrks = new TH1D("ngoodtrks", "N(good tracks)"  ,  10, 0,  10);
-    Hist->hNIDTrks   = new TH1D("nidtrks", "N(accepted tracks)"  ,  10, 0,  10);
-    Hist->hNDigis    = new TH1D("ndigis"   , "N(digis)"   , 200, 0, 200);
-    Hist->hNClusters = new TH1D("nclusters", "N(clusters)",  10, 0,  10);
+
+    Hist->fInstLumi         = new TH1F("inst_lumi"        ,Form("%s: POT",Folder), 300,  0.0, 1.5e8);
+    Hist->fInstLumiApr      = new TH1F("inst_lumi_apr"    ,Form("%s: POT",Folder), 300,  0.0, 1.5e8);
+    Hist->fInstLumiCpr      = new TH1F("inst_lumi_cpr"    ,Form("%s: POT",Folder), 300,  0.0, 1.5e8);
+    Hist->fInstLumiAprCpr   = new TH1F("inst_lumi_apr_cpr",Form("%s: POT",Folder), 300,  0.0, 1.5e8);
+    Hist->fEventWeight[0]   = new TH1F("event_weight"     ,Form("%s: Event weight",Folder), 100, 0., 2.);
+    Hist->fEventWeight[1]   = new TH1F("event_weight_log" ,Form("%s: log10(Event weight)",Folder), 100, -20., 1.);
+    Hist->fNAprTracks       = new TH1F("nTracksApr"       ,Form("%s: nTracksApr",Folder), 50, 0.0, 50.0);
+    Hist->fNCprTracks       = new TH1F("nTracksCpr"       ,Form("%s: nTracksCpr",Folder), 50, 0.0, 50.0);
+    Hist->fNTracks          = new TH1F("nTracks"          ,Form("%s: nTracks",Folder), 50, 0.0, 50.0);
+    Hist->fNUeTracks        = new TH1F("nUeTracks"        ,Form("%s: nUeTracks",Folder), 50, 0.0, 50.0);
+    Hist->fNDmuTracks       = new TH1F("nDmuTracks"       ,Form("%s: nUmuTracks",Folder), 50, 0.0, 50.0);
+    Hist->fNUmuTracks       = new TH1F("nUmuTracks"       ,Form("%s: nUmuTracks",Folder), 50, 0.0, 50.0);
+    Hist->fNGoodTrks        = new TH1D("ngoodtrks"        ,Form("%s: N(good tracks)"    , Folder),  10, 0,  10);
+    Hist->fNIDTrks          = new TH1D("nidtrks"          ,Form("%s: N(accepted tracks)", Folder),  10, 0,  10);
+    Hist->fNAprHelices      = new TH1F("nHelicesApr"      ,Form("%s: nHelicesApr",Folder), 50, 0.0, 50.0);
+    Hist->fNCprHelices      = new TH1F("nHelicesCpr"      ,Form("%s: nHelicesCpr",Folder), 50, 0.0, 50.0);
+    Hist->fNHelices         = new TH1F("nHelices"         ,Form("%s: nHelices",Folder), 50, 0.0, 50.0);
+    Hist->fNCRVClusters     = new TH1F("nCRVClusters"     ,Form("%s: N(CRV clusters)",Folder), 50, 0.0, 50.0);
+    Hist->fNGoodCRVClusters = new TH1F("nGoodCRVClusters" ,Form("%s: N(Good CRV clusters)",Folder), 50, 0.0, 50.0);
+    Hist->fNonCRVVetoID     = new TH1F("nonCRVVetoID"     ,Form("%s: Non-CRV Veto ID",Folder), 30, 0., 30.);
+    Hist->fNDigis           = new TH1D("ndigis"           ,Form("%s: N(digis)"   ,Folder), 200, 0, 200);
+    Hist->fNClusters        = new TH1D("nclusters"        ,Form("%s: N(clusters)",Folder),  10, 0,  10);
+    Hist->fPrimaryCode      = new TH1F("primary_code"     ,Form("%s: Primary process code",Folder), 200, -0.5, 199.5);
+    Hist->fPrimaryGenE      = new TH1F("primary_gene"     ,Form("%s: Primary gen energy",Folder), 500, 50., 150.);
+
   }
 
   //------------------------------------------------------------------------------------
@@ -128,14 +150,14 @@ namespace Mu2eEvtAna {
     // Initialize bin labels for the Track ID histograms
     Hist->fTrackID   ->GetXaxis()->SetBinLabel(1, "Passed");
     Hist->fExlTrackID->GetXaxis()->SetBinLabel(1, "Passed");
-    // int current_bin = 2;
-    // for(int bit = 0; bit <= Hist->fTrackID->GetNbinsX(); ++bit) {
-    //   if(!kTrackIDNames.count(bit)) continue;
-    //   TString name(kTrackIDNames[bit]);
-    //   Hist->fTrackID   ->GetXaxis()->SetBinLabel(current_bin, name.Data());
-    //   Hist->fExlTrackID->GetXaxis()->SetBinLabel(current_bin, name.Data());
-    //   ++current_bin;
-    // }
+    int current_bin = 2;
+    for(int bit = 0; bit <= Hist->fTrackID->GetNbinsX(); ++bit) {
+      TString name(TrackIDBitName(bit));
+      if(name.BeginsWith("Unknown")) continue;
+      Hist->fTrackID   ->GetXaxis()->SetBinLabel(current_bin, name.Data());
+      Hist->fExlTrackID->GetXaxis()->SetBinLabel(current_bin, name.Data());
+      ++current_bin;
+    }
 
     // Matched CRV cluster info
     Hist->fCRVDeltaT       = new TH1F("crv_deltat"       ,Form("%s: Track t_{0} - CRV t_{0}"                     ,Folder), 200, -250., 250.);
@@ -172,9 +194,10 @@ namespace Mu2eEvtAna {
 
     for(int ihist = 0; ihist < kMaxHists; ++ihist) {
       if(evt_hists_[ihist]) {
-        auto subdir = dir->mkdir(Form("evt_%i", ihist));
+        const char* folder = Form("evt_%i", ihist);
+        auto subdir = dir->mkdir(folder);
         subdir->cd();
-        BookEventHist(evt_hists_[ihist]);
+        BookEventHist(evt_hists_[ihist], folder);
         dir->cd();
         evt_dirs_[ihist] = subdir;
       }
@@ -196,11 +219,36 @@ namespace Mu2eEvtAna {
     if(!Hist) {
       throw std::runtime_error("Attempting to fill histograms in a null EventHist_t\n");
     }
-    Hist->hNTrks     ->Fill(evt_.ntracks_  , evt_.weight_);
-    Hist->hNGoodTrks ->Fill(evt_.ngoodtrks_  , evt_.weight_);
-    Hist->hNIDTrks   ->Fill(evt_.ntrks_id_   , evt_.weight_);
-    Hist->hNDigis    ->Fill(evt_.ndigis_   , evt_.weight_);
-    Hist->hNClusters ->Fill(evt_.nclusters_, evt_.weight_);
+    const double Weight(evt_.weight_);
+
+    Hist->fNTracks   ->Fill(evt_.ntracks_   , Weight);
+    Hist->fNGoodTrks ->Fill(evt_.ngoodtrks_ , Weight);
+    Hist->fNIDTrks   ->Fill(evt_.ntrks_id_  , Weight);
+    Hist->fNDigis    ->Fill(evt_.ndigis_    , Weight);
+    Hist->fNClusters ->Fill(evt_.nclusters_ , Weight);
+
+    Hist->fInstLumi->Fill(evt_.inst_lum_, Weight);
+    if (evt_.passed_apr_) { Hist->fInstLumiApr->Fill(evt_.inst_lum_, Weight); }
+    if (evt_.passed_cpr_) { Hist->fInstLumiCpr->Fill(evt_.inst_lum_, Weight); }
+    if (evt_.passed_apr_ || evt_.passed_cpr_) { Hist->fInstLumiAprCpr->Fill(evt_.inst_lum_, Weight); }
+    Hist->fEventWeight[0]->Fill(Weight);
+    Hist->fEventWeight[1]->Fill((Weight > 0.f) ? std::log10(Weight) : -1000.);
+    Hist->fNAprTracks->Fill(evt_.napr_tracks_, Weight);
+    Hist->fNCprTracks->Fill(evt_.ncpr_tracks_, Weight);
+    Hist->fNUeTracks->Fill(evt_.nue_tracks_, Weight);
+    Hist->fNDmuTracks->Fill(evt_.ndmu_tracks_, Weight);
+    Hist->fNUmuTracks->Fill(evt_.numu_tracks_, Weight);
+    Hist->fNAprHelices->Fill(evt_.napr_helices_, Weight);
+    Hist->fNCprHelices->Fill(evt_.ncpr_helices_, Weight);
+    Hist->fNHelices->Fill(evt_.noffline_helices_, Weight);
+    Hist->fNCRVClusters->Fill(evt_.ncrv_clusters_, Weight);
+    Hist->fNGoodCRVClusters->Fill(evt_.ngood_crvclusters_, Weight);
+    // // for(int bit = 0; bit < 30; ++bit) {
+    // //   if((evt_.fNonCRVVetoID & (1 << bit)) != 0) Hist->fNonCRVVetoID->Fill(bit, Weight);
+    // // }
+    // // Hist->fPrimaryCode->Fill((fPrimary) ? fPrimary->CreationCode() : 0 , Weight);
+    // // Hist->fPrimaryGenE->Fill((fPrimary) ? fPrimary->fStartMom.E()  : 0., Weight);
+
   }
 
   //------------------------------------------------------------------------------------
@@ -248,18 +296,19 @@ namespace Mu2eEvtAna {
     Hist->fEp->Fill(Track->EPFront(), Weight);
     // Hist->fBestAlg->Fill(TrkPar->fTrack->BestAlg(), Weight);
     // Hist->fAlgMask->Fill(TrkPar->fTrack->AlgMask(), Weight);
-    // if(TrkPar->fIDWord[0] == 0) {
-    //   Hist->fTrackID   ->Fill("Passed", Weight);
-    //   Hist->fExlTrackID->Fill("Passed", Weight);
-    // } else {
-    //   for(int bit = 0; bit < 30; ++bit) {
-    //     if((TrkPar->fIDWord[0] & (1 << bit)) != 0) {
-    //       TString name((kTrackIDNames.count(bit)) ? kTrackIDNames[bit] : Form("Unknown-%i", bit));
-    //       Hist->fTrackID->Fill(name.Data(), Weight);
-    //       if((TrkPar->fIDWord[0] & ~(1 << bit)) == 0) Hist->fExlTrackID->Fill(name.Data(), Weight);
-    //     }
-    //   }
-    // }
+    const int ID = Track->ID(0);
+    if(ID == 0) {
+      Hist->fTrackID   ->Fill("Passed", Weight);
+      Hist->fExlTrackID->Fill("Passed", Weight);
+    } else {
+      for(int bit = 0; bit < 30; ++bit) {
+        if((ID & (1 << bit)) != 0) {
+          TString name = TrackIDBitName(bit);
+          Hist->fTrackID->Fill(name.Data(), Weight);
+          if((ID & ~(1 << bit)) == 0) Hist->fExlTrackID->Fill(name.Data(), Weight);
+        }
+      }
+    }
 
     // auto crv_stub_par = TrkPar->fCRVStubPar;
     // if(crv_stub_par) {
@@ -352,14 +401,14 @@ namespace Mu2eEvtAna {
   //------------------------------------------------------------------------------------
   // Initialize event information
   void Mu2eEvtAna::InitializeEvent() {
-    //---------------------------------------------------
-    // Add tracks to the output collections
 
-    // Reset the event info
-    evt_.Reset();
+    // Retrieve global event info
+    InitEvent(evt_);
 
     // Initialize the sim particle info (if available)
     // FIXME: Currently need to do this within the track collection
+
+    // Add track information
 
     // Loop through the tracks
     auto tracks = event_->GetTracks();
@@ -404,6 +453,25 @@ namespace Mu2eEvtAna {
   }
 
   //------------------------------------------------------------------------------------
+  // Initialize event information
+  void Mu2eEvtAna::InitEvent(Event_t& evt) {
+    evt.Reset();
+    if(!event_) return;
+    if(event_->evtinfo) {
+      evt.run_      = event_->evtinfo->run   ;
+      evt.subrun_   = event_->evtinfo->subrun;
+      evt.event_    = event_->evtinfo->event ;
+    }
+    if(event_->evtinfomc) {
+      evt.inst_lum_ = event_->evtinfomc->nprotons;
+      evt.pb_time_  = event_->evtinfomc->pbtime  ;
+    }
+    if(event_->hitcount) {
+      evt.ndigis_   = event_->hitcount->nsd;
+    }
+  }
+
+  //------------------------------------------------------------------------------------
   // Initialize track information
   void Mu2eEvtAna::InitTrack(Track* track, Track_t& trk_par) {
     trk_par.Reset();
@@ -411,6 +479,84 @@ namespace Mu2eEvtAna {
     if(!track) return;
     trk_par.SetObs(trk_par.PFront(), 0); // default to the track momentum as the key observable
     trk_par.SetObs(trk_par.TFront(), 1); // default to the track time as the secondary key observable
+
+    // Set initial track ID info
+    trk_par.SetID(TrackID(&trk_par), 0);
+  }
+
+  //------------------------------------------------------------------------------------
+  // Track selection
+  int Mu2eEvtAna::TrackID(Track_t* track) {
+    if(!track || !track->track_) return 0;
+    int ID(0);
+    if(track->PFront() < 70. || track->PFront() > 130.)          ID += 1 << kP;
+    if(track->RMaxFront() < 430. || track->RMaxFront() > 650.)   ID += 1 << kRMax;
+    if(track->TrkQual() > -10. && track->TrkQual() < 0.2)        ID += 1 << kTrkQual;
+    if(track->TFront() < 600. || track->TFront() > 1650.)        ID += 1 << kT0;
+    if(track->FitCon() < 1.e-5)                                  ID += 1 << kFitCon;
+    if(track->ECluster() <= 0.)                                  ID += 1 << kClusterE; //require a cluster
+    const float d0_sign = track->D0Front() * track->Charge();
+    if(d0_sign < -100. || d0_sign > 60.)                         ID += 1 << kD0; //consistent with ST
+    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 1.5) ID += 1 << kTDip;
+    if(track->TFront() < 500. || track->TFront() > 1650.)        ID += 1 << kT0Loose; //for control regions
+
+    // // upstream track rejection
+    // auto us_trk = trkpar.fUpstreamTrack;
+    // if(us_trk) {
+    //   // minimal selection on the upstream track quality
+    //   if(us_trk->fFitCons > 1.e-5 &&
+    //      (us_trk->TrkQual() < -10. || us_trk->TrkQual() > 0.01)) ID += 1 << kUpstream;
+    // }
+
+    // PID rejection FIXME: Add MVA identification
+    if(track->EPFront() < 0.65)                                   ID += 1 << kPID;
+
+    // // CRV rejection
+    // if(trkpar.fCRVStubPar) {
+    //   auto stub_par = trkpar.fCRVStubPar;
+    //   const float deltat_calo = fTrack->fT0 - stub_par->fApproxTimeCaloToFront; //consider both trajectory hypotheses
+    //   const float deltat_st   = fTrack->fT0 - stub_par->fApproxTimeSTToFront  ;
+    //   const float deltatcrv = fTrack->fT0 - stub_par->fTime; //effective for upstream misreconstruction
+    //   const float min_extrap_dt(-50.f), max_extrap_dt(60.f);
+    //   if((deltat_st   > min_extrap_dt && deltat_st   < max_extrap_dt) ||
+    //      (deltat_calo > min_extrap_dt && deltat_calo < max_extrap_dt) ||
+    //      (deltatcrv > -25.f && deltatcrv < 0.f))               ID += 1 << kCRV;
+    // }
+
+    // // MC selection to match MC cuts applied to the Mock Data Samples
+    // bool mc_selection = true;
+    // if(fPrimary
+    //    && fPrimary->CreationCode() != mu2e::ProcessCode::mu2eFlatPhoton  // FIXME: don't cut on RMC photons for now
+    //    && trkpar.fTrack->Charge() < 0) {  // Only apply this to negative tracks
+    //   mc_selection &= trkpar.fGenE <= 0. || trkpar.fGenE > 95.f; // only included DIO with E > 95 MeV
+    // }
+
+    // //MC-truth cut, don't include pileup in background-specific histogramming
+    // if(fDataType == kBackground) {
+    //   bool find_match(false); //FIXME: Add MC relation field to TSimParticle to check track particle relation
+    //   switch(fBackgroundType) {
+    //   case kInternalRPC:
+    //   case kExternalRPC:
+    //   case kInternalRMC:
+    //   case kExternalRMC:
+    //   case kDIO: find_match = true; break;
+    //   default: break;
+    //   }
+    //   if(find_match) {
+    //     bool found(false);
+    //     if(fSimpBlock) {
+    //       for(int isim = 0; isim < fSimpBlock->NParticles(); ++isim) {
+    //         const auto sim = fSimpBlock->Particle(isim);
+    //         found |= track->SimID() == int(sim->GetUniqueID());
+    //         if(found) break;
+    //       }
+    //     }
+    //     mc_selection &= found;
+    //   }
+    // }
+    // if(!mc_selection)                                          ID += 1 << kMC;
+
+    return ID;
   }
 
   //------------------------------------------------------------------------------------
@@ -427,6 +573,8 @@ namespace Mu2eEvtAna {
       trk_id &= tracks_[itrk].PZFront() > 0.f;
       if(trk_id) {
         FillTrackHist(trk_hists_[1], &tracks_[itrk]);
+        const int ID = tracks_[itrk].ID();
+        if(ID == 0) FillTrackHist(trk_hists_[2], &tracks_[itrk]);
       }
     }
 

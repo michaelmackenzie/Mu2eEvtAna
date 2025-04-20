@@ -7,9 +7,20 @@
 
 // ROOT includes
 #include "Rtypes.h"
+#include "TString.h"
 
 namespace Mu2eEvtAna {
   enum {kMaxTracks = 50, kMaxSimps = 20, kMaxHists = 10000, kMaxObservables = 10};
+
+  // Track selection info
+  enum {kMaxTrackIDs = 20};
+  // track selection bits
+  enum {
+    kP = 0, kRMax = 1, kTrkQual = 2, kT0 = 3, kFitCon = 4,
+    kClusterE = 5, kD0 = 6, kTDip = 7, kT0Loose = 8,
+    kUpstream = 10, kPID = 11,
+    kCRV = 15, kMC = 20
+  };
 
   // Particle data
   static double ParticleMass(const int pdg) {

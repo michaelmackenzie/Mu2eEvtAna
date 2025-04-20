@@ -23,7 +23,11 @@
 
 namespace Mu2eEvtAna {
   struct Track_t {
+
     Track*   track_             = nullptr; // pointer to the EventNtuple::Track object
+
+    // Track IDs
+    int id_[kMaxTrackIDs];
 
     // Fit observables
     double obs_[kMaxObservables];
@@ -272,6 +276,17 @@ namespace Mu2eEvtAna {
     }
 
     //----------------------------------------------
+    // Accessing/setting the track IDs
+    void SetID(const int ID, const int index = 0) {
+      if(index < 0 || index >= kMaxTrackIDs) throw std::runtime_error(Form("Accessing a track ID index (%i) out of bounds!", index));
+      id_[index] = ID;
+    }
+    int ID(const int index = 0) {
+      if(index < 0 || index >= kMaxTrackIDs) throw std::runtime_error(Form("Accessing track ID index (%i) out of bounds!", index));
+      return id_[index];
+    }
+
+    //----------------------------------------------
     // Accessing/setting the observable
     void SetObs(const double val, const int index = 0) {
       if(index < 0 || index >= kMaxObservables) throw std::runtime_error(Form("Accessing an observable index (%i) out of bounds!", index));
@@ -286,6 +301,7 @@ namespace Mu2eEvtAna {
     // Reset the input info
     void Reset() {
       track_   = nullptr;
+      for(int iid = 0; iid < kMaxTrackIDs; ++iid) id_[iid] = 0;
       for(int iobs = 0; iobs < kMaxObservables; ++iobs) obs_[iobs] = 0.;
     }
 
