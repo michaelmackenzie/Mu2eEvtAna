@@ -1,9 +1,9 @@
 //
-// RMCAna: RMC analysis ntupling
+// ConvAna: Conversion search analysis ntupling/histogramming
 // Michael MacKenzie (2025)
 
-#ifndef MU2EEVTANA_RMCANA_HH
-#define MU2EEVTANA_RMCANA_HH
+#ifndef MU2EEVTANA_CONVANA_HH
+#define MU2EEVTANA_CONVANA_HH
 
 // standard includes
 
@@ -18,10 +18,10 @@
 
 using namespace mu2e;
 namespace Mu2eEvtAna {
-  class RMCAna : public Mu2eEvtAna {
+  class ConvAna : public Mu2eEvtAna {
   public:
-    RMCAna(int verbose = 0);
-    ~RMCAna() {};
+    ConvAna(int verbose = 0);
+    ~ConvAna() {};
 
     void InitHistSelections();
     bool ProcessEvent();
@@ -30,7 +30,7 @@ namespace Mu2eEvtAna {
     int InitializeInput();
     int InitializeOutput();
 
-    TString OutputFileName() { return "rmcana_" + name_ + ".root"; }
+    TString OutputFileName() { return "convana_" + name_ + ".root"; }
 
   };
 }

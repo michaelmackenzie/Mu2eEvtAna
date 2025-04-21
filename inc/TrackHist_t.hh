@@ -55,6 +55,9 @@ namespace Mu2eEvtAna {
     //Matched upstream track info
     TH1*    fUpstreamDt;
     TH1*    fUpstreamDp;
+    TH1*    fUpstreamMCTraj;
+    TH1*    fUpstreamMCDp;
+    TH1*    fUpstreamMCDt;
 
     //MC truth information
     TH1*    fMCPFront; //P(front of tracker)

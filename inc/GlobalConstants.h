@@ -10,7 +10,7 @@
 #include "TString.h"
 
 namespace Mu2eEvtAna {
-  enum {kMaxTracks = 50, kMaxSimps = 20, kMaxHists = 10000, kMaxObservables = 10};
+  enum {kMaxTracks = 50, kMaxCRVClusters = 30, kMaxSimps = 1000, kMaxHists = 10000, kMaxObservables = 10};
 
   // Track selection info
   enum {kMaxTrackIDs = 20};

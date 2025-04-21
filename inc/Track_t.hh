@@ -20,11 +20,14 @@
 
 // local includes
 #include "Mu2eEvtAna/inc/GlobalConstants.h"
+#include "Mu2eEvtAna/inc/CRVCluster_t.hh"
 
 namespace Mu2eEvtAna {
   struct Track_t {
 
-    Track*   track_             = nullptr; // pointer to the EventNtuple::Track object
+    Track*        track_        = nullptr; // pointer to the EventNtuple::Track object
+    CRVCluster_t* stub_         = nullptr; // best matched CRV cluster
+    Track_t*      upstream_     = nullptr; // pointer to a matched upstream track
 
     // Track IDs
     int id_[kMaxTrackIDs];
@@ -211,12 +214,22 @@ namespace Mu2eEvtAna {
     float TanDipFront() { return TanDipSegment(mu2e::SurfaceIdDetail::TT_Front); }
     float RMaxFront  () { return RMaxSegment  (mu2e::SurfaceIdDetail::TT_Front); }
     float RadiusFront() { return RadiusSegment(mu2e::SurfaceIdDetail::TT_Front); }
+    int   Trajectory () {
+      const float pz = PZFront();
+      if(pz == 0.f) return 0;
+      return (pz < 0.f) ? -1 : 1;
+    }
 
     float MCPFront     () { return MCPSegment   (mu2e::SurfaceIdDetail::TT_Front); }
     float MCPTFront    () { return MCPTSegment  (mu2e::SurfaceIdDetail::TT_Front); }
     float MCPZFront    () { return MCPZSegment  (mu2e::SurfaceIdDetail::TT_Front); }
     float MCTFront     () { return MCTSegment   (mu2e::SurfaceIdDetail::TT_Front); }
     float MCDeltaPFront() { return PFront() - MCPFront(); }
+    int   MCTrajectory () {
+      const float pz = MCPZFront();
+      if(pz == 0.f) return 0;
+      return (pz < 0.f) ? -1 : 1;
+    }
 
     //----------------------------------------------
     // Track kinematics at the tracker middle
@@ -300,7 +313,9 @@ namespace Mu2eEvtAna {
     //----------------------------------------------
     // Reset the input info
     void Reset() {
-      track_   = nullptr;
+      track_    = nullptr;
+      stub_     = nullptr;
+      upstream_ = nullptr;
       for(int iid = 0; iid < kMaxTrackIDs; ++iid) id_[iid] = 0;
       for(int iobs = 0; iobs < kMaxObservables; ++iobs) obs_[iobs] = 0.;
     }

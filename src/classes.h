@@ -3,3 +3,4 @@
 #include "Mu2eEvtAna/inc/SimParticle_t.hh"
 #include "Mu2eEvtAna/inc/Mu2eEvtAna.hh"
 #include "Mu2eEvtAna/inc/RMCAna.hh"
+#include "Mu2eEvtAna/inc/ConvAna.hh"

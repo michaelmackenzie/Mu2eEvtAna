@@ -42,9 +42,11 @@
 #include "Mu2eEvtAna/inc/Norm_t.hh"
 #include "Mu2eEvtAna/inc/Event_t.hh"
 #include "Mu2eEvtAna/inc/Track_t.hh"
+#include "Mu2eEvtAna/inc/CRVCluster_t.hh"
 #include "Mu2eEvtAna/inc/SimParticle_t.hh"
 #include "Mu2eEvtAna/inc/EventHist_t.hh"
 #include "Mu2eEvtAna/inc/TrackHist_t.hh"
+#include "Mu2eEvtAna/inc/CRVHist_t.hh"
 
 using namespace mu2e;
 namespace Mu2eEvtAna {
@@ -55,7 +57,8 @@ namespace Mu2eEvtAna {
     virtual ~Mu2eEvtAna() {};
 
     int Process(Long64_t nentries = -1, Long64_t first = 0);
-    void BookHistograms(TDirectory* dir);
+    virtual void InitHistSelections();
+    virtual void BookHistograms(TDirectory* dir);
 
     int  AddFile(TString file_name, Long64_t max_entries = -1);
     void SetInput(TChain* tree) { ntuple_ = tree; }
@@ -65,6 +68,7 @@ namespace Mu2eEvtAna {
     virtual void InitializeEvent();
     virtual void InitEvent(Event_t& evt);
     virtual void InitTrack(Track* track, Track_t& track_par);
+    virtual void InitCRVCluster(CrvCoinc* stub, CRVCluster_t& stub_par);
     virtual void FillOutput();
 
     virtual int InitializeInput();
@@ -72,8 +76,10 @@ namespace Mu2eEvtAna {
     virtual void AddOutputBranches(TTree* t);
     virtual void BookEventHist(EventHist_t* Hist, const char* Folder);
     virtual void BookTrackHist(TrackHist_t* Hist, const char* Folder);
+    virtual void BookCRVHist(CRVHist_t* Hist, const char* Folder);
     virtual void FillEventHist(EventHist_t* Hist);
     virtual void FillTrackHist(TrackHist_t* Hist, Track_t* Track);
+    virtual void FillCRVHist(CRVHist_t* Hist, CRVCluster_t* Stub);
 
     virtual int TrackID(Track_t* track);
     static TString TrackIDBitName(const int bit) {
@@ -106,9 +112,11 @@ namespace Mu2eEvtAna {
     Norm_t norm_; //normalization info
     TDirectory*  top_dir_;
     TDirectory*  evt_dirs_ [kMaxHists];
-    EventHist_t* evt_hists_[kMaxHists];
     TDirectory*  trk_dirs_ [kMaxHists];
+    TDirectory*  crv_dirs_ [kMaxHists];
+    EventHist_t* evt_hists_[kMaxHists];
     TrackHist_t* trk_hists_[kMaxHists];
+    CRVHist_t*   crv_hists_[kMaxHists];
 
     TString name_; //name for output file
 
@@ -119,9 +127,12 @@ namespace Mu2eEvtAna {
     Event_t evt_; //event information
     SimParticle_t simps_[kMaxSimps ]; //Relevant sim particles
     Track_t tracks_     [kMaxTracks]; //tracks identified
-    Track_t electron_   [kMaxTracks]; //electron tracks
-    Track_t muon_       [kMaxTracks]; //muon tracks
-    Track_t proton_     [kMaxTracks]; //proton tracks
+    Track_t* de_tracks_  [kMaxTracks]; //Downstream electrons
+    Track_t* ue_tracks_  [kMaxTracks]; //Upstream electrons
+    Track_t* dmu_tracks_ [kMaxTracks]; //Downstream muons
+    Track_t* umu_tracks_ [kMaxTracks]; //Upstream muons
+
+    CRVCluster_t crv_clusters_[kMaxCRVClusters]; //CRV coincidence clusters
     Long64_t entry_; //current entry
 
     // Timer info

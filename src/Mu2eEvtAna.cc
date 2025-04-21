@@ -12,14 +12,25 @@ namespace Mu2eEvtAna {
     for(int ihist = 0; ihist < kMaxHists; ++ihist) {
       evt_hists_[ihist] = nullptr;
       trk_hists_[ihist] = nullptr;
+      crv_hists_[ihist] = nullptr;
     }
 
+    InitHistSelections();
+  }
+
+  //------------------------------------------------------------------------------------
+  // Define the histogram selections
+  void Mu2eEvtAna::InitHistSelections() {
     //Default histogram selections
     evt_hists_[0] = new EventHist_t;
     trk_hists_[0] = new TrackHist_t;
+    crv_hists_[0] = new CRVHist_t;
 
     trk_hists_[1] = new TrackHist_t; // good electron tracks
     trk_hists_[2] = new TrackHist_t; // electron tracks + track ID
+    trk_hists_[3] = new TrackHist_t; // electron tracks + track ID without CRV ID
+    trk_hists_[4] = new TrackHist_t; // electron tracks + track ID without upstream ID
+    trk_hists_[5] = new TrackHist_t; // electron tracks + track ID without CRV or upstream ID
   }
 
   //------------------------------------------------------------------------------------
@@ -172,8 +183,11 @@ namespace Mu2eEvtAna {
     Hist->fCRVdTZCRV       = new TH2F("crv_dtcrv_vs_z"   ,Form("%s: #Deltat(CRV) vs CRV Z"                       ,Folder), 250, -5000, 20000, 200,   -200,   200);
 
     // Matched upstream track info
-    Hist->fUpstreamDt      = new TH1F("us_dt",Form("%s: Upstream track #Deltat_{0}"          ,Folder), 150,  -50.,  250.);
-    Hist->fUpstreamDp      = new TH1F("us_dp",Form("%s: Upstream track #Deltap"              ,Folder), 100,  -10.,    5.);
+    Hist->fUpstreamDt      = new TH1F("us_dt"    ,Form("%s: Upstream track #Deltat_{0}"          ,Folder), 150,  -50.,  250.);
+    Hist->fUpstreamDp      = new TH1F("us_dp"    ,Form("%s: Upstream track #Deltap"              ,Folder), 100,  -10.,    5.);
+    Hist->fUpstreamMCDp    = new TH1F("us_MC_dp" ,Form("%s: Upstream MC #Deltap"                 ,Folder), 100,  -10.,    5.);
+    Hist->fUpstreamMCDt    = new TH1F("us_MC_dt" ,Form("%s: Upstream MC #Deltat_{0}"             ,Folder), 100,  -50.,  250.);
+    Hist->fUpstreamMCTraj  = new TH1F("us_MC_dir",Form("%s: Upstream MC trajectory"              ,Folder), 3,    -1.5,   1.5);
 
     // MC truth
     Hist->fMCPFront      = new TH1F("MC_PFront",Form("%s: MC track P(tracker front)"         ,Folder), 600, -300.,  300.);
@@ -186,6 +200,44 @@ namespace Mu2eEvtAna {
     Hist->fMCGoodHits    = new TH1F("MC_goodhits",Form("%s: MC Particle N(good hits)"        ,Folder), 100,    0.,  100.);
     Hist->fMCTrajectory  = new TH1F("MC_trajectory",Form("%s: MC track p_{z} trajectory"     ,Folder),   3,  -1.5,   1.5);
     Hist->fMCSimProc     = new TH1F("MC_simProc",Form("%s: MC Sim process code"              ,Folder), 200,  -0.5, 199.5);
+  }
+
+  //------------------------------------------------------------------------------------
+  // Initialize the histograms for a CRV cluster selection
+  void Mu2eEvtAna::BookCRVHist(CRVHist_t* Hist, const char* Folder) {
+    if(!Hist) {
+      throw std::runtime_error("Attempting to book histograms in a null CRVHist_t\n");
+    }
+
+    Hist->fSector                  = new TH1F("sector"     ,Form("%s: CRV sector"      ,Folder),  30,   0,    30);
+    Hist->fFirstBar                = new TH1F("fbar"       ,Form("%s: first pulse bar#",Folder), 600,   0,  6000);
+    Hist->fNPulses                 = new TH1F("npulses"    ,Form("%s: N(pulses)"       ,Folder), 100,   0,   100);
+    Hist->fNPe                     = new TH1F("npe"        ,Form("%s: N(PE)"           ,Folder), 500,   0,  5000);
+    Hist->fNPePP                   = new TH1F("npepp"      ,Form("%s: N(PE) per pulse" ,Folder), 500,   0,   500);
+    Hist->fStartTime               = new TH1F("tstart"     ,Form("%s: start time, ns"  ,Folder), 400,   0,  2000);
+    Hist->fEndTime                 = new TH1F("tend"       ,Form("%s: end time, ns"    ,Folder), 400,   0,  2000);
+    Hist->fWidth                   = new TH1F("wwidth"     ,Form("%s: width, ns"       ,Folder), 200,   0,  200);
+    Hist->fXVsZ                    = new TH2F("x_vs_z"     ,Form("%s: X vs Z"          ,Folder), 250,   -5000,20000,200,-10000,10000);
+    Hist->fYVsZ                    = new TH2F("y_vs_z"     ,Form("%s: Y vs Z"          ,Folder), 250,   -5000,20000,200,     0,4000);
+    Hist->fCorrTime                = new TH1F("correctedtime",Form("%s: corrected time",Folder), 400,0,2000);
+    Hist->fCorrTimeProp            = new TH1F("time_prop",Form("%s: time at CRV",Folder), 400,0,2000);
+    Hist->fCorrTimeToF             = new TH1F("tof",Form("%s: time of flight from CRV",Folder), 100,0,200);
+    Hist->fApproxTimeST            = new TH1F("apprx_t_st",Form("%s: time at ST center",Folder), 400,0,2000);
+    Hist->fApproxTimeCalo          = new TH1F("apprx_t_calo",Form("%s: time at Calo center",Folder), 400,0,2000);
+    Hist->fApproxTimeExtrap        = new TH1F("apprx_t_extrap",Form("%s: time at Extrapolation",Folder), 400,0,2000);
+    Hist->fApproxTimeSTToFront     = new TH1F("apprx_t_st_front",Form("%s: time at Trk front from ST center",Folder), 400,0,2000);
+    Hist->fApproxTimeCaloToFront   = new TH1F("apprx_t_calo_front",Form("%s: time at Trk front from Calo center",Folder), 400,0,2000);
+    Hist->fApproxTimeExtrapToFront = new TH1F("apprx_t_extrap_front",Form("%s: time at Trk front from extrapolation",Folder), 400,0,2000);
+    Hist->fBarsOneEnd              = new TH1F("barsoneend" ,Form("%s: one ended bars"  ,Folder),  20,    0,  20);
+    Hist->fCrvPropdT               = new TH1F("crvpropdt  ",Form("%s: dT between CorrPropTime and StartTime",Folder),200, -50, 50);
+    Hist->fNSectors                = new TH1F("nsectors"   ,Form("%s: Number of sectors in a CRV Cluster",Folder),20, 0, 20);
+    Hist->fNDiffLSectors           = new TH1F("ndifflsectors",Form("%s: Number of sectors in a CRV Cluster with different lengths",Folder),20, 0, 20);
+    Hist->fBarsTwoEnd              = new TH1F("barstwoend" ,Form("%s: two ended bars"  ,Folder),  20,    0,  20);
+    Hist->fStubSlope               = new TH1F("stub_slope" ,Form("%s: local stub slope"  ,Folder),  200,    -5,  5);
+    Hist->fStubSlopeChi2           = new TH1F("stub_slope_chi2" ,Form("%s: stub slope chi2"  ,Folder),  200,    0,  20);
+    Hist->fStubSlopeDelta          = new TH1F("stub_slope_delta",Form("%s: delta local stub slope - MC stub slope; slope_local - slope_MC"  ,Folder),  200,    -5,  5);
+    Hist->fStubQN                  = new TH1F("stub_qn"    ,Form("%s: stub qn: # of points in localXY"  ,Folder),  10,    0,  10);
+    Hist->fStubSlopeMCProduct      = new TH1F("stub_slope_prod",Form("%s: stub slope product: reco slope * MC slope"  ,Folder),  200,    -10,  10);
   }
 
   //------------------------------------------------------------------------------------
@@ -208,6 +260,14 @@ namespace Mu2eEvtAna {
         BookTrackHist(trk_hists_[ihist], folder);
         dir->cd();
         trk_dirs_[ihist] = subdir;
+      }
+      if(crv_hists_[ihist]) {
+        const char* folder = Form("crv_%i", ihist);
+        auto subdir = dir->mkdir(folder);
+        subdir->cd();
+        BookCRVHist(crv_hists_[ihist], folder);
+        dir->cd();
+        crv_dirs_[ihist] = subdir;
       }
     }
 
@@ -310,35 +370,37 @@ namespace Mu2eEvtAna {
       }
     }
 
-    // auto crv_stub_par = TrkPar->fCRVStubPar;
-    // if(crv_stub_par) {
-    //   auto crv_stub = crv_stub_par->fCluster;
-    //   const float deltat_st   = TrkPar->fTrack->fT0 - crv_stub_par->fApproxTimeSTToFront;
-    //   const float deltat_calo = TrkPar->fTrack->fT0 - crv_stub_par->fApproxTimeCaloToFront;
-    //   const float deltat_extrap = TrkPar->fTrack->fT0 - crv_stub_par->fApproxTimeExtrapToFront;
-    //   const float min_deltat = (std::fabs(deltat_st) < std::fabs(deltat_calo)) ? deltat_st : deltat_calo;
-    //   Hist->fCRVDeltaT->Fill(TrkPar->fTrack->fT0 - crv_stub_par->fCorrTime, Weight);
-    //   Hist->fCRVDeltaTCRV->Fill(TrkPar->fTrack->fT0 - crv_stub_par->fTime, Weight);
-    //   Hist->fCRVDeltaTST->Fill(deltat_st, Weight);
-    //   Hist->fCRVDeltaTCalo->Fill(deltat_calo, Weight);
-    //   Hist->fCRVDeltaTExtrap->Fill(deltat_extrap, Weight);
-    //   Hist->fCRVMinDeltaT->Fill(min_deltat, Weight);
-    //   const float x = crv_stub->Position()->X();
-    //   const float y = crv_stub->Position()->Y();
-    //   const float z = crv_stub->Position()->Z();
-    //   Hist->fCRVXZ->Fill(z,x,Weight);
-    //   Hist->fCRVYZ->Fill(z,y,Weight);
-    //   const float dt = TrkPar->fTrack->fT0 - crv_stub_par->fCorrTime;
-    //   const float dt_crv = TrkPar->fTrack->fT0 - crv_stub_par->fTime;
-    //   Hist->fCRVdTZ->Fill(z,dt,Weight);
-    //   Hist->fCRVdTZCRV->Fill(z,dt_crv,Weight);
-    // }
+    auto stub = Track->stub_;
+    if(stub) {
+      const float deltat_st     = Track->TFront() - stub->TimeViaSTBack();
+      const float deltat_calo   = Track->TFront() - stub->TimeViaCaloFront();
+      const float deltat_extrap = Track->TFront() - stub->TimeViaExtrapolation();
+      const float deltat_crv    = Track->TFront() - stub->Time();
+      const float min_deltat = (std::fabs(deltat_st) < std::fabs(deltat_calo)) ? deltat_st : deltat_calo;
+      Hist->fCRVDeltaTCRV->Fill(deltat_crv, Weight);
+      Hist->fCRVDeltaTST->Fill(deltat_st, Weight);
+      Hist->fCRVDeltaTCalo->Fill(deltat_calo, Weight);
+      Hist->fCRVDeltaTExtrap->Fill(deltat_extrap, Weight);
+      Hist->fCRVMinDeltaT->Fill(min_deltat, Weight);
+      const float x = stub->Position().x();
+      const float y = stub->Position().y();
+      const float z = stub->Position().z();
+      Hist->fCRVXZ->Fill(z,x,Weight);
+      Hist->fCRVYZ->Fill(z,y,Weight);
+      const float dt = min_deltat;
+      const float dt_crv = Track->TFront() - stub->Time();
+      Hist->fCRVdTZ->Fill(z,dt,Weight);
+      Hist->fCRVdTZCRV->Fill(z,dt_crv,Weight);
+    }
 
-    // auto us_trk = TrkPar->fUpstreamTrack;
-    // if(us_trk) {
-    //   Hist->fUpstreamDt->Fill(TrkPar->fTrack->fT0 - us_trk->fT0,Weight);
-    //   Hist->fUpstreamDp->Fill(TrkPar->fTrack->fP  - us_trk->fP ,Weight);
-    // }
+    auto us_trk = Track->upstream_;
+    if(us_trk) {
+      Hist->fUpstreamDt->Fill(Track->TFront() - us_trk->TFront(), Weight);
+      Hist->fUpstreamDp->Fill(Track->PFront() - us_trk->PFront(), Weight);
+      Hist->fUpstreamMCDp->Fill(Track->MCPFront() - us_trk->MCPFront(), Weight);
+      Hist->fUpstreamMCDt->Fill(Track->MCTFront() - us_trk->MCTFront(), Weight);
+      Hist->fUpstreamMCTraj->Fill(us_trk->MCTrajectory(), Weight);
+    }
 
     Hist->fMCPFront->Fill(Track->MCPFront(), Weight);
     Hist->fMCPStOut->Fill(Track->MCPSTBack(), Weight);
@@ -348,8 +410,56 @@ namespace Mu2eEvtAna {
     Hist->fMCPdg[1]->Fill(std::abs(Track->MCPDG()), Weight);
     Hist->fMCStrawHits->Fill(Track->MCHits(), Weight);
     Hist->fMCGoodHits->Fill(Track->MCActive(), Weight);
-    Hist->fMCTrajectory->Fill((Track->MCPZFront() < 0.) ? -1 : 1, Weight);
+    Hist->fMCTrajectory->Fill(Track->MCTrajectory(), Weight);
     Hist->fMCSimProc->Fill(Track->MCProcess(), Weight);
+  }
+
+  //------------------------------------------------------------------------------------
+  // Fill the histograms for a CRV selection
+  void Mu2eEvtAna::FillCRVHist(CRVHist_t* Hist, CRVCluster_t* Stub) {
+    if(!Hist) {
+      throw std::runtime_error(Form("Mu2eEvtAna::%s: Attempting to fill histograms in a null CRVHist_t\n", __func__));
+    }
+    if(!Stub) {
+      if(verbose_ > 0) printf("Mu2eEvtAna::%s: Filling CRV histogram set with null CRV cluster par\n", __func__);
+      return;
+    }
+    auto hit = Stub->crvHit_;
+    if(!hit) {
+      if(verbose_ > 0) printf("Mu2eEvtAna::%s: Filling CRV cluster histogram set with null CRV hit\n", __func__);
+      return;
+    }
+    const float Weight(evt_.weight_);
+    const float x(Stub->Position().x()), y(Stub->Position().y()), z(Stub->Position().z());
+    Hist->fSector                 ->Fill(Stub->SectorType()                                , Weight);
+    // Hist->fFirstBar               ->Fill(Stub->fFirstBar                                   , Weight);
+    // Hist->fNPulses                ->Fill(Stub->NPulses()                                   , Weight);
+    Hist->fNPe                    ->Fill(Stub->PEs()                                       , Weight);
+    // Hist->fNPePP                  ->Fill(CrvStubPar->fNPePP                                      , Weight);
+    Hist->fStartTime              ->Fill(Stub->TimeStart()                                 , Weight);
+    Hist->fEndTime                ->Fill(Stub->TimeEnd()                                   , Weight);
+    // Hist->fWidth                  ->Fill(width                                                   , Weight);
+    Hist->fXVsZ                   ->Fill(z,x                                                     , Weight);
+    Hist->fYVsZ                   ->Fill(z,y                                                     , Weight);
+    // Hist->fCorrTime               ->Fill(CrvStubPar->fCorrTime                                   , Weight);
+    // Hist->fCorrTimeProp           ->Fill(CrvStubPar->fCorrTimeProp                               , Weight);
+    // Hist->fCorrTimeToF            ->Fill(CrvStubPar->fCorrTimeTof                                , Weight);
+    Hist->fApproxTimeST           ->Fill(Stub->TimeAtSTBack()                                    , Weight);
+    Hist->fApproxTimeCalo         ->Fill(Stub->TimeAtCaloFront()                                 , Weight);
+    Hist->fApproxTimeExtrap       ->Fill(Stub->TimeAtExtrapolation()                             , Weight);
+    // Hist->fApproxTimeSTToFront    ->Fill(CrvStubPar->fApproxTimeSTToFront                        , Weight);
+    // Hist->fApproxTimeCaloToFront  ->Fill(CrvStubPar->fApproxTimeCaloToFront                      , Weight);
+    // Hist->fApproxTimeExtrapToFront->Fill(CrvStubPar->fApproxTimeExtrapToFront                    , Weight);
+    // Hist->fBarsOneEnd             ->Fill(CrvStubPar->fTotalBars-CrvStubPar[0].fTwoEndBars        , Weight);
+    // Hist->fCrvPropdT              ->Fill(CrvStubPar->fCorrTimeProp - CrvCluster->StartTime()     , Weight);
+    // Hist->fBarsTwoEnd             ->Fill(CrvStubPar->fTwoEndBars                                 , Weight);
+    // Hist->fNSectors               ->Fill(CrvStubPar->fNSectors                                   , Weight);
+    // Hist->fNDiffLSectors          ->Fill(CrvStubPar->fNDiffLSectors                              , Weight);
+    Hist->fStubSlope              ->Fill(Stub->Slope()                                           , Weight);
+    // Hist->fStubSlopeChi2          ->Fill(CrvStubPar->fStubSlopeChi2                              , Weight);
+    // Hist->fStubSlopeDelta         ->Fill(CrvStubPar->fStubDYDZ - CrvStubPar[0].fStubDYDZMC       , Weight);
+    // Hist->fStubQN                 ->Fill(CrvStubPar->fStubQN                                     , Weight);
+    // Hist->fStubSlopeMCProduct     ->Fill(CrvStubPar->fStubSlopeMCProduct                         , Weight);
   }
 
   //------------------------------------------------------------------------------------
@@ -408,6 +518,13 @@ namespace Mu2eEvtAna {
     // Initialize the sim particle info (if available)
     // FIXME: Currently need to do this within the track collection
 
+    // Add CRV information
+    auto crv_stubs = event_->GetCrvCoincs();
+    evt_.ncrv_clusters_ = crv_stubs.size();
+    for(int istub = 0; istub < evt_.ncrv_clusters_; ++istub) {
+      InitCRVCluster(&crv_stubs[istub], crv_clusters_[istub]);
+    }
+
     // Add track information
 
     // Loop through the tracks
@@ -440,7 +557,15 @@ namespace Mu2eEvtAna {
       InitTrack(&tracks[itrk], tracks_[itrk]);
       if(tracks_[itrk].IsGood()) ++evt_.ngoodtrks_;
       if(verbose_ > 1) tracks_[itrk].Print((itrk == 0) ? "banner" : "");
+      if(std::abs(tracks_[itrk].FitPDG()) == 11) { // electron
+        if(tracks_[itrk].PZFront() > 0.) {de_tracks_[evt_.nde_tracks_] = &tracks_[itrk]; ++evt_.nde_tracks_;}
+        else                             {ue_tracks_[evt_.nue_tracks_] = &tracks_[itrk]; ++evt_.nue_tracks_;}
+      } else if(std::abs(tracks_[itrk].FitPDG()) == 13) { // muon
+        if(tracks_[itrk].PZFront() > 0.) {dmu_tracks_[evt_.ndmu_tracks_] = &tracks_[itrk]; ++evt_.ndmu_tracks_;}
+        else                             {umu_tracks_[evt_.numu_tracks_] = &tracks_[itrk]; ++evt_.numu_tracks_;}
+      }
     }
+
     // Reset remaining tracks
     for(int itrk = evt_.ntracks_; itrk < kMaxTracks; ++itrk) {
       tracks_[itrk].Reset();
@@ -448,7 +573,59 @@ namespace Mu2eEvtAna {
 
     if(verbose_ > 4) {
       printf("Mu2eEvtAna::%s: Printing event information:\n", __func__);
-      printf(" N(tracks) = %2i\n", evt_.ntracks_);
+      printf(" N(tracks) = %2i: %2i De, %2i Ue, %2i Dmu, %2i Umu\n",
+             evt_.ntracks_, evt_.nde_tracks_,evt_.nue_tracks_,evt_.ndmu_tracks_,evt_.numu_tracks_);
+    }
+
+    // Match upstream tracks to downstream tracks
+    for(int ide = 0; ide < evt_.nde_tracks_; ++ide) {
+      Track_t* de = de_tracks_[ide];
+      Track_t* match = nullptr;
+
+      // Find the best matching upstream track
+      const float min_dt(30.f); // to avoid matching against the same helix FIXME: Reject by associated helix
+      const float max_dt(250.f);
+
+      // Check electrons
+      for(int iue = 0; iue < evt_.nue_tracks_; ++iue) {
+        Track_t* ue = ue_tracks_[iue];
+        const float dt = de->TFront() - ue->TFront();
+        if(dt > min_dt && dt < max_dt) { // candidate
+          if(!match) {match = ue; continue;}
+          // compare the two
+          const float dt_match = de->TFront() - match->TFront();
+          const float qual = ue->TrkQual();
+          const float fitcon = ue->FitCon();
+          const bool id = qual > 0.1 && fitcon > 1.e-5;
+          const bool id_match = qual > 0.1 && fitcon > 1.e-5;
+          if(id && !id_match) {match = ue; continue;}
+          if(id_match && !id) continue;
+          if(dt < dt_match) {match = ue; continue;}
+          if(fitcon > match->FitCon()) {match = ue; continue;}
+        }
+      }
+      // Check muons next
+      for(int iue = 0; iue < evt_.numu_tracks_; ++iue) {
+        Track_t* ue = umu_tracks_[iue];
+        const float dt = de->TFront() - ue->TFront();
+        if(dt > min_dt && dt < max_dt) { // candidate
+          if(!match) {match = ue; continue;}
+          // compare the two
+          const float dt_match = de->TFront() - match->TFront();
+          const float qual = ue->TrkQual();
+          const float fitcon = ue->FitCon();
+          const bool id = qual > 0.01 && fitcon > 1.e-5;
+          const bool id_match = qual > 0.01 && fitcon > 1.e-5;
+          if(id && !id_match) {match = ue; continue;}
+          if(id_match && !id) continue;
+          if(dt < dt_match) {match = ue; continue;}
+          if(fitcon > match->FitCon()) {match = ue; continue;}
+        }
+      }
+      de->upstream_ = match;
+
+      // Set track ID info after CRV cluster and upstream track matching
+      de->SetID(TrackID(de), 0);
     }
   }
 
@@ -480,8 +657,38 @@ namespace Mu2eEvtAna {
     trk_par.SetObs(trk_par.PFront(), 0); // default to the track momentum as the key observable
     trk_par.SetObs(trk_par.TFront(), 1); // default to the track time as the secondary key observable
 
-    // Set initial track ID info
+    // Check for matching CRV clusters
+    CRVCluster_t* match(nullptr);
+    const float max_match_time(250.f); // time window to consider matching within
+    const float trk_time(trk_par.TFront());
+    float match_min_time(1.e10);
+    for(int icrv = 0; icrv < evt_.ncrv_clusters_; ++icrv) {
+      CRVCluster_t* stub = &crv_clusters_[icrv];
+      // approximate track time assuming path through the calo
+      const float time_cal(stub->TimeViaCaloFront());
+      // approximate track time assuming path through the ST (with rebounding add on if needed)
+      const float time_st (stub->TimeViaSTBack());
+      const float min_time = std::min(std::fabs(time_cal - trk_time), std::fabs(time_st - trk_time));
+      if(min_time < max_match_time) {
+        if(!match || min_time < match_min_time) {
+          match = stub;
+          match_min_time = min_time;
+        }
+      }
+    }
+    trk_par.stub_ = match;
+
+    // Initial track ID
     trk_par.SetID(TrackID(&trk_par), 0);
+  }
+
+  //------------------------------------------------------------------------------------
+  // Initialize CRV stub information
+  void Mu2eEvtAna::InitCRVCluster(CrvCoinc* stub, CRVCluster_t& stub_par) {
+    stub_par.Reset();
+    if(!stub) return;
+    stub_par.crvHit_ = stub->reco;
+    stub_par.crvHitMC_ = stub->mc;
   }
 
   //------------------------------------------------------------------------------------
@@ -500,28 +707,28 @@ namespace Mu2eEvtAna {
     if(track->TanDipFront() < 0.5 || track->TanDipFront() > 1.5) ID += 1 << kTDip;
     if(track->TFront() < 500. || track->TFront() > 1650.)        ID += 1 << kT0Loose; //for control regions
 
-    // // upstream track rejection
-    // auto us_trk = trkpar.fUpstreamTrack;
-    // if(us_trk) {
-    //   // minimal selection on the upstream track quality
-    //   if(us_trk->fFitCons > 1.e-5 &&
-    //      (us_trk->TrkQual() < -10. || us_trk->TrkQual() > 0.01)) ID += 1 << kUpstream;
-    // }
+    // upstream track rejection
+    auto us_trk = track->upstream_;
+    if(us_trk) {
+      // minimal selection on the upstream track quality
+      if(us_trk->FitCon() > 1.e-5 &&
+         (us_trk->TrkQual() < -10. || us_trk->TrkQual() > 0.01)) ID += 1 << kUpstream;
+    }
 
     // PID rejection FIXME: Add MVA identification
     if(track->EPFront() < 0.65)                                   ID += 1 << kPID;
 
-    // // CRV rejection
-    // if(trkpar.fCRVStubPar) {
-    //   auto stub_par = trkpar.fCRVStubPar;
-    //   const float deltat_calo = fTrack->fT0 - stub_par->fApproxTimeCaloToFront; //consider both trajectory hypotheses
-    //   const float deltat_st   = fTrack->fT0 - stub_par->fApproxTimeSTToFront  ;
-    //   const float deltatcrv = fTrack->fT0 - stub_par->fTime; //effective for upstream misreconstruction
-    //   const float min_extrap_dt(-50.f), max_extrap_dt(60.f);
-    //   if((deltat_st   > min_extrap_dt && deltat_st   < max_extrap_dt) ||
-    //      (deltat_calo > min_extrap_dt && deltat_calo < max_extrap_dt) ||
-    //      (deltatcrv > -25.f && deltatcrv < 0.f))               ID += 1 << kCRV;
-    // }
+    // CRV rejection
+    if(track->stub_) {
+      auto stub = track->stub_;
+      const float deltat_st     = track->TFront() - stub->TimeViaSTBack();
+      const float deltat_calo   = track->TFront() - stub->TimeViaCaloFront();
+      const float deltat_crv    = track->TFront() - stub->Time();
+      const float min_extrap_dt(-50.f), max_extrap_dt(60.f);
+      if((deltat_st   > min_extrap_dt && deltat_st   < max_extrap_dt) ||
+         (deltat_calo > min_extrap_dt && deltat_calo < max_extrap_dt) ||
+         (deltat_crv > -25.f && deltat_crv < 0.f))               ID += 1 << kCRV;
+    }
 
     // // MC selection to match MC cuts applied to the Mock Data Samples
     // bool mc_selection = true;
@@ -567,15 +774,32 @@ namespace Mu2eEvtAna {
       printf("Mu2eEvtAna::%s: Printing event information:\n", __func__);
     }
     FillEventHist(evt_hists_[0]); //all events with well defined inputs
-    for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) { // all tracks
-      FillTrackHist(trk_hists_[0], &tracks_[itrk]);
+
+    // Loop through the track collection
+    for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
+      FillTrackHist(trk_hists_[0], &tracks_[itrk]); // all tracks
       bool trk_id = tracks_[itrk].IsGood() && tracks_[itrk].FitPDG() == 11;
       trk_id &= tracks_[itrk].PZFront() > 0.f;
       if(trk_id) {
         FillTrackHist(trk_hists_[1], &tracks_[itrk]);
         const int ID = tracks_[itrk].ID();
+        const int id_no_crv = ID & (~(1 << kCRV)); //ID without the CRV coincidence cluster considered
+        const int id_no_us  = ID & (~(1 << kUpstream)); //ID without the upstream track veto
+        const int id_no_us_crv  = id_no_crv & id_no_us; //ID without the upstream track veto or CRV veto
+        // const int id_no_time = ID & (~(1 << kT0)); //ID with a looser timing cut
+        // const int id_no_crv_time = id_no_crv & id_no_time;
+        // const int id_no_mc_cut = ID & (~(1 << kMC)); //ID without the MC cuts
+        // const bool mc_cut = (ID & (1 << kMC)) == 0; // only check the MC bit
         if(ID == 0) FillTrackHist(trk_hists_[2], &tracks_[itrk]);
+        if(id_no_crv == 0) FillTrackHist(trk_hists_[3], &tracks_[itrk]);
+        if(id_no_us == 0) FillTrackHist(trk_hists_[4], &tracks_[itrk]);
+        if(id_no_us_crv == 0) FillTrackHist(trk_hists_[5], &tracks_[itrk]);
       }
+    }
+
+    // Loop through the CRV stub collection
+    for(int icrv = 0; icrv < evt_.ncrv_clusters_; ++icrv) {
+      FillCRVHist(crv_hists_[0], &crv_clusters_[icrv]); // all clusters
     }
 
     return false; // default to not writing output trees
