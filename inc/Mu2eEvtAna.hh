@@ -135,6 +135,9 @@ namespace Mu2eEvtAna {
     CRVCluster_t crv_clusters_[kMaxCRVClusters]; //CRV coincidence clusters
     Long64_t entry_; //current entry
 
+    Long64_t        cache_size_   = 200000000U; //200MB cache by default
+    Bool_t          load_baskets_ = true;
+
     // Timer info
     struct Time_t {
       TString name;
@@ -150,8 +153,10 @@ namespace Mu2eEvtAna {
       }
       void SetTime() { last_time = std::chrono::steady_clock::now(); }
       void Reset()   { duration = 0.; count = 0; }
-      double AvgTime() { return (count > 0) ? (duration/1.e6) / count : 0.; }
-      double AvgRate() { return (duration > 0.) ? count / (duration/1.e6) : 0.; }
+      unsigned Count() { return count; }
+      double Time()    { return duration / 1.e6; }
+      double AvgTime() { return (count > 0) ? Time() / count : 0.; }
+      double AvgRate() { return (duration > 0.) ? count / Time() : 0.; }
     };
     std::map<TString, Time_t> timers_; // for tracking processing time
     Time_t& Timer(TString name) {

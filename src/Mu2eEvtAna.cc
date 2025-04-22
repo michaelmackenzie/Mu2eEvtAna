@@ -14,8 +14,6 @@ namespace Mu2eEvtAna {
       trk_hists_[ihist] = nullptr;
       crv_hists_[ihist] = nullptr;
     }
-
-    InitHistSelections();
   }
 
   //------------------------------------------------------------------------------------
@@ -82,6 +80,7 @@ namespace Mu2eEvtAna {
       return -1;
     }
     event_ = new Event(ntuple_);
+    if(load_baskets_) ntuple_->LoadBaskets(2.*cache_size_);
     if(verbose_ > 1) printf("Mu2eEvtAna::%s: Initialized input data\n", __func__);
     return 0;
   }
@@ -496,6 +495,7 @@ namespace Mu2eEvtAna {
     tnorm_->Branch("nneg"   , &norm_.nneg_   );
 
     // Initialize histograms
+    InitHistSelections();
     BookHistograms(top_dir_);
 
     if(verbose_ > 1) printf("Mu2eEvtAna::%s: Created output file and trees/histograms\n", __func__);
@@ -771,7 +771,6 @@ namespace Mu2eEvtAna {
   //------------------------------------------------------------------------------------
   // Main event-by-event processing
   bool Mu2eEvtAna::ProcessEvent() {
-    timers_["Event"].Increment();
     if(verbose_ > 4) {
       printf("Mu2eEvtAna::%s: Printing event information:\n", __func__);
     }
@@ -848,9 +847,14 @@ namespace Mu2eEvtAna {
     const Long64_t max_entry = (nentries < 0) ? entries : std::min(entries, first+nentries);
 
     for(Long64_t entry = first; entry < max_entry; ++entry) {
+      Timer("Event").Increment();
       entry_ = entry;
+      Timer("Read").SetTime();
       ntuple_->GetEntry(entry);
+      Timer("Read").Increment();
+      Timer("Update").SetTime();
       event_->Update(verbose_ > 3);
+      Timer("Update").Increment();
       if((verbose_ > -1 && nseen % report_rate_ == 0) || verbose_ > 1) {
         printf("Mu2eEvtAna::%s: Processing event %7lld (entry %8lld, event %6i/%7i/%7i): N(accept) = %7lld (%6.2f%%) (%.0f Hz)\n", __func__, nseen, entry,
                event_->evtinfo->run,event_->evtinfo->subrun,event_->evtinfo->event, naccepted, naccepted*100./((nseen <= 0) ? 1 : nseen),
@@ -859,10 +863,13 @@ namespace Mu2eEvtAna {
       ++nseen;
 
       // Initialize event information
+      Timer("Initialize").SetTime();
       InitializeEvent();
+      Timer("Initialize").Increment();
 
       // Decide whether or not to accept the event
-      if(ProcessEvent()) {
+      const bool pass = ProcessEvent();
+      if(pass) {
         FillOutput();
         ++naccepted;
       }
@@ -888,6 +895,13 @@ namespace Mu2eEvtAna {
     if(verbose_ > -2) printf("Mu2eEvtAna::%s: Processed %8lld events, accepted %8lld (%6.2f%%)\n", __func__, nseen, naccepted,
                              naccepted*100./((nseen <= 0) ? 1 : nseen));
 
+    // Print timing information:
+    if(verbose_ > -1) {
+      for(auto timer : timers_) {
+        printf("Timer %10s: Time = %6.1f s, Avg rate = %5.1f kHz, Count = %8u\n",
+               timer.first.Data(), timer.second.Time(), timer.second.AvgRate()/1000., timer.second.Count());
+      }
+    }
     return 0;
   }
 

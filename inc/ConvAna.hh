@@ -15,15 +15,20 @@
 
 // local includes
 #include "Mu2eEvtAna/inc/Mu2eEvtAna.hh"
+#include "Mu2eEvtAna/inc/SysHist_t.hh"
+#include "Mu2eEvtAna/inc/Systematics.hh"
 
 using namespace mu2e;
 namespace Mu2eEvtAna {
   class ConvAna : public Mu2eEvtAna {
   public:
+    enum {kCRVOffset = 1000, kTimeOffset = 2000};
     ConvAna(int verbose = 0);
     ~ConvAna() {};
 
     void InitHistSelections();
+    void BookSystematicHist(SysHist_t* Hist, const char* Folder);
+    void BookHistograms(TDirectory* dir);
     bool ProcessEvent();
     void InitializeEvent();
 
@@ -32,6 +37,11 @@ namespace Mu2eEvtAna {
 
     TString OutputFileName() { return "convana_" + name_ + ".root"; }
 
+    Bool_t             fill_verbose_sys_ = false        ; // add additional info with each systematic
+
+    SysHist_t*         sys_hists_[kMaxHists]            ; // systematic histograms
+    TDirectory*        sys_dirs_ [kMaxHists]            ;
+    Systematics        systematics_                     ; // systematic information
   };
 }
 
