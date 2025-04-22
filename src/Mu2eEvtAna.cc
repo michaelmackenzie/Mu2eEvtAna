@@ -35,7 +35,7 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Retrieve the input ntuple from the given file/file list
-  int Mu2eEvtAna::AddFile(TString file_name, Long64_t max_entries) {
+  int Mu2eEvtAna::AddFile(TString file_name, Long64_t max_entries, Long64_t first_entry) {
     if(!ntuple_) ntuple_ = new TChain("EventNtuple/ntuple");
     // Check if the given filename contains .root at the end
     if (file_name.EndsWith(".root")) { // assume it's a single file FIXME: Allow for wildcards
@@ -58,7 +58,7 @@ namespace Mu2eEvtAna {
           ++ifile;
           if(verbose_ > -1 && (ifile-1) % 10 == 0) {printf("\r%s: Loading file %3i (%.1f%%)", __func__, ifile, ifile*100./nfiles); fflush(stdout);}
           ntuple_->Add(line.c_str());
-          if(max_entries > 0 && ntuple_->GetEntries() > max_entries) {
+          if(max_entries > 0 && ntuple_->GetEntries() > max_entries + first_entry) {
             if(verbose_ > -1) printf("\r%s: Loaded %i files of %i with %llu entries", __func__, ifile, nfiles, ntuple_->GetEntries());
             break;
           }
@@ -521,6 +521,7 @@ namespace Mu2eEvtAna {
     // Add CRV information
     auto crv_stubs = event_->GetCrvCoincs();
     evt_.ncrv_clusters_ = crv_stubs.size();
+    if(evt_.ncrv_clusters_ >= kMaxCRVClusters) throw std::runtime_error(Form("Exceeded the maximum number of allowed CRV clusters with %i!", evt_.ncrv_clusters_));
     for(int istub = 0; istub < evt_.ncrv_clusters_; ++istub) {
       InitCRVCluster(&crv_stubs[istub], crv_clusters_[istub]);
     }
@@ -530,6 +531,7 @@ namespace Mu2eEvtAna {
     // Loop through the tracks
     auto tracks = event_->GetTracks();
     evt_.ntracks_ = tracks.size();
+    if(evt_.ntracks_ >= kMaxTracks) throw std::runtime_error(Form("Exceeded the maximum number of allowed tracks with %i!", evt_.ntracks_));
     for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
       // First initialize any new sim particle info
       if(tracks[itrk].trkmcsim) {

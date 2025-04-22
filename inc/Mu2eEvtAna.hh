@@ -60,7 +60,7 @@ namespace Mu2eEvtAna {
     virtual void InitHistSelections();
     virtual void BookHistograms(TDirectory* dir);
 
-    int  AddFile(TString file_name, Long64_t max_entries = -1);
+    int  AddFile(TString file_name, Long64_t max_entries = -1, Long64_t first_entry = 0);
     void SetInput(TChain* tree) { ntuple_ = tree; }
     void SetName(TString name) { name_ = name; }
 
@@ -125,8 +125,8 @@ namespace Mu2eEvtAna {
 
     // useful fields during processing
     Event_t evt_; //event information
-    SimParticle_t simps_[kMaxSimps ]; //Relevant sim particles
-    Track_t tracks_     [kMaxTracks]; //tracks identified
+    SimParticle_t simps_ [kMaxSimps ]; //Relevant sim particles
+    Track_t tracks_      [kMaxTracks]; //tracks identified
     Track_t* de_tracks_  [kMaxTracks]; //Downstream electrons
     Track_t* ue_tracks_  [kMaxTracks]; //Upstream electrons
     Track_t* dmu_tracks_ [kMaxTracks]; //Downstream muons
