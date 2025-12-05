@@ -33,9 +33,9 @@
 #include "EventNtuple/inc/MVAResultInfo.hh"
 
 // Mu2e EventNtuple RooUtil includes
-#include "EventNtuple/utils/rooutil/inc/Event.hh"
-#include "EventNtuple/utils/rooutil/inc/Track.hh"
-#include "EventNtuple/utils/rooutil/inc/RooUtil.hh"
+#include "EventNtuple/rooutil/inc/Event.hh"
+#include "EventNtuple/rooutil/inc/Track.hh"
+#include "EventNtuple/rooutil/inc/RooUtil.hh"
 
 // local includes
 #include "Mu2eEvtAna/inc/GlobalConstants.h"

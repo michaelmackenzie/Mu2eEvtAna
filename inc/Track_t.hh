@@ -16,7 +16,7 @@
 #include "EventNtuple/inc/LoopHelixInfo.hh"
 #include "EventNtuple/inc/SimInfo.hh"
 
-#include "EventNtuple/utils/rooutil/inc/Track.hh"
+#include "EventNtuple/rooutil/inc/Track.hh"
 
 // local includes
 #include "Mu2eEvtAna/inc/GlobalConstants.h"
