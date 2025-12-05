@@ -35,7 +35,7 @@ namespace Mu2eEvtAna {
       const int pdg = info->pdg;
       // auto const& ptable = GlobalConstantsHandle<ParticleDataList>();
       // const double mass_ = ptable->particle(fpart_).mass();
-      const double mass(ParticleMass(pdg));
+      const double mass((std::abs(pdg) > 10000) ? 0. : ParticleMass(pdg));
       const float start_e = std::sqrt(std::pow(info->   mom.x(), 2) + std::pow(info->   mom.y(),2) + std::pow(info->   mom.z(), 2) + mass*mass);
       const float end_e   = std::sqrt(std::pow(info->endmom.x(), 2) + std::pow(info->endmom.y(),2) + std::pow(info->endmom.z(), 2) + mass*mass);
       mom_start_.SetPxPyPzE(info->mom.x(), info->mom.y(), info->mom.z(), start_e);

@@ -104,8 +104,8 @@ namespace Mu2eEvtAna {
     int MCGenE   () {
       auto sim_info = SimInfo();
       if(!sim_info) return 0.;
-      // Retrieve the particle mass and add it to the momentum
-      const double mass(ParticleMass(sim_info->pdg));
+      // Retrieve the particle mass and add it to the momentum (if available)
+      const double mass((std::abs(sim_info->pdg) > 10000) ? 0. : ParticleMass(sim_info->pdg));
       return std::sqrt(std::pow(sim_info->mom.r(), 2) + mass*mass);
     }
 
