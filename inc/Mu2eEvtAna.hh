@@ -22,6 +22,7 @@
 #include "TLorentzVector.h"
 
 // Mu2e Offline includes
+#include "Offline/Mu2eUtilities/inc/StopWatch.hh"
 
 // Mu2e EventNtuple includes
 #include "EventNtuple/inc/HitCount.hh"
@@ -35,6 +36,7 @@
 // Mu2e EventNtuple RooUtil includes
 #include "EventNtuple/rooutil/inc/Event.hh"
 #include "EventNtuple/rooutil/inc/Track.hh"
+#include "EventNtuple/rooutil/inc/Trigger.hh"
 #include "EventNtuple/rooutil/inc/RooUtil.hh"
 
 // local includes
@@ -43,7 +45,9 @@
 #include "Mu2eEvtAna/inc/Event_t.hh"
 #include "Mu2eEvtAna/inc/Track_t.hh"
 #include "Mu2eEvtAna/inc/CRVCluster_t.hh"
+#include "Mu2eEvtAna/inc/CaloCluster_t.hh"
 #include "Mu2eEvtAna/inc/SimParticle_t.hh"
+#include "Mu2eEvtAna/inc/Trigger_t.hh"
 #include "Mu2eEvtAna/inc/EventHist_t.hh"
 #include "Mu2eEvtAna/inc/TrackHist_t.hh"
 #include "Mu2eEvtAna/inc/CRVHist_t.hh"
@@ -67,8 +71,8 @@ namespace Mu2eEvtAna {
     virtual bool ProcessEvent();
     virtual void InitializeEvent();
     virtual void InitEvent(Event_t& evt);
-    virtual void InitTrack(Track* track, Track_t& track_par);
-    virtual void InitCRVCluster(CrvCoinc* stub, CRVCluster_t& stub_par);
+    virtual void InitTrack(rooutil::Track* track, Track_t& track_par);
+    virtual void InitCRVCluster(rooutil::CrvCoinc* stub, CRVCluster_t& stub_par);
     virtual void FillOutput();
 
     virtual int InitializeInput();
@@ -103,8 +107,9 @@ namespace Mu2eEvtAna {
 
     virtual TString OutputFileName() { return "evtana_" + name_ + ".root"; }
 
-    Event*  event_ ; //input TChain wrapper
+    rooutil::Event*  event_ ; //input TChain wrapper
     TChain* ntuple_; //input ntuple
+    TTree*  tree_  = nullptr; //current tree in the TChain
 
     TFile* fout_; //output file
     TTree* tout_; //output ntuple
@@ -131,6 +136,7 @@ namespace Mu2eEvtAna {
     Track_t* ue_tracks_  [kMaxTracks]; //Upstream electrons
     Track_t* dmu_tracks_ [kMaxTracks]; //Downstream muons
     Track_t* umu_tracks_ [kMaxTracks]; //Upstream muons
+    Trigger_t trigger_; //trigger information
 
     CRVCluster_t crv_clusters_[kMaxCRVClusters]; //CRV coincidence clusters
     Long64_t entry_; //current entry
@@ -138,31 +144,7 @@ namespace Mu2eEvtAna {
     Long64_t        cache_size_   = 200000000U; //200MB cache by default
     Bool_t          load_baskets_ = true;
 
-    // Timer info
-    struct Time_t {
-      TString name;
-      std::chrono::steady_clock::time_point last_time;
-      double duration ;
-      unsigned count;
-      Time_t(TString name = "default") : name(name), last_time(std::chrono::steady_clock::now()), duration(0.), count(0) {}
-      void Increment() {
-        const auto time_now = std::chrono::steady_clock::now();
-        duration += std::chrono::duration_cast<std::chrono::microseconds>(time_now-last_time).count();
-        ++count;
-        last_time = time_now;
-      }
-      void SetTime() { last_time = std::chrono::steady_clock::now(); }
-      void Reset()   { duration = 0.; count = 0; }
-      unsigned Count() { return count; }
-      double Time()    { return duration / 1.e6; }
-      double AvgTime() { return (count > 0) ? Time() / count : 0.; }
-      double AvgRate() { return (duration > 0.) ? count / Time() : 0.; }
-    };
-    std::map<TString, Time_t> timers_; // for tracking processing time
-    Time_t& Timer(TString name) {
-      if(!timers_.count(name)) timers_[name] = Time_t(name);
-      return timers_[name];
-    }
+    mu2e::StopWatch* watch_; // track processing times
   };
 }
 

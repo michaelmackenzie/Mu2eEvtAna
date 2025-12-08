@@ -25,7 +25,7 @@
 namespace Mu2eEvtAna {
   struct Track_t {
 
-    Track*        track_        = nullptr; // pointer to the EventNtuple::Track object
+    rooutil::Track* track_      = nullptr; // pointer to the EventNtuple::Track object
     CRVCluster_t* stub_         = nullptr; // best matched CRV cluster
     Track_t*      upstream_     = nullptr; // pointer to a matched upstream track
 
@@ -80,14 +80,14 @@ namespace Mu2eEvtAna {
 
     //----------------------------------------------
     // MC Particle info
-    mu2e::SimInfo* SimInfo() {
+    const mu2e::SimInfo* SimInfo() {
       if(!track_) return nullptr;
       if(!track_->trkmcsim) return nullptr;
 
       // Find the sim particle with the most active hits
       int max_hits(-1);
-      mu2e::SimInfo* sim_info(nullptr);
-      for(auto& info : *(track_->trkmcsim)) {
+      const mu2e::SimInfo* sim_info(nullptr);
+      for(const auto& info : *(track_->trkmcsim)) {
         if(info.nactive > max_hits) {
           max_hits = info.nactive;
           sim_info = &info;
@@ -111,13 +111,13 @@ namespace Mu2eEvtAna {
 
     //----------------------------------------------
     // Track-Calo hit retrieval
-    mu2e::TrkCaloHitInfo* TCH() { return (track_) ? track_->trkcalohit : nullptr; }
+    const mu2e::TrkCaloHitInfo* TCH() { return (track_) ? track_->trkcalohit : nullptr; }
 
     //----------------------------------------------
     // Segment info
-    mu2e::TrkSegInfo* Segment(mu2e::SurfaceIdDetail::enum_type surface) {
+    const mu2e::TrkSegInfo* Segment(mu2e::SurfaceIdDetail::enum_type surface) {
       if(!track_ || !track_->trksegs) return nullptr;
-      for(auto& seg : *(track_->trksegs)) {
+      for(const auto& seg : *(track_->trksegs)) {
         if(seg.sid == surface) return &seg;
       }
       return nullptr;
@@ -130,20 +130,20 @@ namespace Mu2eEvtAna {
       }
       return -1;
     }
-    mu2e::LoopHelixInfo* LHSegment(mu2e::SurfaceIdDetail::enum_type surface) {
+    const mu2e::LoopHelixInfo* LHSegment(mu2e::SurfaceIdDetail::enum_type surface) {
       if(!track_ || !track_->trksegpars_lh) return nullptr;
       const int index = SegmentIndex(surface);
       if(index < 0 || index >= int(track_->trksegpars_lh->size())) return nullptr;
       return &(track_->trksegpars_lh->at(index));
     }
-    mu2e::SurfaceStepInfo* MCSegment(mu2e::SurfaceIdDetail::enum_type surface) {
+    const mu2e::SurfaceStepInfo* MCSegment(mu2e::SurfaceIdDetail::enum_type surface) {
       if(!track_ || !track_->trksegsmc) return nullptr; // No MC info
       auto reco_seg = Segment(surface);
       if(!reco_seg) return nullptr; // Can't do anything if there's no reco info
 
       // Search for an MC segment matched to this reco segment
-      mu2e::SurfaceStepInfo* seg(nullptr);
-      for(auto& mc_seg : *(track_->trksegsmc)) {
+      const mu2e::SurfaceStepInfo* seg(nullptr);
+      for(const auto& mc_seg : *(track_->trksegsmc)) {
         if(mc_seg.sid != surface) continue;
         // Found this MC surface
         if(seg) { // check which is segment is a better match
@@ -157,7 +157,7 @@ namespace Mu2eEvtAna {
 
     //----------------------------------------------
     // Tracker front segment info
-    mu2e::TrkSegInfo* FrontSeg() { return Segment(mu2e::SurfaceIdDetail::TT_Front); }
+    const mu2e::TrkSegInfo* FrontSeg() { return Segment(mu2e::SurfaceIdDetail::TT_Front); }
 
     //----------------------------------------------
     // Track kinematics at a given surface

@@ -14,6 +14,10 @@ namespace Mu2eEvtAna {
       trk_hists_[ihist] = nullptr;
       crv_hists_[ihist] = nullptr;
     }
+
+    // create a stopwatch for processing time monitoring
+    watch_ = new mu2e::StopWatch();
+    watch_->Calibrate();
   }
 
   //------------------------------------------------------------------------------------
@@ -54,7 +58,7 @@ namespace Mu2eEvtAna {
         int ifile = 0;
         while (std::getline(filelist, line)) {
           ++ifile;
-          if(verbose_ > -1 && (ifile-1) % 10 == 0) {printf("\r%s: Loading file %3i (%.1f%%)", __func__, ifile, ifile*100./nfiles); fflush(stdout);}
+          if(verbose_ > -1 && ((ifile) % 10 == 0 || ifile >= nfiles-1)) {printf("\r%s: Loading file %3i (%5.1f%%)", __func__, ifile, ifile*100./nfiles); fflush(stdout);}
           ntuple_->Add(line.c_str());
           if(max_entries > 0 && ntuple_->GetEntries() > max_entries + first_entry) {
             if(verbose_ > -1) printf("\r%s: Loaded %i files of %i with %llu entries", __func__, ifile, nfiles, ntuple_->GetEntries());
@@ -79,8 +83,24 @@ namespace Mu2eEvtAna {
       if(verbose_ > -2) printf("Mu2eEvtAna::%s: No ntuple is defined to configure!\n", __func__);
       return -1;
     }
-    event_ = new Event(ntuple_);
-    if(load_baskets_) ntuple_->LoadBaskets(2.*cache_size_);
+
+    // Turn off branches not used by default (before Event object is created)
+    if(ntuple_->GetBranch("trkhits"        )) ntuple_->SetBranchStatus("trkhits"          , 0);
+    if(ntuple_->GetBranch("trkhitscalibs"  )) ntuple_->SetBranchStatus("trkhitscalibs"    , 0);
+    if(ntuple_->GetBranch("trkhitsmc"      )) ntuple_->SetBranchStatus("trkhitsmc"        , 0);
+    if(ntuple_->GetBranch("trkmats"        )) ntuple_->SetBranchStatus("trkmats"          , 0);
+    if(ntuple_->GetBranch("trksegpars_ch"  )) ntuple_->SetBranchStatus("trksegpars_ch"    , 0);
+    if(ntuple_->GetBranch("trksegpars_kl"  )) ntuple_->SetBranchStatus("trksegpars_kl"    , 0);
+    if(ntuple_->GetBranch("calohits"       )) ntuple_->SetBranchStatus("calohits"         , 0);
+    if(ntuple_->GetBranch("calodigis"      )) ntuple_->SetBranchStatus("calodigis"        , 0);
+    if(ntuple_->GetBranch("calorecodigis"  )) ntuple_->SetBranchStatus("calorecodigis"    , 0);
+    if(ntuple_->GetBranch("crvcoincmcplane")) ntuple_->SetBranchStatus("crvcoincmcplane"  , 0);
+
+    event_ = new rooutil::Event(ntuple_);
+    if(load_baskets_) ntuple_->LoadBaskets(cache_size_);
+
+    trigger_.trig_ = &(event_->trigger);
+
     if(verbose_ > 1) printf("Mu2eEvtAna::%s: Initialized input data\n", __func__);
     return 0;
   }
@@ -648,11 +668,13 @@ namespace Mu2eEvtAna {
     if(event_->hitcount) {
       evt.ndigis_   = event_->hitcount->nsd;
     }
+    evt.passed_apr_ = trigger_.FiredAPR();
+    evt.passed_cpr_ = trigger_.FiredCPR();
   }
 
   //------------------------------------------------------------------------------------
   // Initialize track information
-  void Mu2eEvtAna::InitTrack(Track* track, Track_t& trk_par) {
+  void Mu2eEvtAna::InitTrack(rooutil::Track* track, Track_t& trk_par) {
     trk_par.Reset();
     trk_par.track_ = track;
     if(!track) return;
@@ -686,7 +708,7 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Initialize CRV stub information
-  void Mu2eEvtAna::InitCRVCluster(CrvCoinc* stub, CRVCluster_t& stub_par) {
+  void Mu2eEvtAna::InitCRVCluster(rooutil::CrvCoinc* stub, CRVCluster_t& stub_par) {
     stub_par.Reset();
     if(!stub) return;
     stub_par.crvHit_ = stub->reco;
@@ -847,25 +869,43 @@ namespace Mu2eEvtAna {
     const Long64_t max_entry = (nentries < 0) ? entries : std::min(entries, first+nentries);
 
     for(Long64_t entry = first; entry < max_entry; ++entry) {
-      Timer("Event").Increment();
+      watch_->Increment("Event");
       entry_ = entry;
-      Timer("Read").SetTime();
+      watch_->SetTime("Read");
       ntuple_->GetEntry(entry);
-      Timer("Read").Increment();
-      Timer("Update").SetTime();
+      if(ntuple_->GetTree() != tree_) { // new input tree
+        tree_ = ntuple_->GetTree();
+        if(verbose_ > -1) printf("Mu2eEvtAna::%s: Opened input file: %s\n", __func__, ntuple_->GetCurrentFile()->GetName());
+        if(load_baskets_) {
+          watch_->SetTime("LoadBaskets");
+          tree_->LoadBaskets(cache_size_);
+          watch_->StopTime("LoadBaskets");
+        }
+      }
+      watch_->StopTime("Read");
+      watch_->SetTime("Update");
       event_->Update(verbose_ > 3);
-      Timer("Update").Increment();
+      watch_->StopTime("Update");
       if((verbose_ > -1 && nseen % report_rate_ == 0) || verbose_ > 1) {
-        printf("Mu2eEvtAna::%s: Processing event %7lld (entry %8lld, event %6i/%7i/%7i): N(accept) = %7lld (%6.2f%%) (%.0f Hz)\n", __func__, nseen, entry,
+        const Long64_t nremaining = max_entry - entry;
+        const auto& timer = watch_->Timer("Event");
+        double est_time = timer.AvgTime() / 1.e6 * nremaining; // in seconds
+        TString unit = "s";
+        if(est_time > 120.) {
+          est_time /= 60.;
+          unit = "min";
+        }
+        double percent_remaining = nremaining * 100./((max_entry - first + 1 > 0) ? (max_entry - first + 1) : 1);
+        printf("Mu2eEvtAna::%s: Processing event %7lld (entry %8lld, event %6i/%7i/%7i): N(accept) = %7lld (%6.2f%%) (%.0f Hz), %5.1f%% remaining (%.2f %s)\n", __func__, nseen, entry,
                event_->evtinfo->run,event_->evtinfo->subrun,event_->evtinfo->event, naccepted, naccepted*100./((nseen <= 0) ? 1 : nseen),
-               Timer("Event").AvgRate());
+               timer.AvgRate(), percent_remaining, est_time, unit.Data());
       }
       ++nseen;
 
       // Initialize event information
-      Timer("Initialize").SetTime();
+      watch_->SetTime("Initialize");
       InitializeEvent();
-      Timer("Initialize").Increment();
+      watch_->StopTime("Initialize");
 
       // Decide whether or not to accept the event
       const bool pass = ProcessEvent();
@@ -874,6 +914,7 @@ namespace Mu2eEvtAna {
         ++naccepted;
       }
     }
+    watch_->StopTime("Event");
 
     //---------------------------------------------------
     // Store the normalization information for the ntuple
@@ -897,10 +938,7 @@ namespace Mu2eEvtAna {
 
     // Print timing information:
     if(verbose_ > -1) {
-      for(auto timer : timers_) {
-        printf("Timer %10s: Time = %6.1f s, Avg rate = %5.1f kHz, Count = %8u\n",
-               timer.first.Data(), timer.second.Time(), timer.second.AvgRate()/1000., timer.second.Count());
-      }
+      watch_->Print(std::cout);
     }
     return 0;
   }
