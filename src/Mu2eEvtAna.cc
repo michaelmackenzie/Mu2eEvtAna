@@ -162,7 +162,7 @@ namespace Mu2eEvtAna {
     }
     Hist->fP[0]        = new TH1F("p"           ,Form("%s: Track momentum"                       ,Folder),  300,    0.,  150.);
     Hist->fP[1]        = new TH1F("p_2"         ,Form("%s: Track momentum"                       ,Folder),  400,   80.,  120.);
-    Hist->fObs         = new TH1F("obs"         ,Form("%s: Track momentum"                       ,Folder),  150,   80.,  110.); // fit histogram
+    Hist->fObs         = new TH1F("obs"         ,Form("%s: Track momentum"                       ,Folder),  300,   80.,  110.); // fit histogram
     Hist->fPt          = new TH1F("pt"          ,Form("%s: track transverse momentum"            ,Folder),  300,    0.,  300.);
     Hist->fPCorr       = new TH1F("p_corr"      ,Form("%s: corrected track momentum"             ,Folder),  600,   80.,  110.);
     Hist->fPCenter[0]  = new TH1F("pCenter"     ,Form("%s: track momentum at tracker center"     ,Folder),  600, -300.,  300.);

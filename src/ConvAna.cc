@@ -10,6 +10,24 @@ namespace Mu2eEvtAna {
     for(int ihist = 0; ihist < kMaxHists; ++ihist) {
       sys_hists_[ihist] = nullptr;
     }
+
+    // Initialize the MVA models
+
+    trkqual_ = new TMVA::Reader("!Color:!Silent");
+    MVATools::InitializeVariables(*trkqual_, "TrkQual", tree_, trkqual_version_);
+    trkqual_->BookMVA("TrkQual", "Mu2eEvtAna/data/trkqual_MLP.weights.xml");
+
+    pid_ = new TMVA::Reader("!Color:!Silent");
+    MVATools::InitializeVariables(*pid_, "PID", tree_, pid_version_);
+    pid_->BookMVA("PID", "Mu2eEvtAna/data/pid_MLP.weights.xml");
+
+    trkpid_ = new TMVA::Reader("!Color:!Silent");
+    MVATools::InitializeVariables(*trkpid_, "TrkPID", tree_, trkpid_version_);
+    trkpid_->BookMVA("TrkPID", "Mu2eEvtAna/data/trkpid_MLP.weights.xml");
+
+    cosmic_id_ = new TMVA::Reader("!Color:!Silent");
+    MVATools::InitializeVariables(*cosmic_id_, "CosmicID", tree_, cosmic_id_version_);
+    cosmic_id_->BookMVA("CosmicID", "Mu2eEvtAna/data/cosmicid_MLP.weights.xml");
   }
 
 
@@ -107,7 +125,7 @@ namespace Mu2eEvtAna {
       // check if the systematic is defined
       TString name = systematics_.GetName(isys);
       if(name == "") continue;
-      Hist->fObs[isys] = new TH1F(Form("obs_%i", isys),Form("%s: Systematic %s",Folder, name.Data()), 150, 80., 110.); //FIXME: This should inherit from the nominal observable binning
+      Hist->fObs[isys] = new TH1F(Form("obs_%i", isys),Form("%s: Systematic %s",Folder, name.Data()), 300, 80., 110.); //FIXME: This should inherit from the nominal observable binning
       // For debug investigations
       if(fill_verbose_sys_) {
         Hist->fDeltaObs   [isys] = new TH1F(Form("delta_obs_%i"   , isys),Form("%s: Systematic %s: #DeltaObs"   ,Folder, name.Data()), 100, -2., 2.);

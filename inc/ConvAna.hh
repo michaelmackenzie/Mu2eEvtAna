@@ -17,6 +17,8 @@
 #include "Mu2eEvtAna/inc/Mu2eEvtAna.hh"
 #include "Mu2eEvtAna/inc/SysHist_t.hh"
 #include "Mu2eEvtAna/inc/Systematics.hh"
+#include "Mu2eEvtAna/inc/Tree_t.hh"
+#include "Mu2eEvtAna/inc/MVATools.hh"
 
 using namespace mu2e;
 namespace Mu2eEvtAna {
@@ -42,6 +44,18 @@ namespace Mu2eEvtAna {
     SysHist_t*         sys_hists_[kMaxHists]            ; // systematic histograms
     TDirectory*        sys_dirs_ [kMaxHists]            ;
     Systematics        systematics_                     ; // systematic information
+
+    Tree_t             tree_                            ; // selected data
+
+    int evaluate_mvas_ = 0;
+    TMVA::Reader* trkqual_ = nullptr;
+    int trkqual_version_ = 0;
+    TMVA::Reader* pid_ = nullptr;
+    int pid_version_ = 0;
+    TMVA::Reader* trkpid_ = nullptr;
+    int trkpid_version_ = 0;
+    TMVA::Reader* cosmic_id_ = nullptr;
+    int cosmic_id_version_ = 0;
   };
 }
 

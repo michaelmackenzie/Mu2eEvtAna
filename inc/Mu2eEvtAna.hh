@@ -21,6 +21,14 @@
 #include "TH2.h"
 #include "TLorentzVector.h"
 
+#if not defined(__CINT__) || defined(__MAKECINT__)
+// needs to be included when makecint runs (ACLIC)
+#include "TMVA/DataLoader.h"
+#include "TMVA/Factory.h"
+#include "TMVA/Reader.h"
+#include "TMVA/Tools.h"
+#endif
+
 // Mu2e Offline includes
 #include "Offline/Mu2eUtilities/inc/StopWatch.hh"
 
