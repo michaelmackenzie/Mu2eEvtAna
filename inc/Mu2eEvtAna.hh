@@ -50,6 +50,7 @@
 #include "Mu2eEvtAna/inc/Trigger_t.hh"
 #include "Mu2eEvtAna/inc/EventHist_t.hh"
 #include "Mu2eEvtAna/inc/TrackHist_t.hh"
+#include "Mu2eEvtAna/inc/CaloClusterHist_t.hh"
 #include "Mu2eEvtAna/inc/CRVHist_t.hh"
 
 using namespace mu2e;
@@ -72,6 +73,7 @@ namespace Mu2eEvtAna {
     virtual void InitializeEvent();
     virtual void InitEvent(Event_t& evt);
     virtual void InitTrack(rooutil::Track* track, Track_t& track_par);
+    virtual void InitCaloCluster(rooutil::CaloCluster* calo, CaloCluster_t& cls_par);
     virtual void InitCRVCluster(rooutil::CrvCoinc* stub, CRVCluster_t& stub_par);
     virtual void FillOutput();
 
@@ -80,9 +82,11 @@ namespace Mu2eEvtAna {
     virtual void AddOutputBranches(TTree* t);
     virtual void BookEventHist(EventHist_t* Hist, const char* Folder);
     virtual void BookTrackHist(TrackHist_t* Hist, const char* Folder);
+    virtual void BookCaloClusterHist(CaloClusterHist_t* Hist, const char* Folder);
     virtual void BookCRVHist(CRVHist_t* Hist, const char* Folder);
     virtual void FillEventHist(EventHist_t* Hist);
     virtual void FillTrackHist(TrackHist_t* Hist, Track_t* Track);
+    virtual void FillCaloClusterHist(CaloClusterHist_t* Hist, CaloCluster_t* Cluster);
     virtual void FillCRVHist(CRVHist_t* Hist, CRVCluster_t* Stub);
 
     virtual int TrackID(Track_t* track);
@@ -115,13 +119,15 @@ namespace Mu2eEvtAna {
     TTree* tout_; //output ntuple
     TTree* tnorm_; //output normalization information
     Norm_t norm_; //normalization info
-    TDirectory*  top_dir_;
-    TDirectory*  evt_dirs_ [kMaxHists];
-    TDirectory*  trk_dirs_ [kMaxHists];
-    TDirectory*  crv_dirs_ [kMaxHists];
-    EventHist_t* evt_hists_[kMaxHists];
-    TrackHist_t* trk_hists_[kMaxHists];
-    CRVHist_t*   crv_hists_[kMaxHists];
+    TDirectory*        top_dir_;
+    TDirectory*        evt_dirs_  [kMaxHists];
+    TDirectory*        trk_dirs_  [kMaxHists];
+    TDirectory*        cls_dirs_  [kMaxHists];
+    TDirectory*        crv_dirs_  [kMaxHists];
+    EventHist_t*       evt_hists_ [kMaxHists];
+    TrackHist_t*       trk_hists_ [kMaxHists];
+    CaloClusterHist_t* cls_hists_ [kMaxHists];
+    CRVHist_t*         crv_hists_ [kMaxHists];
 
     TString name_; //name for output file
 
@@ -139,6 +145,7 @@ namespace Mu2eEvtAna {
     Trigger_t trigger_; //trigger information
 
     CRVCluster_t crv_clusters_[kMaxCRVClusters]; //CRV coincidence clusters
+    CaloCluster_t calo_clusters_[kMaxCaloClusters]; //Calo clusters
     Long64_t entry_; //current entry
 
     Long64_t        cache_size_   = 200000000U; //200MB cache by default

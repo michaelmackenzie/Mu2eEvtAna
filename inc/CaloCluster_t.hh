@@ -15,18 +15,33 @@
 namespace Mu2eEvtAna {
   struct CaloCluster_t {
     mu2e::CaloClusterInfo* cluster_;
+    mu2e::CaloClusterInfoMC* cluster_mc_;
 
 
     //-------------------------------------------------
     // Accessors
 
+    float Energy   () const { return (cluster_) ? cluster_->energyDep_    : -1.f ; }
+    float EnergyErr() const { return (cluster_) ? cluster_->energyDepErr_ : -1.f ; }
+    float Time     () const { return (cluster_) ? cluster_->time_         : -1.f ; }
+    float TimeErr  () const { return (cluster_) ? cluster_->timeErr_      : -1.f ; }
+    float X        () const { return (cluster_) ? cluster_->cog_.x()      : 0.f  ; }
+    float Y        () const { return (cluster_) ? cluster_->cog_.y()      : 0.f  ; }
+    float Z        () const { return (cluster_) ? cluster_->cog_.z()      : 0.f  ; }
+    int   DiskID   () const { return (cluster_) ? cluster_->diskID_       : -1   ; }
+    int   NCrystals() const { return (cluster_) ? cluster_->size_         : -1   ; }
+    int   IsSplit  () const { return (cluster_) ? cluster_->isSplit_      : -1   ; }
+
 
     //-------------------------------------------------
     // Additional functions
 
+    float R        () const { return std::sqrt(X()*X() + Y()*Y()); }
+
 
     void Reset() {
       cluster_ = nullptr;
+      cluster_mc_ = nullptr;
     }
 
     CaloCluster_t() { Reset(); }

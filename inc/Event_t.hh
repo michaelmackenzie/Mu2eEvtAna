@@ -29,6 +29,8 @@ namespace Mu2eEvtAna {
     Int_t         napr_tracks_      ; // for trigger analysis
     Int_t         ncpr_tracks_      ; // for trigger analysis
     Int_t         ngood_tracks_     ;
+    Int_t         ncalo_clusters_   ;
+    Int_t         ngood_caloclusters_;
     Int_t         ncrv_clusters_    ;
     Int_t         ngood_crvclusters_;
 
@@ -69,6 +71,8 @@ namespace Mu2eEvtAna {
       nue_tracks_        = 0;
       numu_tracks_       = 0;
       ndmu_tracks_       = 0;
+      ncalo_clusters_    = 0;
+      ngood_caloclusters_= 0;
       ncrv_clusters_     = 0;
       ngood_crvclusters_ = 0;
       ntracks_           = 0;
