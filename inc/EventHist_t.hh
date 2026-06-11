@@ -34,9 +34,20 @@ namespace Mu2eEvtAna {
     TH1*    fNDigis;
     TH1*    fNClusters;
 
+    TH1*    fTrackerHits;
+    TH1*    fCaloHits;
+
+    TH1*    fTrigBits[2];
+    TH1*    fTrigPaths[2];
+    TH2*    fTrigOverlap[2];
+    TH1*    fNTriggerable;
+    TH1D*   fTriggered;
+
     // Primary process info
     TH1*    fPrimaryCode;
+    TH1*    fPrimaryType;
     TH1*    fPrimaryGenE;
+    TH1*    fRMCEnergy;
   };
 }
 #endif

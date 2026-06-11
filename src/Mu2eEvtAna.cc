@@ -134,8 +134,21 @@ namespace Mu2eEvtAna {
     Hist->fNonCRVVetoID     = new TH1F("nonCRVVetoID"     ,Form("%s: Non-CRV Veto ID",Folder), 30, 0., 30.);
     Hist->fNDigis           = new TH1D("ndigis"           ,Form("%s: N(digis)"   ,Folder), 200, 0, 200);
     Hist->fNClusters        = new TH1D("nclusters"        ,Form("%s: N(clusters)",Folder),  10, 0,  10);
+    Hist->fTrackerHits      = new TH1F("tracker_hits"     ,Form("%s: N(tracker) hits",Folder), 100, 0., 12000.);
+    Hist->fCaloHits         = new TH1F("calo_hits"        ,Form("%s: N(calo) hits",Folder), 100, 0., 4000.);
+
+    Hist->fTrigBits[0]      = new TH1F("trig_bits"        ,Form("%s: Trigger bits",Folder), 300, 100, 400);
+    Hist->fTrigPaths[0]     = new TH1F("trig_paths"       ,Form("%s: Trigger paths",Folder), 150, 0, 150);
+    Hist->fTrigOverlap[0]   = new TH2F("trig_overlap"     ,Form("%s: Trigger overlap: N(X and Y) / N(X)",Folder), 70, 0, 70, 70, 0, 70);
+    Hist->fTrigBits[1]      = new TH1F("trig_bits_ps"     ,Form("%s: Trigger bits",Folder), 300, 100, 400);
+    Hist->fTrigPaths[1]     = new TH1F("trig_paths_ps"    ,Form("%s: Trigger paths",Folder), 150, 0, 150);
+    Hist->fNTriggerable     = new TH1F("ntriggerable"     ,Form("%s: N(triggerable sims)",Folder), 5, -0.5, 4.5);
+    Hist->fTriggered        = new TH1D("triggered"        ,Form("%s: Triggered",Folder), 2, -0.5, 1.5);
+
     Hist->fPrimaryCode      = new TH1F("primary_code"     ,Form("%s: Primary process code",Folder), 200, -0.5, 199.5);
+    Hist->fPrimaryType      = new TH1F("primary_type"     ,Form("%s: Primary process type",Folder), 50, 0., 50.);
     Hist->fPrimaryGenE      = new TH1F("primary_gene"     ,Form("%s: Primary gen energy",Folder), 500, 50., 150.);
+    Hist->fRMCEnergy        = new TH1F("rmc_energy"       ,Form("%s: RMC photon energy",Folder), 440, 0., 110.);
 
   }
 
@@ -149,31 +162,52 @@ namespace Mu2eEvtAna {
     Hist->fP[1]        = new TH1F("p_2"         ,Form("%s: Track momentum"                       ,Folder),  400,   80.,  120.);
     Hist->fObs         = new TH1F("obs"         ,Form("%s: Track momentum"                       ,Folder),  150,   80.,  110.); // fit histogram
     Hist->fPt          = new TH1F("pt"          ,Form("%s: track transverse momentum"            ,Folder),  300,    0.,  300.);
+    Hist->fPCorr       = new TH1F("p_corr"      ,Form("%s: corrected track momentum"             ,Folder),  600,   80.,  110.);
     Hist->fPCenter[0]  = new TH1F("pCenter"     ,Form("%s: track momentum at tracker center"     ,Folder),  600, -300.,  300.);
     Hist->fPCenter[1]  = new TH1F("pCenter_2"   ,Form("%s: track momentum at tracker center"     ,Folder),  600,   80.,  110.);
+    Hist->fPTrkFront   = new TH1F("p_trk_front" ,Form("%s: track momentum at Tracker Front"    ,Folder),  300,    0.,  150.);
     Hist->fPExit       = new TH1F("pExit"       ,Form("%s: track momentum at tracker exit"       ,Folder),  300,    0.,  300.);
     Hist->fPST[0]      = new TH1F("pST"         ,Form("%s: track momentum at ST exit"            ,Folder),  300,    0.,  300.);
     Hist->fPST[1]      = new TH1F("pST_2"       ,Form("%s: track momentum at ST exit"            ,Folder),  300,   80.,  110.);
     Hist->fPSTDiff     = new TH1F("pST_diff"    ,Form("%s: track p(ST) - p(Front)"               ,Folder),  400,   -1.,    9.);
+    Hist->fPSTApproxDiff = new TH1F("p_approx_ST_diff",Form("%s: track p(ST) - p(Front)",Folder), 400, -1., 9.);
     Hist->fPExitDiff   = new TH1F("pExit_diff"  ,Form("%s: track p(Front) - p(Exit)"             ,Folder),  400,   -1.,    4.);
     Hist->fT0          = new TH1F("t0"          ,Form("%s: track t_{0}"                          ,Folder),  400,    0., 2000.);
     Hist->fT0Err       = new TH1F("t0err"       ,Form("%s: track t_{0} uncertainty"              ,Folder),  100,    0.,   20.);
     Hist->fD0          = new TH1F("d0"          ,Form("%s: track d0"                             ,Folder),  200, -200.,  200.);
     Hist->fDP          = new TH1F("dP"          ,Form("%s: track p_reco - p_mc"                  ,Folder),  400,  -20.,   20.);
+    Hist->fDPvsP       = new TH2F("dPvsP"       ,Form("%s: track p_reco - p_mc"                  ,Folder),  20,   80., 120., 100, -5., 5.);
+    Hist->fDPvsNH      = new TH2F("dPvsNH"      ,Form("%s: track p_reco - p_mc"                  ,Folder),  20,   10.,  70., 100, -5., 5.);
+    Hist->fDPCorr      = new TH1F("dPCorr"      ,Form("%s: track p_reco - p_mc"                  ,Folder),  400,  -20.,   20.);
+    Hist->fDPCenter    = new TH1F("dPCenter"    ,Form("%s: track p_reco - p_mc"                  ,Folder),  400,  -20.,   20.);
     Hist->fChi2NDof    = new TH1F("chi2NDof"    ,Form("%s: track chi2/ndof"                      ,Folder),  200,    0.,   10.);
     Hist->fFitCons[0]  = new TH1F("fitCons"     ,Form("%s: track p(chi2,ndof)"                   ,Folder),  200,    0.,    1.);
     Hist->fFitCons[1]  = new TH1F("fitCons_log" ,Form("%s: track log10(p(chi2,ndof))"            ,Folder),  200,   -6.,    0.);
     Hist->fFitMomErr   = new TH1F("fitMomErr"   ,Form("%s: track momentum uncertainty"           ,Folder),  200,    0.,    5.);
     Hist->fTanDip      = new TH1F("tanDip"      ,Form("%s: track tanDip"                         ,Folder),  200,    0.,    2.);
+    Hist->fCosTheta    = new TH1F("cosTheta"    ,Form("%s: track cos(#theta)"                    ,Folder),  200,   -1.,    1.);
     Hist->fRadius      = new TH1F("radius"      ,Form("%s: track radius"                         ,Folder), 1000,    0., 1000.);
     Hist->fRMax        = new TH1F("rMax"        ,Form("%s: track rMax"                           ,Folder), 2000,    0., 2000.);
     Hist->fNActive     = new TH1F("nActive"     ,Form("%s: nHits used in fit"                    ,Folder),  150,    0.,  150.);
-    Hist->fTrkQual     = new TH1F("trkQual"     ,Form("%s: track MVA score"                      ,Folder),  200,   -1.,    1.);
+    Hist->fNActiveFrac = new TH1F("nActiveFrac" ,Form("%s: nHits used in fit/nHits"              ,Folder),  100,    0.,    1.);
+    Hist->fTrkQual[0]  = new TH1F("trkQual"     ,Form("%s: track MVA score"                      ,Folder),  200,   -1.,    1.);
+    Hist->fTrkQual[1]  = new TH1F("trkQual_1"   ,Form("%s: track MVA score"                      ,Folder),  200,   -1.,    1.);
+    Hist->fPID[0]      = new TH1F("pid"         ,Form("%s: PID MVA score"                        ,Folder),  200,   -1.,    1.);
+    Hist->fPID[1]      = new TH1F("trkpid"      ,Form("%s: TrkPID MVA score"                     ,Folder),  200,   -1.,    1.);
+    Hist->fCosmicID    = new TH1F("cosmic_id"   ,Form("%s: Cosmic MVA score"                     ,Folder),  200,   -1.,    1.);
     Hist->fClusterE    = new TH1F("clusterE"    ,Form("%s: track's cluster energy"               ,Folder),  600,    0.,  300.);
+    Hist->fClusterDisk = new TH1D("clusterDisk" ,Form("%s: track's cluster energy"               ,Folder),   3,   -1.,    2.);
     Hist->fDt          = new TH1F("dt"          ,Form("%s: track - cluster time"                 ,Folder),  200,  -10.,   10.);
     Hist->fEp          = new TH1F("ep"          ,Form("%s: cluster E / track P"                  ,Folder),  200,    0.,    2.);
+    Hist->fTZSlope     = new TH1F("tzslope"     ,Form("%s: TZ slope"                             ,Folder),  200,  -0.1,   0.1);
+    Hist->fTZSlopeSig  = new TH1F("tzslopesig"  ,Form("%s: TZ slope significance"                ,Folder),  200, -10.,   10.);
+    Hist->fTZSlopeRatio = new TH1F("tzsloperatio",Form("%s: TZ slope / expected slope"          ,Folder),  200, -10.,   10.);
     Hist->fBestAlg     = new TH1F("bestAlg"     ,Form("%s: Best fit algorithm"                   ,Folder),   10,    0.,   10.);
     Hist->fAlgMask     = new TH1F("algMask"     ,Form("%s: Algorithm mask"                       ,Folder),   10,    0.,   10.);
+    Hist->fSTBoundary  = new TH1F("st_boundary" ,Form("%s: Stopping target boundary"             ,Folder),   2,    0.,    2.);
+    Hist->fSTInters    = new TH1F("st_inters"   ,Form("%s: Stopping target intersections"        ,Folder),  10,    0.,   10.);
+    Hist->fIPAInters   = new TH1F("ipa_inters"  ,Form("%s: IPA intersections"                   ,Folder),  10,    0.,   10.);
+    Hist->fOPAInters   = new TH1F("opa_inters"  ,Form("%s: OPA intersections"                   ,Folder),  10,    0.,   10.);
     Hist->fTrackID     = new TH1F("track_id"    ,Form("%s: Track ID bits"                        ,Folder),   33,    0.,   33.);
     Hist->fExlTrackID  = new TH1F("track_exl_id",Form("%s: Track ID bits for exclusive rejection",Folder),   32,    0.,   32.);
 
@@ -200,6 +234,8 @@ namespace Mu2eEvtAna {
     Hist->fCRVYZ           = new TH2F("crv_y_vs_z"       ,Form("%s: CRV Y vs Z"                                  ,Folder), 250, -5000, 20000, 200,      0,  4000);
     Hist->fCRVdTZ          = new TH2F("crv_dt_vs_z"      ,Form("%s: #Deltat vs CRV Z"                            ,Folder), 250, -5000, 20000, 200,   -200,   200);
     Hist->fCRVdTZCRV       = new TH2F("crv_dtcrv_vs_z"   ,Form("%s: #Deltat(CRV) vs CRV Z"                       ,Folder), 250, -5000, 20000, 200,   -200,   200);
+    Hist->fCRVdTZExtrap    = new TH2F("crv_dtextrap_vs_z",Form("%s: #Deltat(Extrapolation) vs CRV Z"             ,Folder), 250, -5000, 20000, 200,   -200,   200);
+    Hist->fCRVExtrapZ      = new TH1F("crv_extrap_z"     ,Form("%s: Extrapolation Z"                             ,Folder), 200,    0., 15000.);
 
     // Matched upstream track info
     Hist->fUpstreamDt      = new TH1F("us_dt"    ,Form("%s: Upstream track #Deltat_{0}"          ,Folder), 150,  -50.,  250.);
@@ -219,6 +255,11 @@ namespace Mu2eEvtAna {
     Hist->fMCGoodHits    = new TH1F("MC_goodhits",Form("%s: MC Particle N(good hits)"        ,Folder), 100,    0.,  100.);
     Hist->fMCTrajectory  = new TH1F("MC_trajectory",Form("%s: MC track p_{z} trajectory"     ,Folder),   3,  -1.5,   1.5);
     Hist->fMCSimProc     = new TH1F("MC_simProc",Form("%s: MC Sim process code"              ,Folder), 200,  -0.5, 199.5);
+    Hist->fMCPCenterDiff = new TH1F("MC_PCenterDiff",Form("%s: MC track P(tracker center) - P(tracker front)",Folder), 400, -20., 20.);
+    Hist->fMCPStDiff     = new TH1F("MC_PSTDiff",Form("%s: MC track P(ST exit) - P(tracker front)",Folder), 400, -20., 20.);
+    Hist->fMCPStDiffDiff = new TH1F("MC_PSTDiffDiff",Form("%s: Reco - MC track (P(ST exit) - P(Tracker front))",Folder), 100, -5., 5.);
+    Hist->fMCApproxPStDiffDiff = new TH1F("MC_ApproxPSTDiffDiff",Form("%s: Reco - MC track (P(ST exit) - P(Tracker front))",Folder), 100, -5., 5.);
+    Hist->fMCPGenEDiff   = new TH1F("MC_PGenEDiff",Form("%s: P(front of tracker) - Gen(energy)",Folder), 500, -10., 5.);
   }
 
   //------------------------------------------------------------------------------------
@@ -257,6 +298,9 @@ namespace Mu2eEvtAna {
     Hist->fStubSlopeDelta          = new TH1F("stub_slope_delta",Form("%s: delta local stub slope - MC stub slope; slope_local - slope_MC"  ,Folder),  200,    -5,  5);
     Hist->fStubQN                  = new TH1F("stub_qn"    ,Form("%s: stub qn: # of points in localXY"  ,Folder),  10,    0,  10);
     Hist->fStubSlopeMCProduct      = new TH1F("stub_slope_prod",Form("%s: stub slope product: reco slope * MC slope"  ,Folder),  200,    -10,  10);
+    Hist->fMCTime                  = new TH1F("MC_time",Form("%s: MC cluster time;time (ns)",Folder), 200, 0., 2000.);
+    Hist->fMCdT[0]                 = new TH1F("MC_dt",Form("%s: Reco - MC cluster time;#Deltat (ns)",Folder), 200, -200., 200.);
+    Hist->fMCdT[1]                 = new TH1F("MC_dtCorr",Form("%s: Corrected Reco - MC cluster time;#Deltat (ns)",Folder), 200, -200., 200.);
   }
 
   //------------------------------------------------------------------------------------
@@ -323,10 +367,14 @@ namespace Mu2eEvtAna {
     Hist->fNCRVClusters->Fill(evt_.ncrv_clusters_, Weight);
     Hist->fNGoodCRVClusters->Fill(evt_.ngood_crvclusters_, Weight);
     // // for(int bit = 0; bit < 30; ++bit) {
-    // //   if((evt_.fNonCRVVetoID & (1 << bit)) != 0) Hist->fNonCRVVetoID->Fill(bit, Weight);
+    // //   if((evt_.noncrv_vetoid_ & (1 << bit)) != 0) Hist->fNonCRVVetoID->Fill(bit, Weight);
     // // }
     // // Hist->fPrimaryCode->Fill((fPrimary) ? fPrimary->CreationCode() : 0 , Weight);
     // // Hist->fPrimaryGenE->Fill((fPrimary) ? fPrimary->fStartMom.E()  : 0., Weight);
+    Hist->fTrackerHits->Fill(0., Weight);
+    Hist->fCaloHits->Fill(0., Weight);
+    Hist->fPrimaryCode->Fill(0., Weight);
+    Hist->fPrimaryGenE->Fill(0., Weight);
 
   }
 
@@ -348,7 +396,7 @@ namespace Mu2eEvtAna {
     const float Weight(evt_.weight_);
     Hist->fP[0] ->Fill(Track->PFront(), Weight);
     Hist->fP[1] ->Fill(Track->PFront(), Weight);
-    Hist->fObs->Fill(Track->Obs(), Weight); //FIXME: Should this be Ana module dependent?
+    Hist->fObs->Fill(Track->Obs(), Weight);
     Hist->fPt->Fill(Track->PTFront(), Weight);
     Hist->fPCenter[0]->Fill(Track->PMiddle()*Track->Charge(), Weight);
     Hist->fPCenter[1]->Fill(Track->PMiddle(), Weight);
@@ -369,7 +417,7 @@ namespace Mu2eEvtAna {
     Hist->fRadius->Fill(Track->RadiusFront(), Weight);
     Hist->fRMax->Fill(Track->RMaxFront(), Weight);
     Hist->fNActive->Fill(Track->NActive(), Weight);
-    Hist->fTrkQual->Fill(Track->TrkQual(), Weight);
+    Hist->fTrkQual[0]->Fill(Track->TrkQual(), Weight);
     Hist->fClusterE->Fill(Track->ECluster(), Weight);
     Hist->fDt->Fill(Track->Dt(), Weight);
     Hist->fEp->Fill(Track->EPFront(), Weight);
@@ -454,31 +502,34 @@ namespace Mu2eEvtAna {
     // Hist->fFirstBar               ->Fill(Stub->fFirstBar                                   , Weight);
     // Hist->fNPulses                ->Fill(Stub->NPulses()                                   , Weight);
     Hist->fNPe                    ->Fill(Stub->PEs()                                       , Weight);
-    // Hist->fNPePP                  ->Fill(CrvStubPar->fNPePP                                      , Weight);
+    // Hist->fNPePP                  ->Fill(Stub->fNPePP                                      , Weight);
     Hist->fStartTime              ->Fill(Stub->TimeStart()                                 , Weight);
     Hist->fEndTime                ->Fill(Stub->TimeEnd()                                   , Weight);
     // Hist->fWidth                  ->Fill(width                                                   , Weight);
     Hist->fXVsZ                   ->Fill(z,x                                                     , Weight);
     Hist->fYVsZ                   ->Fill(z,y                                                     , Weight);
-    // Hist->fCorrTime               ->Fill(CrvStubPar->fCorrTime                                   , Weight);
-    // Hist->fCorrTimeProp           ->Fill(CrvStubPar->fCorrTimeProp                               , Weight);
-    // Hist->fCorrTimeToF            ->Fill(CrvStubPar->fCorrTimeTof                                , Weight);
-    Hist->fApproxTimeST           ->Fill(Stub->TimeAtSTBack()                                    , Weight);
-    Hist->fApproxTimeCalo         ->Fill(Stub->TimeAtCaloFront()                                 , Weight);
-    Hist->fApproxTimeExtrap       ->Fill(Stub->TimeAtExtrapolation()                             , Weight);
-    // Hist->fApproxTimeSTToFront    ->Fill(CrvStubPar->fApproxTimeSTToFront                        , Weight);
-    // Hist->fApproxTimeCaloToFront  ->Fill(CrvStubPar->fApproxTimeCaloToFront                      , Weight);
-    // Hist->fApproxTimeExtrapToFront->Fill(CrvStubPar->fApproxTimeExtrapToFront                    , Weight);
-    // Hist->fBarsOneEnd             ->Fill(CrvStubPar->fTotalBars-CrvStubPar[0].fTwoEndBars        , Weight);
-    // Hist->fCrvPropdT              ->Fill(CrvStubPar->fCorrTimeProp - CrvCluster->StartTime()     , Weight);
-    // Hist->fBarsTwoEnd             ->Fill(CrvStubPar->fTwoEndBars                                 , Weight);
-    // Hist->fNSectors               ->Fill(CrvStubPar->fNSectors                                   , Weight);
-    // Hist->fNDiffLSectors          ->Fill(CrvStubPar->fNDiffLSectors                              , Weight);
-    Hist->fStubSlope              ->Fill(Stub->Slope()                                           , Weight);
-    // Hist->fStubSlopeChi2          ->Fill(CrvStubPar->fStubSlopeChi2                              , Weight);
-    // Hist->fStubSlopeDelta         ->Fill(CrvStubPar->fStubDYDZ - CrvStubPar[0].fStubDYDZMC       , Weight);
-    // Hist->fStubQN                 ->Fill(CrvStubPar->fStubQN                                     , Weight);
-    // Hist->fStubSlopeMCProduct     ->Fill(CrvStubPar->fStubSlopeMCProduct                         , Weight);
+    // Hist->fCorrTime               ->Fill(Stub->fCorrTime                                   , Weight);
+    // Hist->fCorrTimeProp           ->Fill(Stub->fCorrTimeProp                               , Weight);
+    // Hist->fCorrTimeToF            ->Fill(Stub->fCorrTimeTof                                , Weight);
+    Hist->fApproxTimeST           ->Fill(Stub->TimeAtSTBack()                              , Weight);
+    Hist->fApproxTimeCalo         ->Fill(Stub->TimeAtCaloFront()                           , Weight);
+    Hist->fApproxTimeExtrap       ->Fill(Stub->TimeAtExtrapolation()                       , Weight);
+    // Hist->fApproxTimeSTToFront    ->Fill(Stub->fApproxTimeSTToFront                        , Weight);
+    // Hist->fApproxTimeCaloToFront  ->Fill(Stub->fApproxTimeCaloToFront                      , Weight);
+    // Hist->fApproxTimeExtrapToFront->Fill(Stub->fApproxTimeExtrapToFront                    , Weight);
+    // Hist->fBarsOneEnd             ->Fill(Stub->TotalBars-Stub[0].fTwoEndBars                , Weight);
+    // Hist->fCrvPropdT              ->Fill(Stub->fCorrTimeProp - Stub->TimeStart()           , Weight);
+    // Hist->fBarsTwoEnd             ->Fill(Stub->fTwoEndBars                                 , Weight);
+    // Hist->fNSectors               ->Fill(Stub->fNSectors                                   , Weight);
+    // Hist->fNDiffLSectors          ->Fill(Stub->fNDiffLSectors                              , Weight);
+    Hist->fStubSlope              ->Fill(Stub->Slope()                                     , Weight);
+    // Hist->fStubSlopeChi2          ->Fill(Stub->fStubSlopeChi2                              , Weight);
+    // Hist->fStubSlopeDelta         ->Fill(Stub->fStubDYDZ - Stub[0].fStubDYDZMC             , Weight);
+    // Hist->fStubQN                 ->Fill(Stub->fStubQN                                     , Weight);
+    // Hist->fStubSlopeMCProduct     ->Fill(Stub->fStubSlopeMCProduct                         , Weight);
+    Hist->fMCTime                 ->Fill(0., Weight);
+    Hist->fMCdT[0]                ->Fill(0., Weight);
+    Hist->fMCdT[1]                ->Fill(0., Weight);
   }
 
   //------------------------------------------------------------------------------------

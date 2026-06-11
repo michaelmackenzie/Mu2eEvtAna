@@ -40,6 +40,8 @@ namespace Mu2eEvtAna {
     TH1*    fStubSlopeDelta;
     TH1*    fStubQN;
     TH1*    fStubSlopeMCProduct;
+    TH1*    fMCTime;
+    TH1*    fMCdT[2];
   };
 }
 #endif
