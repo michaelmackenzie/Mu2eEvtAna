@@ -21,6 +21,7 @@
 */datacards
 notes.org
 #Ignore temporary files
+*.txt
 *.log
 *.out
 *.tmp
