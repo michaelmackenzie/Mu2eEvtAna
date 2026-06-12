@@ -109,9 +109,9 @@ namespace Mu2eEvtAna {
     // TTree
     TTree* fTree = nullptr;
 
-    Tree_t() { reset(); }
+    Tree_t() { Reset(); }
 
-    void reset() {
+    void Reset() {
 
       fRun = 0;
       fSubRun = 0;

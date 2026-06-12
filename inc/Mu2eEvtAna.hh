@@ -111,6 +111,8 @@ namespace Mu2eEvtAna {
       case kT0Loose: return "T_case 0} (loose)";
       case kUpstream: return "Upstream";
       case kPID: return "PID";
+      case kFitHyp: return "Fit hyp.";
+      case kCosmicID: return "Cosmic ID";
       case kCRV: return "CRV";
       case kMC: return "MC";
       }

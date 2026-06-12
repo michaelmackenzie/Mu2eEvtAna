@@ -18,9 +18,12 @@ namespace Mu2eEvtAna {
   enum {
     kP = 0, kRMax = 1, kTrkQual = 2, kT0 = 3, kFitCon = 4,
     kClusterE = 5, kD0 = 6, kTDip = 7, kT0Loose = 8,
-    kUpstream = 10, kPID = 11,
+    kUpstream = 10, kPID = 11, kFitHyp = 12, kCosmicID = 13,
     kCRV = 15, kMC = 20
   };
+
+  // Set offsets
+  enum { kCRVVetoOffset = 1000, kTimeCutOffset = 2000 }; // control region offsets
 
   // Particle data
   static double ParticleMass(const int pdg) {

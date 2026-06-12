@@ -40,7 +40,7 @@ namespace Mu2eEvtAna {
     TH1*    fNActive;
     TH1*    fNActiveFrac;
     TH1*    fTrkQual[2];
-    TH1*    fPID[2];
+    TH1*    fPID[3];
     TH1*    fCosmicID;
     TH1*    fClusterE;
     TH1D*   fClusterDisk;

@@ -195,7 +195,8 @@ namespace Mu2eEvtAna {
     Hist->fTrkQual[0]  = new TH1F("trkQual"     ,Form("%s: track MVA score"                      ,Folder),  200,   -1.,    1.);
     Hist->fTrkQual[1]  = new TH1F("trkQual_1"   ,Form("%s: track MVA score"                      ,Folder),  200,   -1.,    1.);
     Hist->fPID[0]      = new TH1F("pid"         ,Form("%s: PID MVA score"                        ,Folder),  200,   -1.,    1.);
-    Hist->fPID[1]      = new TH1F("trkpid"      ,Form("%s: TrkPID MVA score"                     ,Folder),  200,   -1.,    1.);
+    Hist->fPID[1]      = new TH1F("pid_1"       ,Form("%s: PID MVA score"                        ,Folder),  200,   -1.,    1.);
+    Hist->fPID[2]      = new TH1F("trkpid"      ,Form("%s: TrkPID MVA score"                     ,Folder),  200,   -1.,    1.);
     Hist->fCosmicID    = new TH1F("cosmic_id"   ,Form("%s: Cosmic MVA score"                     ,Folder),  200,   -1.,    1.);
     Hist->fClusterE    = new TH1F("clusterE"    ,Form("%s: track's cluster energy"               ,Folder),  600,    0.,  300.);
     Hist->fClusterDisk = new TH1D("clusterDisk" ,Form("%s: track's cluster energy"               ,Folder),   3,   -1.,    2.);
@@ -481,11 +482,16 @@ namespace Mu2eEvtAna {
     Hist->fRMax->Fill(Track->RMaxFront(), Weight);
     Hist->fNActive->Fill(Track->NActive(), Weight);
     Hist->fTrkQual[0]->Fill(Track->TrkQual(), Weight);
+    Hist->fTrkQual[1]->Fill(Track->AltTrkQual(), Weight);
+    Hist->fPID[0]->Fill(Track->PID(), Weight);
+    Hist->fPID[1]->Fill(Track->AltPID(), Weight);
+    Hist->fPID[2]->Fill(Track->TrkPID(), Weight);
+    Hist->fCosmicID->Fill(Track->CosmicID(), Weight);
     Hist->fClusterE->Fill(Track->ECluster(), Weight);
     Hist->fDt->Fill(Track->Dt(), Weight);
     Hist->fEp->Fill(Track->EPFront(), Weight);
-    // Hist->fBestAlg->Fill(TrkPar->fTrack->BestAlg(), Weight);
-    // Hist->fAlgMask->Fill(TrkPar->fTrack->AlgMask(), Weight);
+    // Hist->fBestAlg->Fill(Track->BestAlg(), Weight);
+    // Hist->fAlgMask->Fill(Track->AlgMask(), Weight);
     const int ID = Track->ID(0);
     if(ID == 0) {
       Hist->fTrackID   ->Fill("Passed", Weight);
@@ -921,15 +927,19 @@ namespace Mu2eEvtAna {
   int Mu2eEvtAna::TrackID(Track_t* track) {
     if(!track || !track->track_) return 0;
     int ID(0);
-    if(track->PFront() < 70. || track->PFront() > 130.)          ID += 1 << kP;
+    const float pmin = (track->Charge() < 0) ?  85.f :  85.f;
+    const float pmax = (track->Charge() < 0) ? 130.f : 130.f;
+    if(track->PFront() < pmin || track->PFront() > pmax)         ID += 1 << kP;
     if(track->RMaxFront() < 430. || track->RMaxFront() > 650.)   ID += 1 << kRMax;
-    if(track->TrkQual() > -10. && track->TrkQual() < 0.2)        ID += 1 << kTrkQual;
+    else if(track->OPAInter())                                   ID += 1 << kRMax;
+    if(track->AltTrkQual() > -10. && track->AltTrkQual() < 0.2)  ID += 1 << kTrkQual;
     if(track->TFront() < 600. || track->TFront() > 1650.)        ID += 1 << kT0;
     if(track->FitCon() < 1.e-5)                                  ID += 1 << kFitCon;
     if(track->ECluster() <= 0.)                                  ID += 1 << kClusterE; //require a cluster
-    const float d0_sign = track->D0Front() * track->Charge();
-    if(d0_sign < -100. || d0_sign > 60.)                         ID += 1 << kD0; //consistent with ST
-    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 1.5) ID += 1 << kTDip;
+    if(track->NSTInter() == 0)                                   ID += 1 << kD0; // consistent with stopping target
+    // const float d0_sign = track->D0Front() * track->Charge();
+    // if(d0_sign < -100. || d0_sign > 60.)                         ID += 1 << kD0; //consistent with ST
+    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 2.0) ID += 1 << kTDip;
     if(track->TFront() < 500. || track->TFront() > 1650.)        ID += 1 << kT0Loose; //for control regions
 
     // upstream track rejection
@@ -940,8 +950,19 @@ namespace Mu2eEvtAna {
          (us_trk->TrkQual() < -10. || us_trk->TrkQual() > 0.01)) ID += 1 << kUpstream;
     }
 
-    // PID rejection FIXME: Add MVA identification
-    if(track->EPFront() < 0.65)                                   ID += 1 << kPID;
+    // PID rejection
+    if(track->ECluster() <= 0.) { // no cluster associated
+      if(track->TrkPID() < -100.f)    ID += 1 << kClusterE; // no score --> fail it
+      else if(track->TrkPID() < 0.5f) ID += 1 << kPID;
+    } else { // cluster associated
+      if(track->AltPID() < -100.f) { // no score
+        if(track->EPFront() < 0.65f)    ID += 1 << kPID;
+      } else if(track->AltPID() < 0.5f) ID += 1 << kPID;
+    }
+
+    // Kinematic cosmic ID
+    if(track->CosmicID() > -100.f && track->CosmicID() < 0.85f)
+      ID += 1 << kCosmicID;
 
     // CRV rejection
     if(track->stub_) {

@@ -212,7 +212,13 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
 
   cout << "Processing " << dataset << " with " << actual_n_threads << " threads" << endl;
 
-  TString merged_output = Form("evtana_%s_%s_m%i.root", analyzer_name.Data(), dataset.Data(), Mode);
+  TString header = "evtana";
+  switch(ana_type) {
+  case kMu2eAna: header = "evtana"; break;
+  case kRMCAna: header = "rmcana"; break;
+  case kConvAna: header = "convana"; break;
+  }
+  TString merged_output = Form("%s_%s_%s_m%i.root", header.Data(), analyzer_name.Data(), dataset.Data(), Mode);
 
   TString threaded_func;
   switch(ana_type) {
@@ -233,7 +239,7 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
   TString merge_list = Form("temp/%s_merge_list.txt", dataset.Data());
   ofstream ml(merge_list);
   for(int t = 0; t < actual_n_threads; ++t) {
-    ml << Form("evtana_%s_%s_m%i_thread_%i.root\n", analyzer_name.Data(), dataset.Data(), Mode, t);
+    ml << Form("%s_%s_%s_m%i_thread_%i.root\n", header.Data(), analyzer_name.Data(), dataset.Data(), Mode, t);
   }
   ml.close();
 

@@ -165,17 +165,138 @@ namespace Mu2eEvtAna {
     return 0;
   }
 
-
   //------------------------------------------------------------------------------------
   // Initialize event information
   void ConvAna::InitializeEvent() {
     Mu2eEvtAna::InitializeEvent();
+    track_ = nullptr;
+    calo_cluster_ = nullptr;
+    crv_cluster_ = nullptr;
+  }
+
+  //------------------------------------------------------------------------------------
+  // Initialize track information
+  void ConvAna::InitTrack(rooutil::Track* track, Track_t& trk_par) {
+    Mu2eEvtAna::InitTrack(track, trk_par);
+
+    // Initialize MVA scores
+    if(evaluate_mvas_) {
+      track_ = &trk_par;
+      InitTreeData();
+      watch_->SetTime("MVAs");
+      trk_par.trkqual_ = (trkqual_) ? trkqual_->EvaluateMVA("TrkQual") : -999.f;
+      trk_par.pid_ = (pid_) ? pid_->EvaluateMVA("PID") : -999.f;
+      trk_par.trkpid_ = (trkpid_) ? trkpid_->EvaluateMVA("TrkPID") : -999.f;
+      trk_par.cosmic_id_ = (cosmic_id_) ? cosmic_id_->EvaluateMVA("CosmicID") : -999.f;
+      watch_->StopTime("MVAs");
+      // Reset the main ID with the new MVA scores
+      trk_par.SetID(TrackID(&trk_par), 0);
+    }
+  }
+
+  //------------------------------------------------------------------------------------
+  // Initialize the tree structure with selected object info
+  void ConvAna::InitTreeData() {
+    tree_.Reset();
+
+    if(track_) {
+      tree_.fTrkP = track_->PFront();
+      tree_.fTrkT0 = track_->TFront();
+      tree_.fTrkD0 = track_->D0Front();
+      tree_.fTrkTanDip = track_->TanDipFront();
+      tree_.fTrkCosTheta = track_->CosThetaFront();
+      tree_.fTrkFitCon = track_->FitCon();
+      tree_.fTrkLogFitCon = (track_->FitCon() > 0.) ? log10(track_->FitCon()) : -100.f;
+      tree_.fTrkRMax = track_->RMaxFront();
+      tree_.fTrkCluster = track_->ECluster();
+      tree_.fTrkEP = track_->EPFront();
+      tree_.fTrkDt = track_->Dt();
+      tree_.fTrkActiveRatio = track_->NActive() * 1.f / track_->NHits();
+      tree_.fTrkNullRatio = track_->NNull() * 1.f / track_->NHits();
+      tree_.fTrkTZSlope = 0.f; //fTrkPar.fTZSlope;
+      tree_.fTrkTZSlopeSig = 0.f; //fTrkPar.TZSlopeSig();
+      tree_.fTrkTZSlopeRatio = 1.f; //fTrkPar.TZSlopeRatio();
+      tree_.fTrkPExitDiff = track_->PFront() - track_->PBack();
+      tree_.fTrkQual = track_->TrkQual();
+      tree_.fTrkPID = track_->PID();
+      tree_.fTrkOnlyPID = 1.f; //fTrkPar.fTrkPID;
+      tree_.fTrkCosmicID = 1.f; //fTrkPar.fCosmicID;
+      tree_.fTrkCharge = track_->Charge();
+      tree_.fTrkMCDp = track_->MCDeltaPFront();
+      tree_.fTrkMCPDG = track_->MCPDG();
+
+      // For TrkQual
+      tree_.fTrkQual_nactive = track_->NActive();
+      tree_.fTrkQual_activehitsfraction = tree_.fTrkActiveRatio;
+      tree_.fTrkQual_nullhitsfraction = tree_.fTrkNullRatio;
+      tree_.fTrkQual_activematsitesfraction = track_->NMatActive() * 1.f / track_->NActive();
+      tree_.fTrkQual_fitcons = tree_.fTrkFitCon;
+      tree_.fTrkQual_momerr = track_->MomErrFront();
+      tree_.fTrkQual_t0err = track_->TErrFront();
+    }
+
+    // if(crv_cluster_) {
+    //   tree_.fCRVZ = fTrkPar.fCRVStubPar->fZ;
+    //   tree_.fCRVDeltaT = fTrkPar.fCRVStubPar->fCorrTime - fTrack->fT0;
+    //   tree_.fCRVNPulses = fTrkPar.fCRVStubPar->fCluster->NPulses();
+    //   tree_.fCRVNPe = fTrkPar.fCRVStubPar->fCluster->NPe();
+    //   tree_.fCRVNPePP = fTrkPar.fCRVStubPar->fNPePP;
+    // } else {
+    //   tree_.fCRVZ = 0.f;
+    //   tree_.fCRVDeltaT = 0.f;
+    //   tree_.fCRVNPulses = 0.f;
+    //   tree_.fCRVNPe = 0.f;
+    //   tree_.fCRVNPePP = 0.f;
+    // }
+
+    tree_.fWeight = evt_.weight_;
+
+    // // FIXME: For now just doing 50% splitting by ID
+    // const int event = GetEvent()->fEventNumber;
+    // tree_.fTrain = (event % 2 == 0) ? 1.f : -1.f;
+
   }
 
   //------------------------------------------------------------------------------------
   // Main event-by-event processing
   bool ConvAna::ProcessEvent() {
     FillEventHist(evt_hists_[0]); //all events with well defined inputs
+
+    // Loop through the track collection
+    for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
+      track_ = &tracks_[itrk];
+      FillTrackHist(trk_hists_[0], track_); // all tracks
+
+      // Downstream electron sets
+      if(track_->IsGood() && track_->FitPDG() == 11 && track_->PZFront() > 0.f) {
+        if(track_->PFront() > 95.f && track_->Charge() < 0) FillTrackHist(trk_hists_[4], track_);
+        const int ID = track_->ID();
+        const int event_id = evt_.nde_tracks_ != 1; // FIXME: Implement
+
+        // Offset to control regions
+        int set_offset(0);
+        if(ID & (1 << kCRV))
+          set_offset += kCRVVetoOffset;
+        if(ID & (1 << kT0))
+          set_offset += kTimeCutOffset;
+        // const int id_no_crv = ID & (~(1 << kCRV)); // ID without the CRV coincidence cluster considered
+        // const int id_no_time = ID & (~(1 << kT0)); // ID with a looser timing cut
+        // const int id_no_crv_time = id_no_crv & id_no_time;
+
+        if(event_id == 0 && ID == 0) { //id_no_crv_time == 0) {
+          FillTrackHist(trk_hists_[10 + set_offset], track_);
+          if(track_->Charge() < 0) { // electron selection
+            if(track_->PFront() > 100.f && track_->PFront() < 110.f) {
+              FillTrackHist(trk_hists_[20 + set_offset], track_);
+              if(track_->PFront() > 103.6f && track_->PFront() < 104.9f) {
+                FillTrackHist(trk_hists_[21 + set_offset], track_);
+              }
+            }
+          }
+        }
+      }
+    }
+
     if(evt_.nde_tracks_ != 1) return false; //exactly one positron or electron
     FillEventHist(evt_hists_[1]);
     return true;

@@ -24,7 +24,6 @@ using namespace mu2e;
 namespace Mu2eEvtAna {
   class ConvAna : public Mu2eEvtAna {
   public:
-    enum {kCRVOffset = 1000, kTimeOffset = 2000};
     ConvAna(int verbose = 0);
     ~ConvAna() {};
 
@@ -33,9 +32,12 @@ namespace Mu2eEvtAna {
     void BookHistograms(TDirectory* dir);
     bool ProcessEvent();
     void InitializeEvent();
+    void InitTrack(rooutil::Track* track, Track_t& trk_par);
 
     int InitializeInput();
     int InitializeOutput();
+
+    void InitTreeData();
 
     TString OutputFileName() { return "convana_" + name_ + ".root"; }
 
@@ -46,8 +48,12 @@ namespace Mu2eEvtAna {
     Systematics        systematics_                     ; // systematic information
 
     Tree_t             tree_                            ; // selected data
+    Track_t*           track_ = nullptr                 ;
+    CaloCluster_t*     calo_cluster_ = nullptr          ;
+    CRVCluster_t*      crv_cluster_ = nullptr           ;
 
-    int evaluate_mvas_ = 0;
+    // MVA info
+    int evaluate_mvas_ = 1;
     TMVA::Reader* trkqual_ = nullptr;
     int trkqual_version_ = 0;
     TMVA::Reader* pid_ = nullptr;
