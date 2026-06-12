@@ -119,7 +119,7 @@ namespace Mu2eEvtAna {
       return Form("Unknown-%i", bit);
     }
 
-    virtual TString OutputFileName() { return "evtana_" + name_ + ".root"; }
+    virtual TString OutputFileName() { return "EvtAna." + name_ + ".root"; }
 
     rooutil::Event*  event_ ; //input TChain wrapper
     TChain* ntuple_; //input ntuple
@@ -130,6 +130,8 @@ namespace Mu2eEvtAna {
     TTree* tnorm_; //output normalization information
     Norm_t norm_; //normalization info
     TDirectory*        top_dir_;
+    TDirectory*        hist_dir_;
+    TDirectory*        data_dir_;
     TDirectory*        evt_dirs_  [kMaxHists];
     TDirectory*        trk_dirs_  [kMaxHists];
     TDirectory*        cls_dirs_  [kMaxHists];

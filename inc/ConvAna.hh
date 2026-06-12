@@ -39,7 +39,7 @@ namespace Mu2eEvtAna {
 
     void InitTreeData();
 
-    TString OutputFileName() { return "convana_" + name_ + ".root"; }
+    TString OutputFileName() { return "ConvAna." + name_ + ".root"; }
 
     Bool_t             fill_verbose_sys_ = false        ; // add additional info with each systematic
 

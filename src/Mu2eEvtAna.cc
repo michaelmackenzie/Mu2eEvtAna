@@ -168,7 +168,7 @@ namespace Mu2eEvtAna {
       throw std::runtime_error("Attempting to book histograms in a null TrackHist_t\n");
     }
     Hist->fP[0]          = new TH1F("p"           ,Form("%s: Track momentum"                       ,Folder),  300,    0.,  150.);
-    Hist->fP[1]          = new TH1F("p_2"         ,Form("%s: Track momentum"                       ,Folder),  400,   80.,  120.);
+    Hist->fP[1]          = new TH1F("p_2"         ,Form("%s: Track momentum"                       ,Folder),  600,   80.,  110.);
     Hist->fObs           = new TH1F("obs"         ,Form("%s: Track momentum"                       ,Folder),  300,   80.,  110.); // fit histogram
     Hist->fPt            = new TH1F("pt"          ,Form("%s: track transverse momentum"            ,Folder),  300,    0.,  300.);
     Hist->fPCorr         = new TH1F("p_corr"      ,Form("%s: corrected track momentum"             ,Folder),  600,   80.,  110.);
@@ -700,14 +700,17 @@ namespace Mu2eEvtAna {
   // Initialize the input ntuple information
   int Mu2eEvtAna::InitializeOutput() {
     fout_ = new TFile(OutputFileName(), "RECREATE");
-    top_dir_ = fout_->mkdir("Data");
-    top_dir_->cd();
+    top_dir_ = fout_->mkdir("Ana");
+    hist_dir_ = top_dir_->mkdir("Hist");
+    data_dir_ = top_dir_->mkdir("data");
 
     // Initialize the output ntuple
+    data_dir_->cd();
     tout_ = new TTree("evtana", "Slim Mu2e event analysis tree");
     AddOutputBranches(tout_);
 
     // Initialize the normalization tree
+    data_dir_->cd();
     tnorm_ = new TTree("Norm", "Normalization information");
     tnorm_->Branch("ngen"   , &norm_.ngen_   );
     tnorm_->Branch("nntuple", &norm_.nntuple_);
@@ -716,8 +719,9 @@ namespace Mu2eEvtAna {
     tnorm_->Branch("nneg"   , &norm_.nneg_   );
 
     // Initialize histograms
+    hist_dir_->cd();
     InitHistSelections();
-    BookHistograms(top_dir_);
+    BookHistograms(hist_dir_);
 
     if(verbose_ > 1) printf("Mu2eEvtAna::%s: Created output file and trees/histograms\n", __func__);
     return 0;

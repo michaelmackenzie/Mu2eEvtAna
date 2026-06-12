@@ -38,9 +38,9 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
       gSystem->Exec(command.Data());
     } else {
       if(n_threads > 1) {
-        if(     strcmp(function, "mu2e_ana") == 0) mu2e_ana(dataset, mode, max_entries, 0, n_threads);
-        else if(strcmp(function, "rmc_ana")  == 0) rmc_ana (dataset, mode, max_entries, 0, n_threads);
-        else if(strcmp(function, "conv_ana") == 0) conv_ana(dataset, mode, max_entries, 0, n_threads);
+        if(     strcmp(function, "mu2e_ana") == 0) mu2e_ana(config.name_, mode, max_entries, 0, n_threads);
+        else if(strcmp(function, "rmc_ana")  == 0) rmc_ana (config.name_, mode, max_entries, 0, n_threads);
+        else if(strcmp(function, "cnv_ana")  == 0) cnv_ana (config.name_, mode, max_entries, 0, n_threads);
       } else {
         gInterpreter->ProcessLine(Form("%s(\"%s\", %i);",
                                       function, config.name_.Data(), mode));

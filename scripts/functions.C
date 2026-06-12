@@ -23,7 +23,7 @@ inline TString GetAnalyzerName(AnalyzerType ana_type) {
   switch(ana_type) {
     case kMu2eAna: return "mu2e_ana";
     case kRMCAna: return "rmc_ana";
-    case kConvAna: return "conv_ana";
+    case kConvAna: return "cnv_ana";
     default: return "unknown";
   }
 }
@@ -94,7 +94,7 @@ int ProcessThreaded(AnalyzerType ana_type, TString dataset, int Mode, Long64_t m
   }
 
   TString analyzer_name = GetAnalyzerName(ana_type);
-  TString ana_name = Form("%s_%s_m%i_thread_%i", analyzer_name.Data(), dataset.Data(), Mode, thread_id);
+  TString ana_name = Form("%s.%s.m%i.thread_%i", analyzer_name.Data(), dataset.Data(), Mode, thread_id);
 
   Mu2eEvtAna::Mu2eEvtAna* ana = nullptr;
   switch(ana_type) {
@@ -159,7 +159,7 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
     }
 
     ana->AddFile(file_list, max_entries, first_entry);
-    ana->SetName(Form("%s_%s_m%i", analyzer_name.Data(), dataset.Data(), Mode));
+    ana->SetName(Form("%s.%s.m%i", analyzer_name.Data(), dataset.Data(), Mode));
     ana->cache_size_ = 200000000U;
     ana->load_baskets_ = false;
     ana->report_rate_ = 5000;
@@ -212,19 +212,19 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
 
   cout << "Processing " << dataset << " with " << actual_n_threads << " threads" << endl;
 
-  TString header = "evtana";
+  TString header = "EvtAna";
   switch(ana_type) {
-  case kMu2eAna: header = "evtana"; break;
-  case kRMCAna: header = "rmcana"; break;
-  case kConvAna: header = "convana"; break;
+  case kMu2eAna: header = "EvtAna"; break;
+  case kRMCAna: header = "RMCAna"; break;
+  case kConvAna: header = "ConvAna"; break;
   }
-  TString merged_output = Form("%s_%s_%s_m%i.root", header.Data(), analyzer_name.Data(), dataset.Data(), Mode);
+  TString merged_output = Form("%s.%s.%s.m%i.root", header.Data(), analyzer_name.Data(), dataset.Data(), Mode);
 
   TString threaded_func;
   switch(ana_type) {
     case kMu2eAna: threaded_func = "mu2e_ana_threaded"; break;
     case kRMCAna: threaded_func = "rmc_ana_threaded"; break;
-    case kConvAna: threaded_func = "conv_ana_threaded"; break;
+    case kConvAna: threaded_func = "cnv_ana_threaded"; break;
   }
 
   for(int t = 0; t < actual_n_threads; ++t) {
@@ -239,7 +239,7 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
   TString merge_list = Form("temp/%s_merge_list.txt", dataset.Data());
   ofstream ml(merge_list);
   for(int t = 0; t < actual_n_threads; ++t) {
-    ml << Form("%s_%s_%s_m%i_thread_%i.root\n", header.Data(), analyzer_name.Data(), dataset.Data(), Mode, t);
+    ml << Form("%s.%s.%s.m%i.thread_%i.root\n", header.Data(), analyzer_name.Data(), dataset.Data(), Mode, t);
   }
   ml.close();
 
@@ -258,7 +258,7 @@ int rmc_ana(TString dataset, int Mode = 0, Long64_t max_entries = -1, Long64_t f
   return ProcessWithThreads(kRMCAna, dataset, Mode, max_entries, first_entry, n_threads);
 }
 
-int conv_ana(TString dataset, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1) {
+int cnv_ana(TString dataset, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1) {
   return ProcessWithThreads(kConvAna, dataset, Mode, max_entries, first_entry, n_threads);
 }
 
@@ -272,7 +272,7 @@ extern "C" {
     return ProcessThreaded(kRMCAna, dataset, Mode, max_entries, first_entry, thread_id);
   }
 
-  int conv_ana_threaded(TString dataset, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id) {
+  int cnv_ana_threaded(TString dataset, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id) {
     return ProcessThreaded(kConvAna, dataset, Mode, max_entries, first_entry, thread_id);
   }
 }

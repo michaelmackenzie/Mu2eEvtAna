@@ -16,8 +16,11 @@ namespace DATA {
 
   vector<Dataset_t> datasets() {
     vector<Dataset_t> datasets;
-    datasets.emplace_back(true,  "cele0b1s5r0100", "nts.mu2e.CeEndpointMix1BBTriggered.MDC2025-000.root"   , 10000, 100000);
-    datasets.emplace_back(true,  "cele1b1s5r0100", "nts.mu2e.CeMLeadingLogMix1BBTriggered.MDC2025-003.root", 10000, 100000);
+    datasets.emplace_back(false,  "cele0b1s5r0100", "nts.mu2e.CeEndpointMix1BBTriggered.MDC2025-000.root"       ,   10000,   100000);
+    datasets.emplace_back(false,  "cele1b1s5r0100", "nts.mu2e.CeMLeadingLogMix1BBTriggered.MDC2025-003.root"    ,   10000,   100000);
+    datasets.emplace_back(true ,  "cele1b0s5r0100", "nts.mu2e.CeMLeadingLogOnSpill-reco-ntuple.MDC2025-002.root", 4009075, 10000000);
+    datasets.emplace_back(true ,  "cry4ab0s5r0100", "nts.mu2e.CosmicSignalOnSpill-reco-ntuple.MDC2025-002.root" , 4120241, 4437500. /*livetime*/);
+    datasets.emplace_back(true ,  "dio00b0s5r0100", "nts.mu2e.DIOtail95OnSpill-reco-ntuple.MDC2025-002.root"    , 8780533, 25000000);
 
     return datasets;
   }

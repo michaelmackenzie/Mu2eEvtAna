@@ -104,13 +104,13 @@ namespace Mu2eEvtAna {
       else if(pdg ==  211) mass = 139.57;
       else if(pdg == 2212) mass = 938.27;
       constexpr float v_light = 300.f; // ~300 mm / ns
-      float p = PMiddle();
+      float p = PMiddle(); // take the middle estimate as a rough average of the tracker region
       float cz = CosThetaMiddle();
-      if(p <= 0.) {  // use front as first backup
+      if(p <= 0.) {  // use front as the first backup
         p = PFront();
         cz = CosThetaFront();
       }
-      if(p <= 0.) {  // use back as last backup
+      if(p <= 0.) {  // use back as the last backup
         p = PBack();
         cz = CosThetaBack();
       }
@@ -125,6 +125,7 @@ namespace Mu2eEvtAna {
       tz_slope_unc_ = -1.;
       if(!track_) return;
       if(!track_->trkhits || track_->trkhits->empty()) return;
+      // Fit the tracker hits (z, t) to get the dt/dz line
       ::LsqSums2 fitDtDz;
       const size_t nhits = track_->trkhits->size();
       for(size_t index = 0; index < nhits; ++index) {
@@ -137,9 +138,7 @@ namespace Mu2eEvtAna {
         fitDtDz.addPoint(z, t, 1.);
       }
       tz_slope_ = fitDtDz.dydx();
-      // Scale up the errors by chisq / dof to get an estimate of what the averged weight should have been
-      const float chisq = fitDtDz.chi2Dof();
-      tz_slope_unc_ = fitDtDz.dydxErr()*chisq;
+      tz_slope_unc_ = fitDtDz.dydxErr();
       // Chi2ndof = fitDtDz.chi2Dof();
     }
 

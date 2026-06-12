@@ -30,7 +30,7 @@ namespace Mu2eEvtAna {
     int InitializeInput();
     int InitializeOutput();
 
-    TString OutputFileName() { return "rmcana_" + name_ + ".root"; }
+    TString OutputFileName() { return "RMCAna." + name_ + ".root"; }
 
   };
 }
