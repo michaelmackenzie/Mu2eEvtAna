@@ -5,6 +5,9 @@
 #ifndef MU2EEVTANA_TRACK_T_HH
 #define MU2EEVTANA_TRACK_T_HH
 
+// Offline includes
+#include "Offline/Mu2eUtilities/inc/LsqSums2.hh"
+
 // ROOT includes
 #include "Rtypes.h"
 #include "TString.h"
@@ -35,6 +38,10 @@ namespace Mu2eEvtAna {
     float trkpid_;
     float cosmic_id_;
 
+    // Evaluated values
+    float tz_slope_;
+    float tz_slope_unc_;
+
     // Track IDs
     int id_[kMaxTrackIDs];
 
@@ -63,14 +70,77 @@ namespace Mu2eEvtAna {
     int   NNull     () const { return (track_ && track_->trk) ? track_->trk->nnullambig : -1; }
     int   NMatActive() const { return (track_ && track_->trk) ? track_->trk->nmatactive : -1; }
     float TrkQual   () const { return (track_ && track_->trkqual && track_->trkqual->valid) ? track_->trkqual->result : -1000.f; }
-    float PID       () const { return -1000.f; } //(track_ && track_->trkpid && track_->trkpid->valid) ? track_->trkpid->result : -1000.f; }
-    float AltTrkQual() const { return (track_) ? trkqual_   : -1000.f; }
-    float AltPID    () const { return (track_) ? pid_       : -1000.f; }
-    float TrkPID    () const { return (track_) ? trkpid_    : -1000.f; }
-    float CosmicID  () const { return (track_) ? cosmic_id_ : -1000.f; }
+    float PID       () const { return -1000.f; } // (track_ && track_->trkpid && track_->trkpid->valid) ? track_->trkpid->result : -1000.f; }
+    float AltTrkQual() const { return (track_) ? trkqual_      : -1000.f; }
+    float AltPID    () const { return (track_) ? pid_          : -1000.f; }
+    float TrkPID    () const { return (track_) ? trkpid_       : -1000.f; }
+    float CosmicID  () const { return (track_) ? cosmic_id_    : -1000.f; }
+    float TZSlope   () const { return (track_) ? tz_slope_     :     0.f; }
+    float TZSlopeUnc() const { return (track_) ? tz_slope_unc_ :    -1.f; }
     bool  OPAInter  () const { return (track_ && track_->trk) ? track_->trk->opainter : false; }
     int   NSTInter  () const {
       return (track_ && track_->trk) ? track_->trk->nstup + track_->trk->nstdown : 0;
+    }
+
+    // Static functions
+    static float Velocity(double p, double m) {
+      if(p < 0. || m < 0. || (p <= 0. && m <= 0.))
+        return 0.;
+      return p / std::sqrt(p * p + m * m);
+    }
+
+    float TZSlopeSig() const {
+      if(!track_) return 0.;
+      const float slope = TZSlope();
+      const float unc   = TZSlopeUnc();
+      return (unc <= 0.) ? 0. : slope/unc;
+    }
+
+    float TZSlopeRatio() const {
+      if(!track_) return 0.;
+      const int pdg = std::abs(FitPDG());
+      double mass = 0.511; // default to electron
+      if     (pdg ==   13) mass = 105.66;
+      else if(pdg ==  211) mass = 139.57;
+      else if(pdg == 2212) mass = 938.27;
+      constexpr float v_light = 300.f; // ~300 mm / ns
+      float p = PMiddle();
+      float cz = CosThetaMiddle();
+      if(p <= 0.) {  // use front as first backup
+        p = PFront();
+        cz = CosThetaFront();
+      }
+      if(p <= 0.) {  // use back as last backup
+        p = PBack();
+        cz = CosThetaBack();
+      }
+      const float vz = v_light*Velocity(p,mass)*cz;
+      const float ratio = TZSlope() * vz;
+      return ratio;
+    }
+
+    // Evaluate the TZ slope from the track hits and store it
+    void EvaluateTZSlope() {
+      tz_slope_ = 0.;
+      tz_slope_unc_ = -1.;
+      if(!track_) return;
+      if(!track_->trkhits || track_->trkhits->empty()) return;
+      ::LsqSums2 fitDtDz;
+      const size_t nhits = track_->trkhits->size();
+      for(size_t index = 0; index < nhits; ++index) {
+        const auto& hit = track_->trkhits->at(index);
+        const double t = hit.etime[hit.earlyend] - hit.tottdrift; // use less biased time
+        // const double t = hit.ptoca; // from the track fit
+        const double z = hit.poca.z();
+        //   double timeErrSquared = hit->timeVar();//ns^2
+        //   double hitWeight      = 1./timeErrSquared;
+        fitDtDz.addPoint(z, t, 1.);
+      }
+      tz_slope_ = fitDtDz.dydx();
+      // Scale up the errors by chisq / dof to get an estimate of what the averged weight should have been
+      const float chisq = fitDtDz.chi2Dof();
+      tz_slope_unc_ = fitDtDz.dydxErr()*chisq;
+      // Chi2ndof = fitDtDz.chi2Dof();
     }
 
     //----------------------------------------------
@@ -260,29 +330,31 @@ namespace Mu2eEvtAna {
 
     //----------------------------------------------
     // Track kinematics at the tracker middle
-    float PMiddle     () const { return PSegment     (mu2e::SurfaceIdDetail::TT_Mid); }
-    float PTMiddle    () const { return PTSegment    (mu2e::SurfaceIdDetail::TT_Mid); }
-    float PZMiddle    () const { return PZSegment    (mu2e::SurfaceIdDetail::TT_Mid); }
-    float DMomMiddle  () const { return DMomSegment  (mu2e::SurfaceIdDetail::TT_Mid); }
-    float MomErrMiddle() const { return MomErrSegment(mu2e::SurfaceIdDetail::TT_Mid); }
-    float TMiddle     () const { return TSegment     (mu2e::SurfaceIdDetail::TT_Mid); }
-    float TErrMiddle  () const { return TErrSegment  (mu2e::SurfaceIdDetail::TT_Mid); }
-    float D0Middle    () const { return D0Segment    (mu2e::SurfaceIdDetail::TT_Mid); }
-    float TanDipMiddle() const { return TanDipSegment(mu2e::SurfaceIdDetail::TT_Mid); }
-    float RMaxMiddle  () const { return RMaxSegment  (mu2e::SurfaceIdDetail::TT_Mid); }
+    float PMiddle       () const { return PSegment       (mu2e::SurfaceIdDetail::TT_Mid); }
+    float PTMiddle      () const { return PTSegment      (mu2e::SurfaceIdDetail::TT_Mid); }
+    float PZMiddle      () const { return PZSegment      (mu2e::SurfaceIdDetail::TT_Mid); }
+    float DMomMiddle    () const { return DMomSegment    (mu2e::SurfaceIdDetail::TT_Mid); }
+    float MomErrMiddle  () const { return MomErrSegment  (mu2e::SurfaceIdDetail::TT_Mid); }
+    float TMiddle       () const { return TSegment       (mu2e::SurfaceIdDetail::TT_Mid); }
+    float TErrMiddle    () const { return TErrSegment    (mu2e::SurfaceIdDetail::TT_Mid); }
+    float D0Middle      () const { return D0Segment      (mu2e::SurfaceIdDetail::TT_Mid); }
+    float TanDipMiddle  () const { return TanDipSegment  (mu2e::SurfaceIdDetail::TT_Mid); }
+    float CosThetaMiddle() const { return CosThetaSegment(mu2e::SurfaceIdDetail::TT_Mid); }
+    float RMaxMiddle    () const { return RMaxSegment    (mu2e::SurfaceIdDetail::TT_Mid); }
 
     //----------------------------------------------
     // Track kinematics at the tracker back
-    float PBack     () const { return PSegment     (mu2e::SurfaceIdDetail::TT_Back); }
-    float PTBack    () const { return PTSegment    (mu2e::SurfaceIdDetail::TT_Back); }
-    float PZBack    () const { return PZSegment    (mu2e::SurfaceIdDetail::TT_Back); }
-    float DMomBack  () const { return DMomSegment  (mu2e::SurfaceIdDetail::TT_Back); }
-    float MomErrBack() const { return MomErrSegment(mu2e::SurfaceIdDetail::TT_Back); }
-    float TBack     () const { return TSegment     (mu2e::SurfaceIdDetail::TT_Back); }
-    float TErrBack  () const { return TErrSegment  (mu2e::SurfaceIdDetail::TT_Back); }
-    float D0Back    () const { return D0Segment    (mu2e::SurfaceIdDetail::TT_Back); }
-    float TanDipBack() const { return TanDipSegment(mu2e::SurfaceIdDetail::TT_Back); }
-    float RMaxBack  () const { return RMaxSegment  (mu2e::SurfaceIdDetail::TT_Back); }
+    float PBack       () const { return PSegment       (mu2e::SurfaceIdDetail::TT_Back); }
+    float PTBack      () const { return PTSegment      (mu2e::SurfaceIdDetail::TT_Back); }
+    float PZBack      () const { return PZSegment      (mu2e::SurfaceIdDetail::TT_Back); }
+    float DMomBack    () const { return DMomSegment    (mu2e::SurfaceIdDetail::TT_Back); }
+    float MomErrBack  () const { return MomErrSegment  (mu2e::SurfaceIdDetail::TT_Back); }
+    float TBack       () const { return TSegment       (mu2e::SurfaceIdDetail::TT_Back); }
+    float TErrBack    () const { return TErrSegment    (mu2e::SurfaceIdDetail::TT_Back); }
+    float D0Back      () const { return D0Segment      (mu2e::SurfaceIdDetail::TT_Back); }
+    float TanDipBack  () const { return TanDipSegment  (mu2e::SurfaceIdDetail::TT_Back); }
+    float CosThetaBack() const { return CosThetaSegment(mu2e::SurfaceIdDetail::TT_Back); }
+    float RMaxBack    () const { return RMaxSegment    (mu2e::SurfaceIdDetail::TT_Back); }
 
     //----------------------------------------------
     // Track kinematics at the stopping target exit
@@ -340,13 +412,15 @@ namespace Mu2eEvtAna {
     //----------------------------------------------
     // Reset the input info
     void Reset() {
-      track_     = nullptr;
-      stub_      = nullptr;
-      upstream_  = nullptr;
-      trkqual_   = -1000.f;
-      pid_       = -1000.f;
-      trkpid_    = -1000.f;
-      cosmic_id_ = -1000.f;
+      track_        = nullptr;
+      stub_         = nullptr;
+      upstream_     = nullptr;
+      trkqual_      = -1000.f;
+      pid_          = -1000.f;
+      trkpid_       = -1000.f;
+      cosmic_id_    = -1000.f;
+      tz_slope_     = 0.f;
+      tz_slope_unc_ = -1.f;
       for(int iid = 0; iid < kMaxTrackIDs; ++iid) id_[iid] = 0;
       for(int iobs = 0; iobs < kMaxObservables; ++iobs) obs_[iobs] = 0.;
     }

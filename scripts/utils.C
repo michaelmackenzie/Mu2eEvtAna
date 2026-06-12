@@ -88,8 +88,9 @@ int CountAnalyzerProcesses() {
 }
 
 void WaitJobs() {
+  bool first = true;
   while(CountAnalyzerProcesses() > 0) {
-    cout << "Waiting for analyzer processes to complete..." << endl;
+    if(first) { cout << "Waiting for analyzer processes to complete..." << endl; first = false; }
     sleep(10);
   }
 }
