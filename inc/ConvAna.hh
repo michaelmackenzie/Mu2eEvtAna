@@ -38,6 +38,13 @@ namespace Mu2eEvtAna {
     int InitializeOutput();
 
     void InitTreeData();
+    int  Run1ATrackID(Track_t* track);
+
+    void ValidateVariable(float var, const char* name) {
+      if(!std::isfinite(var)) {
+        printf(">>> Event %5i/%5i/%6i: Variable %s is non-finite = %f\n", evt_.run_, evt_.subrun_, evt_.event_, name, var);
+      }
+    }
 
     TString OutputFileName() { return "ConvAna." + name_ + ".root"; }
 

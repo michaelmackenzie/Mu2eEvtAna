@@ -90,6 +90,8 @@ namespace Mu2eEvtAna {
     hist_sets[ 41] = new hist_info_t("e+: narrow window"                ,  true,  true,  true,  true, false, false,  true, false);
     hist_sets[ 42] = new hist_info_t("e+: full window, no weights"      ,  true,  true,  true,  true, false, false,  true, false);
     hist_sets[ 50] = new hist_info_t("e+: no CRV veto"                  ,  true, false, false, false,  true, false,  true, false);
+    hist_sets[ 60] = new hist_info_t("e-: Run 1A ID"                    ,  true,  true,  true,  true,  true,  true,  true,  true);
+    hist_sets[ 61] = new hist_info_t("e-: Run 1A ID, no weights"        ,  true,  true,  true,  true,  true, false,  true, false);
 
     // CRV studies histograms
     hist_sets[ 80] = new hist_info_t("CRV: 1"                           ,  true, false, false, false,  true, false, false, false);
@@ -183,6 +185,26 @@ namespace Mu2eEvtAna {
     if(evaluate_mvas_) {
       track_ = &trk_par;
       InitTreeData();
+      ValidateVariable(tree_.fTrkQual_nactive, "TrkQual_nactive");
+      ValidateVariable(tree_.fTrkQual_activehitsfraction, "TrkQual_activehitsfraction");
+      ValidateVariable(tree_.fTrkQual_nullhitsfraction, "TrkQual_nullhitsfraction");
+      ValidateVariable(tree_.fTrkQual_activematsitesfraction, "TrkQual_activematsitesfraction");
+      ValidateVariable(tree_.fTrkQual_fitcons, "TrkQual_fitcons");
+      ValidateVariable(tree_.fTrkQual_momerr, "TrkQual_momerr");
+      ValidateVariable(tree_.fTrkQual_t0err, "TrkQual_t0err");
+      ValidateVariable(tree_.fTrkEP, "TrkEP");
+      ValidateVariable(tree_.fTrkDt, "TrkDt");
+      ValidateVariable(tree_.fTrkFitCon, "TrkFitCon");
+      ValidateVariable(tree_.fTrkLogFitCon, "TrkLogFitCon");
+      ValidateVariable(tree_.fTrkActiveRatio, "TrkActiveRatio");
+      ValidateVariable(tree_.fTrkNullRatio, "TrkNullRatio");
+      ValidateVariable(tree_.fTrkTZSlope, "TrkTZSlope");
+      ValidateVariable(tree_.fTrkTZSlopeSig, "TrkTZSlopeSig");
+      ValidateVariable(tree_.fTrkTZSlopeRatio, "TrkTZSlopeRatio");
+      ValidateVariable(tree_.fTrkD0, "TrkD0");
+      ValidateVariable(tree_.fTrkTanDip, "TrkTanDip");
+      ValidateVariable(tree_.fTrkCosTheta, "TrkCosTheta");
+      ValidateVariable(tree_.fTrkRMax, "TrkRMax");
       watch_->SetTime("MVAs");
       trk_par.trkqual_ = (trkqual_) ? trkqual_->EvaluateMVA("TrkQual") : -999.f;
       trk_par.pid_ = (pid_) ? pid_->EvaluateMVA("PID") : -999.f;
@@ -192,6 +214,9 @@ namespace Mu2eEvtAna {
       // Reset the main ID with the new MVA scores
       trk_par.SetID(TrackID(&trk_par), 0);
     }
+
+    // Standard Run 1A selection set
+    trk_par.SetID(Run1ATrackID(&trk_par), 1);
   }
 
   //------------------------------------------------------------------------------------
@@ -258,8 +283,66 @@ namespace Mu2eEvtAna {
   }
 
   //------------------------------------------------------------------------------------
+  // Track selection
+  int ConvAna::Run1ATrackID(Track_t* track) {
+    if(!track || !track->track_) return 0;
+    int ID(0);
+    const float pmin = (track->Charge() < 0) ?  85.f :  85.f;
+    const float pmax = (track->Charge() < 0) ? 130.f : 130.f;
+    if(track->PFront() < pmin || track->PFront() > pmax)         ID += 1 << kP;
+    if(track->OPAInter())                                        ID += 1 << kRMax;
+    if(std::abs(track->FitPDG()) != 11 || track->PZFront() < 0.f)ID += 1 << kFitHyp;
+    if(track->TrkQual() > -10. && track->TrkQual() < 0.2)        ID += 1 << kTrkQual;
+    else if(track->TErrFront() > 0.9)                            ID += 1 << kTrkQual; // FIXME
+    else if(track->NActive() < 20)                               ID += 1 << kTrkQual; // FIXME
+    if(track->TFront() < 600. || track->TFront() > 1650.)        ID += 1 << kT0; // FIXME
+    if(track->ECluster() <= 0.)                                  ID += 1 << kClusterE; //require a cluster
+    if(track->NSTInter() == 0)                                   ID += 1 << kD0; // consistent with stopping target
+    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 0.95)ID += 1 << kTDip;
+    if(track->TFront() < 500. || track->TFront() > 1650.)        ID += 1 << kT0Loose; //for control regions
+
+    // PID rejection
+    if(track->ECluster() > 0.f) {
+      if(track->PID() < -100.f) { // no score
+        if(track->EPFront() < 0.65f)    ID += 1 << kPID;
+      } else if(track->PID() < 0.67f)   ID += 1 << kPID;
+    }
+
+    // CRV rejection
+    bool fail_crv = false;
+    // Look for associated stub
+    if(track->stub_) {
+      auto stub = track->stub_;
+      const float deltat_crv    = track->TFront() - stub->Time();
+      if(deltat_crv > -150.f && deltat_crv < 150.f) fail_crv = true;
+    }
+    // Look for good CRV clusters anywhere in the event
+    if(!fail_crv) {
+      for(int icrv = 0; icrv < evt_.ncrv_clusters_; ++icrv) {
+        CRVCluster_t* stub = &crv_clusters_[icrv];
+        if(stub->PEs() >= 25. && stub->NHits() >= 15 && stub->TimeSpan() < 175.) {
+          fail_crv = true;
+          break;
+        }
+      }
+    }
+    if(fail_crv)                                                 ID += 1 << kCRV;
+
+    // if(track->PFront() > 95. &&
+    //    std::abs(track->FitPDG()) == 11 &&
+    //    track->PZFront() > 0. &&
+    //    ((ID & ~kT0) & ~kClusterE) != 0) {
+    //   std::cout << __func__ << ": ID = " << std::bitset<32>(ID) << std::endl;
+    // }
+    return ID;
+  }
+
+  //------------------------------------------------------------------------------------
   // Main event-by-event processing
   bool ConvAna::ProcessEvent() {
+
+    const float nominal_weight = evt_.weight_;
+
     FillEventHist(evt_hists_[0]); //all events with well defined inputs
 
     // Loop through the track collection
@@ -270,8 +353,12 @@ namespace Mu2eEvtAna {
       // Downstream electron sets
       if(track_->IsGood() && track_->FitPDG() == 11 && track_->PZFront() > 0.f) {
         if(track_->PFront() > 95.f && track_->Charge() < 0) FillTrackHist(trk_hists_[4], track_);
-        const int ID = track_->ID();
-        const int event_id = evt_.nde_tracks_ != 1; // FIXME: Implement
+        const int ID = track_->ID(0);
+        const int Run1AID = track_->ID(1);
+        const int event_id = (
+                              1*(evt_.nde_tracks_ != 1) +
+                              2*(!trigger_.FiredAPR() && !trigger_.FiredCPR())
+                              );
 
         // Offset to control regions
         int set_offset(0);
@@ -293,6 +380,14 @@ namespace Mu2eEvtAna {
               }
             }
           }
+        }
+
+        // Standard selection set
+        if(event_id == 0 && Run1AID == 0) {
+          FillTrackHist(trk_hists_[60], track_);
+          evt_.weight_ = 1.f;
+          FillTrackHist(trk_hists_[61], track_);
+          evt_.weight_ = nominal_weight;
         }
       }
     }

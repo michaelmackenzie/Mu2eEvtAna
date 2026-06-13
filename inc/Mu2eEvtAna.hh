@@ -9,6 +9,8 @@
 #include <vector>
 #include <utility>
 #include <fstream>
+#include <iostream>
+#include <bitset>
 
 // ROOT includes
 #include "Rtypes.h"

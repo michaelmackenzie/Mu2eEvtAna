@@ -42,8 +42,8 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
         else if(strcmp(function, "rmc_ana")  == 0) rmc_ana (config.name_, mode, max_entries, 0, n_threads);
         else if(strcmp(function, "cnv_ana")  == 0) cnv_ana (config.name_, mode, max_entries, 0, n_threads);
       } else {
-        gInterpreter->ProcessLine(Form("%s(\"%s\", %i);",
-                                      function, config.name_.Data(), mode));
+        gInterpreter->ProcessLine(Form("%s(\"%s\", %i, %lld);",
+                                       function, config.name_.Data(), mode, max_entries));
       }
     }
   }

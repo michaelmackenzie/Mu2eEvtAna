@@ -238,14 +238,24 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
 
   TString merge_list = Form("temp/%s_merge_list.txt", dataset.Data());
   ofstream ml(merge_list);
+  int nfinished = 0;
   for(int t = 0; t < actual_n_threads; ++t) {
-    ml << Form("%s.%s.%s.m%i.thread_%i.root\n", header.Data(), analyzer_name.Data(), dataset.Data(), Mode, t);
+    const int status = gSystem->Exec(Form("grep -q 'Thread %i status = 0' log/out_%s_thread_%i.log", t, dataset.Data(), t));
+    if(status == 0) {
+      ml << Form("%s.%s.%s.m%i.thread_%i.root\n", header.Data(), analyzer_name.Data(), dataset.Data(), Mode, t);
+      ++nfinished;
+    } else {
+      cout << ">>> Error! " << dataset << "_thread_" << t << " did not finish properly!\n";
+    }
   }
   ml.close();
 
-  MergeOutputFiles(merged_output, merge_list);
-
-  cout << "Multi-thread processing complete. Output: " << merged_output << endl;
+  if(nfinished > 0) {
+    MergeOutputFiles(merged_output, merge_list);
+    cout << "Multi-thread processing complete. Output: " << merged_output << endl;
+  } else {
+    cout << "Multi-thread processing failed! Did not produce output: " << merged_output << endl;
+  }
   return 0;
 }
 

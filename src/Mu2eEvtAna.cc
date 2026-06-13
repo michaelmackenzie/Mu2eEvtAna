@@ -88,12 +88,13 @@ namespace Mu2eEvtAna {
 
     // Turn off branches not used by default (before Event object is created)
     if(ntuple_->GetBranch("trkhits"        )) {
-      ntuple_->SetBranchStatus("trkhits.*"        , 0);
-      ntuple_->SetBranchStatus("trkhits.poca"     , 1); // only keep the hits position and time
-      ntuple_->SetBranchStatus("trkhits.ptoca"    , 1);
-      ntuple_->SetBranchStatus("trkhits.etime"    , 1);
-      ntuple_->SetBranchStatus("trkhits.earlyend" , 1);
-      ntuple_->SetBranchStatus("trkhits.tottdrift", 1);
+      // This requires a higher split level in the TTree
+      // ntuple_->SetBranchStatus("trkhits.*"        , 0);
+      // ntuple_->SetBranchStatus("trkhits.poca"     , 1); // only keep the hits position and time
+      // ntuple_->SetBranchStatus("trkhits.ptoca"    , 1);
+      // ntuple_->SetBranchStatus("trkhits.etime"    , 1);
+      // ntuple_->SetBranchStatus("trkhits.earlyend" , 1);
+      // ntuple_->SetBranchStatus("trkhits.tottdrift", 1);
     }
     if(ntuple_->GetBranch("trkhitscalibs"  )) ntuple_->SetBranchStatus("trkhitscalibs"    , 0);
     if(ntuple_->GetBranch("trkhitsmc"      )) ntuple_->SetBranchStatus("trkhitsmc"        , 0);
