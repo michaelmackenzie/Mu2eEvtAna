@@ -180,6 +180,7 @@ namespace Mu2eEvtAna {
   // Initialize track information
   void ConvAna::InitTrack(rooutil::Track* track, Track_t& trk_par) {
     Mu2eEvtAna::InitTrack(track, trk_par);
+    if(!trk_par.IsGood()) return;
 
     // Initialize MVA scores
     if(evaluate_mvas_) {
@@ -356,7 +357,7 @@ namespace Mu2eEvtAna {
       track_ = &tracks_[itrk];
       if(!track_->IsGood()) continue; // if not a properly fit track, skip it
       if(track_->FitPDG() != 11) continue; // skip muon fits for now due to PID bug
-      FillTrackHist(trk_hists_[0], track_); // all tracks
+      // FillTrackHist(trk_hists_[0], track_); // all tracks
 
       // Downstream electron sets
       if(track_->IsGood() && track_->FitPDG() == 11 && track_->PZFront() > 0.f) {

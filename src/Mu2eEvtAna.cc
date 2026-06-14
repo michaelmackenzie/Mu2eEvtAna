@@ -895,6 +895,7 @@ namespace Mu2eEvtAna {
     trk_par.Reset();
     trk_par.track_ = track;
     if(!track) return;
+    if(!trk_par.IsGood()) return;
     trk_par.SetObs(trk_par.PFront(), 0); // default to the track momentum as the key observable
     trk_par.SetObs(trk_par.TFront(), 1); // default to the track time as the secondary key observable
     trk_par.EvaluateTZSlope();
