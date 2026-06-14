@@ -70,8 +70,8 @@ namespace Mu2eEvtAna {
     int   NNull     () const { return (track_ && track_->trk) ? track_->trk->nnullambig : -1; }
     int   NMatActive() const { return (track_ && track_->trk) ? track_->trk->nmatactive : -1; }
     float TrkQual   () const { return (track_ && track_->trkqual && track_->trkqual->valid) ? track_->trkqual->result : -1000.f; }
-    // float PID       () const { return (track_ && track_->trkpid && track_->trkpid->valid) ? track_->trkpid->result : -1000.f; }
-    float PID       () const { return -1000.f; }
+    float PID       () const { return (track_ && track_->trkpid && track_->trkpid->valid) ? track_->trkpid->result : -1000.f; }
+    // float PID       () const { return -1000.f; }
     float AltTrkQual() const { return (track_) ? trkqual_      : -1000.f; }
     float AltPID    () const { return (track_) ? pid_          : -1000.f; }
     float TrkPID    () const { return (track_) ? trkpid_       : -1000.f; }

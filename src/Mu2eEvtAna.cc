@@ -745,6 +745,7 @@ namespace Mu2eEvtAna {
     // FIXME: Currently need to do this within the track collection
 
     // Add Calo cluster information
+    for(int i = 0; i < kMaxCaloClusters; ++i) calo_clusters_[i].Reset();
     auto calo_clusters = event_->GetCaloClusters();
     evt_.ncalo_clusters_ = calo_clusters.size();
     if(evt_.ncalo_clusters_ >= kMaxCaloClusters) throw std::runtime_error(Form("Exceeded the maximum number of allowed Calo clusters with %i!", evt_.ncalo_clusters_));
@@ -753,6 +754,7 @@ namespace Mu2eEvtAna {
     }
 
     // Add CRV information
+    for(int i = 0; i < kMaxCRVClusters; ++i) crv_clusters_[i].Reset();
     auto crv_stubs = event_->GetCrvCoincs();
     evt_.ncrv_clusters_ = crv_stubs.size();
     if(evt_.ncrv_clusters_ >= kMaxCRVClusters) throw std::runtime_error(Form("Exceeded the maximum number of allowed CRV clusters with %i!", evt_.ncrv_clusters_));
@@ -763,6 +765,7 @@ namespace Mu2eEvtAna {
     // Add track information
 
     // Loop through the tracks
+    for(int itrk = 0; itrk < kMaxTracks; ++itrk) tracks_[itrk].Reset();
     auto tracks = event_->GetTracks();
     evt_.ntracks_ = tracks.size();
     if(evt_.ntracks_ >= kMaxTracks) throw std::runtime_error(Form("Exceeded the maximum number of allowed tracks with %i!", evt_.ntracks_));

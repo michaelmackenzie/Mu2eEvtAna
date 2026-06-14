@@ -104,15 +104,15 @@ namespace Mu2eEvtAna {
     hist_sets[ 87] = new hist_info_t("CRV: Upstream veto"               ,  true, false, false, false,  true, false, false, false);
 
     for (int i=0; i<kMaxHists; i++) {
-      const int index = i % 1000;
+      const int index = i % 1000; // base index, ignoring control region offset
       if(!hist_sets[index]) continue;
       const bool is_cr = i >= 1000 && !hist_sets[index]->_crs;
-      if(is_cr) continue; // control region
+      if(is_cr && !hist_sets[index]->_crs) continue; // control region
       if(i >= 4000) break; //Control regions above 4000 not yet implemented
-      evt_hists_[index] = new EventHist_t;
-      if(hist_sets[index]->_trk) trk_hists_[index] = new TrackHist_t;
-      if(hist_sets[index]->_crv && ! is_cr) crv_hists_[index] = new CRVHist_t;
-      if(hist_sets[index]->_sys) sys_hists_[index] = new SysHist_t;
+      evt_hists_[i] = new EventHist_t;
+      if(hist_sets[index]->_trk) trk_hists_[i] = new TrackHist_t;
+      if(hist_sets[index]->_crv && ! is_cr) crv_hists_[i] = new CRVHist_t;
+      if(hist_sets[index]->_sys) sys_hists_[i] = new SysHist_t;
       // FIXME: Add missing histogram types
     }
   }
@@ -289,8 +289,10 @@ namespace Mu2eEvtAna {
     int ID(0);
     const float pmin = (track->Charge() < 0) ?  85.f :  85.f;
     const float pmax = (track->Charge() < 0) ? 130.f : 130.f;
+    const float d0_sign = track->D0Front() * track->Charge();
     if(track->PFront() < pmin || track->PFront() > pmax)         ID += 1 << kP;
     if(track->OPAInter())                                        ID += 1 << kRMax;
+    // else if(track->RMaxFront() < 450. || track->RMaxFront() > 680.) ID += 1 << kRMax;
     if(std::abs(track->FitPDG()) != 11 || track->PZFront() < 0.f)ID += 1 << kFitHyp;
     if(track->TrkQual() > -10. && track->TrkQual() < 0.2)        ID += 1 << kTrkQual;
     else if(track->TErrFront() > 0.9)                            ID += 1 << kTrkQual; // FIXME
@@ -298,7 +300,8 @@ namespace Mu2eEvtAna {
     if(track->TFront() < 600. || track->TFront() > 1650.)        ID += 1 << kT0; // FIXME
     if(track->ECluster() <= 0.)                                  ID += 1 << kClusterE; //require a cluster
     if(track->NSTInter() == 0)                                   ID += 1 << kD0; // consistent with stopping target
-    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 0.95)ID += 1 << kTDip;
+    else if(d0_sign < -100. || d0_sign > 100.)                   ID += 1 << kD0; //consistent with ST
+    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 1.)  ID += 1 << kTDip;
     if(track->TFront() < 500. || track->TFront() > 1650.)        ID += 1 << kT0Loose; //for control regions
 
     // PID rejection
@@ -345,9 +348,14 @@ namespace Mu2eEvtAna {
 
     FillEventHist(evt_hists_[0]); //all events with well defined inputs
 
+    // printf("[ConvAna::%s] Event %5i:%6i:%8i\n",
+    //        __func__, evt_.run_, evt_.subrun_, evt_.event_);
+
     // Loop through the track collection
     for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
       track_ = &tracks_[itrk];
+      if(!track_->IsGood()) continue; // if not a properly fit track, skip it
+      if(track_->FitPDG() != 11) continue; // skip muon fits for now due to PID bug
       FillTrackHist(trk_hists_[0], track_); // all tracks
 
       // Downstream electron sets
@@ -366,11 +374,11 @@ namespace Mu2eEvtAna {
           set_offset += kCRVVetoOffset;
         if(ID & (1 << kT0))
           set_offset += kTimeCutOffset;
-        // const int id_no_crv = ID & (~(1 << kCRV)); // ID without the CRV coincidence cluster considered
-        // const int id_no_time = ID & (~(1 << kT0)); // ID with a looser timing cut
-        // const int id_no_crv_time = id_no_crv & id_no_time;
+        const int id_no_crv = ID & (~(1 << kCRV)); // ID without the CRV coincidence cluster considered
+        const int id_no_time = ID & (~(1 << kT0)); // ID with a looser timing cut
+        const int id_no_crv_time = id_no_crv & id_no_time;
 
-        if(event_id == 0 && ID == 0) { //id_no_crv_time == 0) {
+        if(event_id == 0 && id_no_crv_time == 0) {
           FillTrackHist(trk_hists_[10 + set_offset], track_);
           if(track_->Charge() < 0) { // electron selection
             if(track_->PFront() > 100.f && track_->PFront() < 110.f) {
