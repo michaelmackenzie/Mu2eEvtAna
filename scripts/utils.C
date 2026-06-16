@@ -99,7 +99,7 @@ void WaitJobs() {
  * Merge output files using hadd
  */
 int MergeOutputFiles(TString output_file, TString merge_list_file) {
-  TString cmd = Form("bash ${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/merge_hist_files.sh %s %s -f",
+  TString cmd = Form("bash ${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/merge_hist_files.sh %s %s -f -c",
                      output_file.Data(), merge_list_file.Data());
   return gSystem->Exec(cmd.Data());
 }

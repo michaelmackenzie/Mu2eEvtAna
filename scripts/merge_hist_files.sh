@@ -11,11 +11,13 @@ fi
 output="$1"
 input_list="$2"
 force=false
+clean=false
 
 shift 2 || true
 while [ $# -gt 0 ]; do
     case "$1" in
         --force|-f) force=true ;;
+        --clean|-c) clean=true ;;
         *) echo "Unknown option: $1" ;;
     esac
     shift || true
@@ -43,4 +45,12 @@ if [ "$force" = true ]; then
     hadd -f "$output" "${files[@]}"
 else
     hadd "$output" "${files[@]}"
+fi
+
+if [ "$clean" = true ]; then
+    echo "Cleaning files"
+    for file in $files; do
+        echo rm $file
+        rm $file
+    done
 fi

@@ -290,20 +290,17 @@ namespace Mu2eEvtAna {
     int ID(0);
     const float pmin = (track->Charge() < 0) ?  85.f :  85.f;
     const float pmax = (track->Charge() < 0) ? 130.f : 130.f;
-    const float d0_sign = track->D0Front() * track->Charge();
-    if(track->PFront() < pmin || track->PFront() > pmax)         ID += 1 << kP;
-    if(track->OPAInter())                                        ID += 1 << kRMax;
-    // else if(track->RMaxFront() < 450. || track->RMaxFront() > 680.) ID += 1 << kRMax;
-    if(std::abs(track->FitPDG()) != 11 || track->PZFront() < 0.f)ID += 1 << kFitHyp;
-    if(track->TrkQual() > -10. && track->TrkQual() < 0.2)        ID += 1 << kTrkQual;
-    else if(track->TErrFront() > 0.9)                            ID += 1 << kTrkQual; // FIXME
-    else if(track->NActive() < 20)                               ID += 1 << kTrkQual; // FIXME
-    if(track->TFront() < 600. || track->TFront() > 1650.)        ID += 1 << kT0; // FIXME
-    if(track->ECluster() <= 0.)                                  ID += 1 << kClusterE; //require a cluster
-    if(track->NSTInter() == 0)                                   ID += 1 << kD0; // consistent with stopping target
-    else if(d0_sign < -100. || d0_sign > 100.)                   ID += 1 << kD0; //consistent with ST
-    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 1.)  ID += 1 << kTDip;
-    if(track->TFront() < 500. || track->TFront() > 1650.)        ID += 1 << kT0Loose; //for control regions
+    if(track->PFront() < pmin || track->PFront() > pmax)         ID += 1 << kP;        // Loose momentum window
+    if(track->OPAInter())                                        ID += 1 << kRMax;     // Cosmic rejection
+    if(std::abs(track->FitPDG()) != 11 || track->PZFront() < 0.f)ID += 1 << kFitHyp;   // Downstream electron fit
+    if(track->TrkQual() > -10. && track->TrkQual() < 0.2)        ID += 1 << kTrkQual;  // Track quality
+    else if(track->TErrFront() > 0.9)                            ID += 1 << kTrkQual;  // FIXME: Give a label
+    else if(track->NActive() < 20)                               ID += 1 << kTrkQual;  // FIXME: Give a label
+    if(track->TFront() < 640. || track->TFront() > 1650.)        ID += 1 << kT0;       // FIXME: Check selection
+    if(track->ECluster() <= 0.)                                  ID += 1 << kClusterE; // Require a cluster
+    if(track->NSTInter() == 0)                                   ID += 1 << kD0;       // Consistent with stopping target
+    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 1.)  ID += 1 << kTDip;     // Tan(dip) = pz / pt here
+    if(track->TFront() < 500. || track->TFront() > 1650.)        ID += 1 << kT0Loose;  // For RPC control regions
 
     // PID rejection
     if(track->ECluster() > 0.f) {
@@ -332,6 +329,9 @@ namespace Mu2eEvtAna {
     }
     if(fail_crv)                                                 ID += 1 << kCRV;
 
+    // Upstream track rejection
+    // FIXME: Add the standard matching logic
+
     // if(track->PFront() > 95. &&
     //    std::abs(track->FitPDG()) == 11 &&
     //    track->PZFront() > 0. &&
@@ -357,7 +357,6 @@ namespace Mu2eEvtAna {
       track_ = &tracks_[itrk];
       if(!track_->IsGood()) continue; // if not a properly fit track, skip it
       if(track_->FitPDG() != 11) continue; // skip muon fits for now due to PID bug
-      // FillTrackHist(trk_hists_[0], track_); // all tracks
 
       // Downstream electron sets
       if(track_->IsGood() && track_->FitPDG() == 11 && track_->PZFront() > 0.f) {
@@ -392,10 +391,20 @@ namespace Mu2eEvtAna {
         }
 
         // Standard selection set
-        if(event_id == 0 && Run1AID == 0) {
-          FillTrackHist(trk_hists_[60], track_);
+        // Offset to control regions
+        int run1a_set_offset(0);
+        if(Run1AID & (1 << kCRV))
+          run1a_set_offset += kCRVVetoOffset;
+        if(Run1AID & (1 << kT0))
+          run1a_set_offset += kTimeCutOffset;
+        const int run1a_id_no_crv = Run1AID & (~(1 << kCRV)); // ID without the CRV coincidence cluster considered
+        const int run1a_id_no_time = Run1AID & (~(1 << kT0)); // ID with a looser timing cut
+        const int run1a_id_no_crv_time = run1a_id_no_crv & run1a_id_no_time;
+
+        if(event_id == 0 && run1a_id_no_crv_time == 0) {
+          FillTrackHist(trk_hists_[60 + run1a_set_offset], track_);
           evt_.weight_ = 1.f;
-          FillTrackHist(trk_hists_[61], track_);
+          FillTrackHist(trk_hists_[61 + run1a_set_offset], track_);
           evt_.weight_ = nominal_weight;
         }
       }
