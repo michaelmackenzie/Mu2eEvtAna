@@ -81,18 +81,21 @@ void SubmitJob(TString job_cmd, TString log_file, TString dataset_name, int thre
  * Wait for all current analyzer processes to complete
  */
 int CountAnalyzerProcesses() {
-  TString cmd = "ps -eo user,args | grep -E '(make_histograms\\.C|functions\\.C)' | grep -v grep | wc -l";
+  TString cmd = "ps -eo user,args | grep -E 'functions\\.C' | grep -v grep | wc -l";
   TString res = gSystem->GetFromPipe(cmd);
   int count = res.Atoi() > 0 ? res.Atoi() : 0;
-  return count > 0 ? count - 1 : 0;
+  return count > 0 ? count : 0;
 }
 
 void WaitJobs() {
-  bool first = true;
-  while(CountAnalyzerProcesses() > 0) {
-    if(first) { cout << "Waiting for analyzer processes to complete..." << endl; first = false; }
+  int procs = CountAnalyzerProcesses();
+  printf("\n");
+  while(procs > 0) {
+    printf("\033[32mWaiting for analyzer processes to complete, %2i remaining\033[0m\r", procs);
     sleep(10);
+    procs = CountAnalyzerProcesses();
   }
+  printf("\n");
 }
 
 /**

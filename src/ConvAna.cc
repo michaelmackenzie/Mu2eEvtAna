@@ -80,8 +80,8 @@ namespace Mu2eEvtAna {
     hist_sets[ 21] = new hist_info_t("e-: narrow window"                ,  true,  true,  true,  true, false, false,  true, false);
     hist_sets[ 22] = new hist_info_t("e-: full window, no weights"      ,  true,  true,  true,  true, false, false,  true, false);
     hist_sets[ 23] = new hist_info_t("e-: high error"                   ,  true,  true,  true,  true, false, false,  true, false);
-    hist_sets[ 25] = new hist_info_t("e-: mom up"                       ,  true, false, false, false, false, false,  true, false);
-    hist_sets[ 26] = new hist_info_t("e-: mom down"                     ,  true, false, false, false, false, false,  true, false);
+    hist_sets[ 24] = new hist_info_t("e-:  alt ID"                      ,  true,  true,  true,  true,  true,  true,  true,  true);
+    hist_sets[ 25] = new hist_info_t("e-: !alt ID"                      ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 30] = new hist_info_t("e-: no CRV veto"                  ,  true, false, false, false,  true, false,  true, false);
     hist_sets[ 31] = new hist_info_t("e+-: no CRV veto or p cut"        ,  true, false, false, false,  true, false,  true, false);
     hist_sets[ 34] = new hist_info_t("e-: low dP(ST)"                   ,  true, false, false, false, false,  true,  true, false);
@@ -92,6 +92,9 @@ namespace Mu2eEvtAna {
     hist_sets[ 50] = new hist_info_t("e+: no CRV veto"                  ,  true, false, false, false,  true, false,  true, false);
     hist_sets[ 60] = new hist_info_t("e-: Run 1A ID"                    ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 61] = new hist_info_t("e-: Run 1A ID, no weights"        ,  true,  true,  true,  true,  true, false,  true, false);
+    hist_sets[ 62] = new hist_info_t("e-: Run 1A ID + upstream veto"    ,  true,  true,  true,  true,  true,  true,  true,  true);
+    hist_sets[ 65] = new hist_info_t("e-: Run 1A ID, loose time"        ,  true,  true,  true,  true,  true,  true,  true,  true);
+    hist_sets[ 66] = new hist_info_t("e-: Run 1A ID, cut-and-count"     ,  true,  true,  true,  true,  true,  true,  true,  true);
 
     // CRV studies histograms
     hist_sets[ 80] = new hist_info_t("CRV: 1"                           ,  true, false, false, false,  true, false, false, false);
@@ -288,25 +291,25 @@ namespace Mu2eEvtAna {
   int ConvAna::Run1ATrackID(Track_t* track) {
     if(!track || !track->track_) return 0;
     int ID(0);
-    const float pmin = (track->Charge() < 0) ?  85.f :  85.f;
-    const float pmax = (track->Charge() < 0) ? 130.f : 130.f;
-    if(track->PFront() < pmin || track->PFront() > pmax)         ID += 1 << kP;        // Loose momentum window
-    if(track->OPAInter())                                        ID += 1 << kRMax;     // Cosmic rejection
-    if(std::abs(track->FitPDG()) != 11 || track->PZFront() < 0.f)ID += 1 << kFitHyp;   // Downstream electron fit
-    if(track->TrkQual() > -10. && track->TrkQual() < 0.2)        ID += 1 << kTrkQual;  // Track quality
-    else if(track->TErrFront() > 0.9)                            ID += 1 << kTrkQual;  // FIXME: Give a label
-    else if(track->NActive() < 20)                               ID += 1 << kTrkQual;  // FIXME: Give a label
-    if(track->TFront() < 640. || track->TFront() > 1650.)        ID += 1 << kT0;       // FIXME: Check selection
-    if(track->ECluster() <= 0.)                                  ID += 1 << kClusterE; // Require a cluster
-    if(track->NSTInter() == 0)                                   ID += 1 << kD0;       // Consistent with stopping target
-    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 1.)  ID += 1 << kTDip;     // Tan(dip) = pz / pt here
-    if(track->TFront() < 500. || track->TFront() > 1650.)        ID += 1 << kT0Loose;  // For RPC control regions
+    const float pmin = (track->Charge() < 0) ?  97.f :  85.f;
+    const float pmax = (track->Charge() < 0) ? 110.f : 110.f;
+    if(track->PFront() < pmin || track->PFront() > pmax)          ID += 1 << kP;        // Loose momentum window
+    if(track->OPAInter())                                         ID += 1 << kRMax;     // Cosmic rejection
+    if(std::abs(track->FitPDG()) != 11 || track->PZFront() < 0.f) ID += 1 << kFitHyp;   // Downstream electron fit
+    if(track->TrkQual() > -10. && track->TrkQual() < 0.2)         ID += 1 << kTrkQual;  // Track quality
+    else if(track->TErrFront() > 0.9)                             ID += 1 << kTrkQual;  // FIXME: Give a label
+    else if(track->NActive() < 20)                                ID += 1 << kTrkQual;  // FIXME: Give a label
+    if(track->TFront() < 475. || track->TFront() > 1650.)         ID += 1 << kT0;       // FIXME: Check selection
+    if(track->ECluster() <= 0.)                                   ID += 1 << kClusterE; // Require a cluster
+    if(track->NSTInter() == 0)                                    ID += 1 << kD0;       // Consistent with stopping target
+    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 0.95) ID += 1 << kTDip;     // Tan(dip) = pz / pt here
+    if(track->TFront() < 475. || track->TFront() > 1650.)         ID += 1 << kT0Loose;  // For RPC control regions
 
     // PID rejection
     if(track->ECluster() > 0.f) {
       if(track->PID() < -100.f) { // no score
-        if(track->EPFront() < 0.65f)    ID += 1 << kPID;
-      } else if(track->PID() < 0.67f)   ID += 1 << kPID;
+        if(track->EPFront() < 0.65f)                              ID += 1 << kPID;
+      } else if(track->PID() < 0.67f)                             ID += 1 << kPID;
     }
 
     // CRV rejection
@@ -327,7 +330,7 @@ namespace Mu2eEvtAna {
         }
       }
     }
-    if(fail_crv)                                                 ID += 1 << kCRV;
+    if(fail_crv)                                                  ID += 1 << kCRV;
 
     // Upstream track rejection
     // FIXME: Add the standard matching logic
@@ -386,6 +389,14 @@ namespace Mu2eEvtAna {
               if(track_->PFront() > 103.6f && track_->PFront() < 104.9f) {
                 FillTrackHist(trk_hists_[21 + set_offset], track_);
               }
+              // alternate ID set on top of standard ID (~75% signal eff)
+              const bool alt_id = (track_->CosThetaFront() > 0.5 && track_->CosThetaFront() < 0.646805 &&
+                                   track_->TFront() > 594.049 &&
+                                   track_->RMaxFront() > 482.031 &&
+                                   track_->EPFront() < 0.960571 &&
+                                   track_->AltPID() > 0.140625);
+              if(alt_id) FillTrackHist(trk_hists_[24 + set_offset], track_);
+              else       FillTrackHist(trk_hists_[25 + set_offset], track_);
             }
           }
         }
@@ -401,11 +412,29 @@ namespace Mu2eEvtAna {
         const int run1a_id_no_time = Run1AID & (~(1 << kT0)); // ID with a looser timing cut
         const int run1a_id_no_crv_time = run1a_id_no_crv & run1a_id_no_time;
 
+        bool upstream_veto = false;
+        if(track_->upstream_) {
+          auto us_trk = track_->upstream_;
+          if(us_trk->FitCon() > 1.e-5 &&
+             (us_trk->TrkQual() < -10. || us_trk->TrkQual() > 0.01)) upstream_veto = true;
+        }
+
         if(event_id == 0 && run1a_id_no_crv_time == 0) {
-          FillTrackHist(trk_hists_[60 + run1a_set_offset], track_);
-          evt_.weight_ = 1.f;
-          FillTrackHist(trk_hists_[61 + run1a_set_offset], track_);
-          evt_.weight_ = nominal_weight;
+          if(track_->TFront() > 640.) { // nominal timing window for 1D fit
+            FillTrackHist(trk_hists_[60 + run1a_set_offset], track_);
+            evt_.weight_ = 1.f;
+            FillTrackHist(trk_hists_[61 + run1a_set_offset], track_);
+            evt_.weight_ = nominal_weight;
+            if(!upstream_veto) {
+              FillTrackHist(trk_hists_[62 + run1a_set_offset], track_);
+            }
+          }
+          // No timing window applied --> 2D fit selection
+          FillTrackHist(trk_hists_[65 + run1a_set_offset], track_);
+          if(track_->PFront() > 103.34 && track_->PFront() < 104.74
+             && track_->TFront() > 640. && track_->TFront() < 1650.) { // FIXME: Timing selection not given for cut-and-count
+            FillTrackHist(trk_hists_[66 + run1a_set_offset], track_);
+          }
         }
       }
     }

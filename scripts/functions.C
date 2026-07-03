@@ -227,14 +227,44 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
     case kConvAna: threaded_func = "cnv_ana_threaded"; break;
   }
 
+  // XRootD environment variables to prevent permanent hangs
+  gSystem->Setenv("XRD_CONNECTIONRETRY", "32");
+  gSystem->Setenv("XRD_REQUESTTIMEOUT", "3600");
+  gSystem->Setenv("XRD_REDIRECTLIMIT", "255");
+  gSystem->Setenv("XRD_STREAMTIMEOUT", "1800");
+
+  std::vector<int> pids;
+
   for(int t = 0; t < actual_n_threads; ++t) {
-    TString cmd = Form("root.exe -q -b \"${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/functions.C(%i, \\\"%s\\\", %i, %lli, %lli, %i)\" >| log/out_%s_thread_%i.log 2>&1 &",
+    TString cmd = Form("(root.exe -q -b \"${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/functions.C(%i, \\\"%s\\\", %i, %lli, %lli, %i)\" >| log/out_%s_thread_%i.log 2>&1) & echo $!",
                        ana_type, dataset.Data(), Mode, max_entries, first_entry, t, dataset.Data(), t);
     cout << "Submitting thread " << t << ": " << cmd << endl;
-    gSystem->Exec(cmd.Data());
+    TString pid_str = gSystem->GetFromPipe(cmd.Data());
+    int pid = pid_str.Atoi();
+    if (pid > 0) pids.push_back(pid);
+    // Stagger launches so the dCache server doesn't get flooded all at once
+    gSystem->Sleep(2000);
   }
 
-  WaitJobs();
+  // Wait for the jobs to finish
+  // WaitJobs();
+  printf("\n");
+  while(!pids.empty()) {
+    printf("\033[32mWaiting for analyzer processes to complete, %2lu remaining\033[0m\r", pids.size());
+    fflush(stdout);
+    gSystem->Sleep(2000); // Check every 2 seconds
+
+    for (auto it = pids.begin(); it != pids.end(); ) {
+      TString check_cmd = Form("[ -d /proc/%i ] && echo 1 || echo 0", *it);
+      TString active = gSystem->GetFromPipe(check_cmd.Data());
+      if (active.Atoi() == 0) {
+        it = pids.erase(it); // Remove finished PID from our watch list
+      } else {
+        ++it;
+      }
+    }
+  }
+  printf("\nAll jobs finished successfully.\n");
 
   TString merge_list = Form("temp/%s_merge_list.txt", dataset.Data());
   ofstream ml(merge_list);

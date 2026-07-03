@@ -164,6 +164,9 @@ namespace Mu2eEvtAna {
 
     Long64_t        cache_size_   = 200000000U; //200MB cache by default
     Bool_t          load_baskets_ = true;
+    Bool_t          use_xrootd_   = true;
+
+    Long64_t        tree_entries_ = 0;
 
     mu2e::StopWatch* watch_; // track processing times
   };

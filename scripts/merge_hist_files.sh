@@ -3,7 +3,7 @@
 # Usage: merge_hist_files.sh <output_file> <input_list_file> [--force]
 
 if [ $# -lt 2 ]; then
-    echo "Usage: $0 <output_file> <input_list_file> [--force]"
+    echo "Usage: $0 <output_file> <input_list_file> [--force] [--clean]"
     echo "  input_list_file: text file containing one .root file path per line"
     exit 1
 fi
@@ -49,7 +49,7 @@ fi
 
 if [ "$clean" = true ]; then
     echo "Cleaning files"
-    for file in $files; do
+    for file in ${files[@]}; do
         echo rm $file
         rm $file
     done

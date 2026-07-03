@@ -1,5 +1,7 @@
 #include "Mu2eEvtAna/inc/Mu2eEvtAna.hh"
 
+#include "TEnv.h"
+
 using namespace mu2e;
 namespace Mu2eEvtAna {
 
@@ -44,6 +46,7 @@ namespace Mu2eEvtAna {
     // Check if the given filename contains .root at the end
     if (file_name.EndsWith(".root")) { // assume it's a single file FIXME: Allow for wildcards
       ntuple_->Add(file_name.Data());
+      tree_entries_ = ntuple_->GetEntries();
     } else { // assume it's a file list
       std::ifstream filelist(file_name.Data());
       if (filelist.is_open()) {
@@ -58,15 +61,25 @@ namespace Mu2eEvtAna {
         if(verbose_ > -1) printf("%s: Loading file list %s with %i files\n", __func__, file_name.Data(), nfiles);
         std::string line;
         int ifile = 0;
+        Long64_t accumulated_entries = 0;
         while (std::getline(filelist, line)) {
           ++ifile;
+          TString line_t(line);
+          if(use_xrootd_ && line_t.BeginsWith("/pnfs/")) line_t.ReplaceAll("/pnfs/", "root://fndcadoor.fnal.gov//pnfs/fnal.gov/usr/");
           if(verbose_ > -1 && ((ifile) % 10 == 0 || ifile >= nfiles-1)) {printf("\r%s: Loading file %3i (%5.1f%%)", __func__, ifile, ifile*100./nfiles); fflush(stdout);}
-          ntuple_->Add(line.c_str());
-          if(max_entries > 0 && ntuple_->GetEntries() > max_entries + first_entry) {
-            if(verbose_ > -1) printf("\r%s: Loaded %i files of %i with %llu entries", __func__, ifile, nfiles, ntuple_->GetEntries());
+          ntuple_->Add(line_t.Data());
+          TFile* f = TFile::Open(line_t, "READ");
+          if(f) {
+            TTree* t = (TTree*) f->Get("EventNtuple/ntuple");
+            if(t) accumulated_entries += t->GetEntriesFast();
+            f->Close();
+          }
+          if(max_entries > 0 && accumulated_entries > max_entries + first_entry) {
+            if(verbose_ > -1) printf("\r%s: Loaded %i files of %i with %llu entries", __func__, ifile, nfiles, accumulated_entries);
             break;
           }
         }
+        tree_entries_ = accumulated_entries;
         filelist.close();
       } else {
         printf("%s: Error! Unable to read input file list %s\n", __func__, file_name.Data());
@@ -107,7 +120,15 @@ namespace Mu2eEvtAna {
     if(ntuple_->GetBranch("crvcoincmcplane")) ntuple_->SetBranchStatus("crvcoincmcplane"  , 0);
 
     event_ = new rooutil::Event(ntuple_);
-    if(load_baskets_) ntuple_->LoadBaskets(cache_size_);
+    if(load_baskets_) {
+      ntuple_->LoadBaskets(cache_size_);
+    }
+    ntuple_->SetCacheSize(30*1024*1024); // cache to improve processing speeds over the network
+    ntuple_->SetCacheLearnEntries(100);
+    ntuple_->AddBranchToCache("*", true);
+    gEnv->SetValue("TFile.ControlCache", 1);
+    gEnv->SetValue("TFile.AsyncOpenTimeout", 20);
+
 
     trigger_.trig_ = &(event_->trigger);
 
@@ -968,7 +989,7 @@ namespace Mu2eEvtAna {
     if(us_trk) {
       // minimal selection on the upstream track quality
       if(us_trk->FitCon() > 1.e-5 &&
-         (us_trk->TrkQual() < -10. || us_trk->TrkQual() > 0.01)) ID += 1 << kUpstream;
+         (us_trk->TrkQual() < -10. || us_trk->AltTrkQual() > 0.01)) ID += 1 << kUpstream;
     }
 
     // PID rejection
@@ -1088,7 +1109,7 @@ namespace Mu2eEvtAna {
       return -1;
     }
 
-    const auto entries = ntuple_->GetEntries();
+    const auto entries = tree_entries_;
     if(entries == 0) {
       if(verbose_ > -1) printf("Mu2eEvtAna::%s: No entries to process\n", __func__);
       return 1;
