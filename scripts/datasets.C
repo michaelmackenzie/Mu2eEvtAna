@@ -23,6 +23,8 @@ namespace DATA {
     datasets.emplace_back(true ,  "cele1b1s5r0100", "nts.mu2e.CeMLeadingLogMix1BB.MDC2025ar_best_v1_1.root"     , 4009075, 10000000);
     datasets.emplace_back(true ,  "cry4ab1s5r0100", "nts.mu2e.CosmicSignalMix1BB.MDC2025ar_best_v1_1.root"      , 4120241, 4437500. /*livetime*/);
     datasets.emplace_back(true ,  "dio00b1s5r0100", "nts.mu2e.DIOtail95Mix1BB.MDC2025ar_best_v1_1.root"         , 8780533, 25000000);
+
+    datasets.emplace_back(true ,  "mds3cb1s5r0100", "nts.mu2e.ensembleMDS3cMix1BB.MDC2025ar_best_v1_1.root"     , 4863968, 1. /*data-ish*/);
     return datasets;
   }
 }

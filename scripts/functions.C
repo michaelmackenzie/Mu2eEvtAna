@@ -243,7 +243,7 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
     int pid = pid_str.Atoi();
     if (pid > 0) pids.push_back(pid);
     // Stagger launches so the dCache server doesn't get flooded all at once
-    gSystem->Sleep(2000);
+    gSystem->Sleep(1000);
   }
 
   // Wait for the jobs to finish
