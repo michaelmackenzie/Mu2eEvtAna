@@ -10,6 +10,7 @@ namespace Mu2eEvtAna {
     for(int ihist = 0; ihist < kMaxHists; ++ihist) {
       sys_hists_[ihist] = nullptr;
     }
+    for(int i = 0; i < kMaxCutflowCuts; ++i) cut_flow_counts_[i] = 0;
 
     // Initialize the MVA models
 
@@ -95,6 +96,7 @@ namespace Mu2eEvtAna {
     hist_sets[ 62] = new hist_info_t("e-: Run 1A ID + upstream veto"    ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 65] = new hist_info_t("e-: Run 1A ID, loose time"        ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 66] = new hist_info_t("e-: Run 1A ID, cut-and-count"     ,  true,  true,  true,  true,  true,  true,  true,  true);
+    hist_sets[ 70] = new hist_info_t("e-: cut-flow ID"                  ,  true, false, false, false, false, false, false, false);
 
     // CRV studies histograms
     hist_sets[ 80] = new hist_info_t("CRV: 1"                           ,  true, false, false, false,  true, false, false, false);
@@ -348,6 +350,27 @@ namespace Mu2eEvtAna {
   // Main event-by-event processing
   bool ConvAna::ProcessEvent() {
 
+    // Cut-flow for Run 1A paper:
+    // No cuts
+    // is_reco_electron
+    // has_downstream
+    // upstream veto
+    // has_trk_front_seg
+    // good_trkpid (0.67
+    // good_trkqual
+    // within_t0err
+    // has_hits
+    // has_st
+    // no_opa
+    // no_crv_quality
+    // no_crv_timewindow
+    // no_crv_veto
+    // 0.5 < pz_over_pt < 0.95
+    // good_trigger
+    // final mom region
+    // final time
+    // SU2020 SR
+
     const float nominal_weight = evt_.weight_;
 
     FillEventHist(evt_hists_[0]); //all events with well defined inputs
@@ -355,14 +378,34 @@ namespace Mu2eEvtAna {
     // printf("[ConvAna::%s] Event %5i:%6i:%8i\n",
     //        __func__, evt_.run_, evt_.subrun_, evt_.event_);
 
+    bool cut_flow_tracker[kMaxCutflowCuts];
+    for(int i = 0; i < kMaxCutflowCuts; ++i) cut_flow_tracker[i] = false;
+
+    // all events
+    cut_flow_.ResetEvent();
+    cut_flow_.Increment("All");
+    cut_flow_tracker[0] = true; // No cuts
+
     // Loop through the track collection
     for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
       track_ = &tracks_[itrk];
       if(!track_->IsGood()) continue; // if not a properly fit track, skip it
       if(track_->FitPDG() != 11) continue; // skip muon fits for now due to PID bug
+      cut_flow_.Increment("is_reco_electron");
+      cut_flow_tracker[1] = true; // is_reco_electron
 
       // Downstream electron sets
-      if(track_->IsGood() && track_->FitPDG() == 11 && track_->PZFront() > 0.f) {
+      if(track_->FitPDG() == 11 && track_->PZFront() > 0.f) {
+        cut_flow_.Increment("has_downstream");
+        cut_flow_tracker[2] = true; // has_downstream
+
+        cut_flow_.Increment("upstream_veto");
+        cut_flow_tracker[3] = true; // FIXME: get upstream veto
+
+        cut_flow_.Increment("trk_front_seg");
+        cut_flow_tracker[4] = true; // FIXME: testing TrkFrontSeg with fit direction
+
+
         if(track_->PFront() > 95.f && track_->Charge() < 0) FillTrackHist(trk_hists_[4], track_);
         const int ID = track_->ID(0);
         const int Run1AID = track_->ID(1);
@@ -370,6 +413,79 @@ namespace Mu2eEvtAna {
                               1*(evt_.nde_tracks_ != 1) +
                               2*(!trigger_.FiredAPR() && !trigger_.FiredCPR())
                               );
+
+        if(track_->PID() > 0.67) {
+          cut_flow_.Increment("good_trkpid");
+          cut_flow_tracker[5] = true; // good_trkpid
+          if(track_->TrkQual() > 0.2) {
+            cut_flow_.Increment("good_trkqual");
+            cut_flow_tracker[6] = true; // good_trkqual
+            if(track_->TErrFront() < 0.9) {
+              cut_flow_.Increment("within_t0err");
+              cut_flow_tracker[7] = true; // within_t0err
+              if(track_->NActive() >= 20) {
+                cut_flow_.Increment("has_hits");
+                cut_flow_tracker[8] = true; // has_hits
+                if(track_->NSTInter() > 0) {
+                  cut_flow_.Increment("has_st");
+                  cut_flow_tracker[9] = true; // has_st
+                  if(track_->OPAInter() == 0) {
+                    cut_flow_.Increment("no_opa");
+                    cut_flow_tracker[10] = true; // no_opa
+                    bool fail_crv = false;
+                    for(int icrv = 0; icrv < evt_.ncrv_clusters_; ++icrv) {
+                      CRVCluster_t* stub = &crv_clusters_[icrv];
+                      if(stub->PEs() >= 25. && stub->NHits() >= 15 && stub->TimeSpan() < 175.) {
+                        fail_crv = true;
+                        break;
+                      }
+                    }
+                    if(!fail_crv) {
+                      cut_flow_.Increment("no_crv_quality");
+                      cut_flow_tracker[11] = true; // no_crv_quality
+                      cut_flow_.Increment("no_crv_timewindow");
+                      cut_flow_tracker[12] = true; // no_crv_timewindow (seems to be inclusive of above)
+                      if(track_->stub_) {
+                        auto stub = track_->stub_;
+                        const float deltat_crv    = track_->TFront() - stub->Time();
+                        if(deltat_crv > -150.f && deltat_crv < 150.f) fail_crv = true;
+                      }
+                      if(!fail_crv) {
+                        cut_flow_.Increment("no_crv_veto");
+                        cut_flow_tracker[13] = true; // no_crv_veto
+                        if(track_->TanDipFront() > 0.5 && track_->TanDipFront() < 0.95) {
+                          cut_flow_.Increment("pz_over_pt");
+                          cut_flow_tracker[14] = true; // 0.5 < pz_over_pt < 0.95
+                          if(trigger_.FiredAPR() || trigger_.FiredCPR()) {
+                            cut_flow_.Increment("good_trigger");
+                            cut_flow_tracker[15] = true; // good_trigger
+                            if(track_->PFront() > 103.34 && track_->PFront() < 104.74) {
+                              cut_flow_.Increment("final_mom_region");
+                              cut_flow_tracker[16] = true; // final mom region
+                              if(track_->TFront() > 640. && track_->TFront() < 1650.) {
+                                cut_flow_.Increment("final_time_region");
+                                cut_flow_tracker[17] = true; // final time
+                                if(Run1AID != 0 || event_id != 0) {
+                                  std::cout << "[ConvAna::" << __func__ << "] "
+                                            << evt_.run_ << ":" << evt_.subrun_ << ":" << evt_.event_
+                                            << " Event passes paper cuts but fails Run1AID = "
+                                            << std::hex << Run1AID << std::dec
+                                            << " or event_id = " << event_id
+                                            << std::endl;
+                                }
+                                FillTrackHist(trk_hists_[70], track_);
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
 
         // Offset to control regions
         int set_offset(0);
@@ -439,8 +555,19 @@ namespace Mu2eEvtAna {
       }
     }
 
+    // Increment the cut-flow tracker for Run 1A paper comparisons
+    for(int i = 0; i < kMaxCutflowCuts; ++i) {
+      if(cut_flow_tracker[i]) ++cut_flow_counts_[i];
+    }
+
     if(evt_.nde_tracks_ != 1) return false; //exactly one positron or electron
     FillEventHist(evt_hists_[1]);
     return true;
+  }
+
+
+  void ConvAna::EndJob() {
+    printf("ConvAna::%s\n", __func__);
+    cut_flow_.Print();
   }
 }

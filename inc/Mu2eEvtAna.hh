@@ -86,6 +86,7 @@ namespace Mu2eEvtAna {
     virtual void InitCaloCluster(rooutil::CaloCluster* calo, CaloCluster_t& cls_par);
     virtual void InitCRVCluster(rooutil::CrvCoinc* stub, CRVCluster_t& stub_par);
     virtual void FillOutput();
+    virtual void EndJob();
 
     virtual int InitializeInput();
     virtual int InitializeOutput();

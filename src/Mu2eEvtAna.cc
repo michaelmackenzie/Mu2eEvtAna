@@ -1184,6 +1184,7 @@ namespace Mu2eEvtAna {
       }
     }
     watch_->StopTime("Event");
+    EndJob();
 
     //---------------------------------------------------
     // Store the normalization information for the ntuple
@@ -1212,4 +1213,8 @@ namespace Mu2eEvtAna {
     return 0;
   }
 
+  //------------------------------------------------------------------------------------
+  // After the processing loop
+  void Mu2eEvtAna::EndJob() {
+  }
 }

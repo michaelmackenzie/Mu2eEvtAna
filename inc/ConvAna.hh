@@ -19,6 +19,7 @@
 #include "Mu2eEvtAna/inc/Systematics.hh"
 #include "Mu2eEvtAna/inc/Tree_t.hh"
 #include "Mu2eEvtAna/inc/MVATools.hh"
+#include "Mu2eEvtAna/inc/CutFlow.hh"
 
 using namespace mu2e;
 namespace Mu2eEvtAna {
@@ -37,6 +38,8 @@ namespace Mu2eEvtAna {
     int InitializeInput();
     int InitializeOutput();
 
+    void EndJob();
+
     void InitTreeData();
     int  Run1ATrackID(Track_t* track);
 
@@ -47,6 +50,10 @@ namespace Mu2eEvtAna {
     }
 
     TString OutputFileName() { return "ConvAna." + name_ + ".root"; }
+
+    enum {kMaxCutflowCuts = 30};
+    Long64_t           cut_flow_counts_[kMaxCutflowCuts];
+    CutFlow            cut_flow_;
 
     Bool_t             fill_verbose_sys_ = false        ; // add additional info with each systematic
 
