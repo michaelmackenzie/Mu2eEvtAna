@@ -17,10 +17,18 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
     cout << "Requested " << processes << " parallel processes, but this exceeds the interactive maximum of about 2-3!\n";
     return 1;
   }
+
+
   if(processes > 1 || n_threads > 1) {
     gSystem->Exec("[ ! -d log ] && mkdir log");
     gSystem->Exec("[ ! -d temp ] && mkdir temp");
     gSystem->Exec("[ ! -d output ] && mkdir output");
+    // Check the token is available
+    TString token_str = gSystem->GetFromPipe("timeout 10 getToken; if [ $? -ne 0 ]; then echo Failed; else echo Passed; fi");
+    if(!token_str.Contains("Passed")) {
+      cout << "Failed to get token!\n";
+      return 1;
+    }
   }
 
   auto datasets = DATA::datasets();

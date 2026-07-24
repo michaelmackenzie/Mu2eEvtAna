@@ -42,6 +42,8 @@ namespace Mu2eEvtAna {
 
     void InitTreeData();
     int  Run1ATrackID(Track_t* track);
+    bool Run1ACutFlow();
+    bool StandardCutFlow();
 
     void ValidateVariable(float var, const char* name) {
       if(!std::isfinite(var)) {
@@ -51,9 +53,8 @@ namespace Mu2eEvtAna {
 
     TString OutputFileName() { return "ConvAna." + name_ + ".root"; }
 
-    enum {kMaxCutflowCuts = 30};
-    Long64_t           cut_flow_counts_[kMaxCutflowCuts];
-    CutFlow            cut_flow_;
+    CutFlow            cut_flow_                        ; // standard selection
+    CutFlow            run1a_cut_flow_                  ; // Run 1A paper selection
 
     Bool_t             fill_verbose_sys_ = false        ; // add additional info with each systematic
 
