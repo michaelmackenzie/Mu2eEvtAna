@@ -82,7 +82,7 @@ namespace Mu2eEvtAna {
     virtual bool ProcessEvent();
     virtual void InitializeEvent();
     virtual void InitEvent(Event_t& evt);
-    virtual void InitTrack(rooutil::Track* track, Track_t& track_par);
+    virtual void InitTrack(const rooutil::Track* track, Track_t& track_par);
     virtual void InitCaloCluster(rooutil::CaloCluster* calo, CaloCluster_t& cls_par);
     virtual void InitCRVCluster(rooutil::CrvCoinc* stub, CRVCluster_t& stub_par);
     virtual void FillOutput();
@@ -123,6 +123,18 @@ namespace Mu2eEvtAna {
     }
 
     virtual TString OutputFileName() { return "EvtAna." + name_ + ".root"; }
+
+    void ValidateTracks() {
+      const auto& tracks = event_->GetTracks();
+      if(evt_.ntracks_ != int(tracks.size())) {
+        throw std::runtime_error(Form("Track size changed from %i to %zu!", evt_.ntracks_, tracks.size()));
+      }
+      for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
+        if(&tracks[itrk] != tracks_[itrk].track_) {
+          throw std::runtime_error(Form("Track %i pointer changed from %p to %p!", itrk, (void*) tracks_[itrk].track_, (void*) &tracks[itrk]));
+        }
+      }
+    }
 
     rooutil::Event*  event_ ; //input TChain wrapper
     TChain* ntuple_; //input ntuple

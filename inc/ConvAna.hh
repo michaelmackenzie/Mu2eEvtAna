@@ -33,7 +33,7 @@ namespace Mu2eEvtAna {
     void BookHistograms(TDirectory* dir);
     bool ProcessEvent();
     void InitializeEvent();
-    void InitTrack(rooutil::Track* track, Track_t& trk_par);
+    void InitTrack(const rooutil::Track* track, Track_t& trk_par);
 
     int InitializeInput();
     int InitializeOutput();

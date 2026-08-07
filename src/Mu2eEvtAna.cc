@@ -787,7 +787,7 @@ namespace Mu2eEvtAna {
 
     // Loop through the tracks
     for(int itrk = 0; itrk < kMaxTracks; ++itrk) tracks_[itrk].Reset();
-    auto tracks = event_->GetTracks();
+    const auto& tracks = event_->GetTracks();
     evt_.ntracks_ = tracks.size();
     if(evt_.ntracks_ >= kMaxTracks) throw std::runtime_error(Form("Exceeded the maximum number of allowed tracks with %i!", evt_.ntracks_));
     for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
@@ -830,8 +830,16 @@ namespace Mu2eEvtAna {
     for(int itrk = evt_.ntracks_; itrk < kMaxTracks; ++itrk) {
       tracks_[itrk].Reset();
     }
+    ValidateTracks();
 
-    if(verbose_ > 4) {
+    if(verbose_ > 2) {
+      std::cout << "--- Re-print tracks\n";
+      for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
+        tracks_[itrk].Print((itrk == 0) ? "banner" : "");
+      }
+    }
+
+    if(verbose_ > 1) {
       printf("Mu2eEvtAna::%s: Printing event information:\n", __func__);
       printf(" N(tracks) = %2i: %2i De, %2i Ue, %2i Dmu, %2i Umu\n",
              evt_.ntracks_, evt_.nde_tracks_,evt_.nue_tracks_,evt_.ndmu_tracks_,evt_.numu_tracks_);
@@ -887,6 +895,14 @@ namespace Mu2eEvtAna {
       // Set track ID info after CRV cluster and upstream track matching
       de->SetID(TrackID(de), 0);
     }
+    if(verbose_ > 2) {
+      std::cout << "--- After matching tracks\n";
+      auto tracks = event_->GetTracks();
+      for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
+        std::cout << tracks_[itrk].track_ << " vs " << &tracks[itrk] << std::endl;
+        tracks_[itrk].Print((itrk == 0) ? "banner" : "");
+      }
+    }
   }
 
   //------------------------------------------------------------------------------------
@@ -912,7 +928,7 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Initialize track information
-  void Mu2eEvtAna::InitTrack(rooutil::Track* track, Track_t& trk_par) {
+  void Mu2eEvtAna::InitTrack(const rooutil::Track* track, Track_t& trk_par) {
     trk_par.Reset();
     trk_par.track_ = track;
     if(!track) return;
@@ -1174,10 +1190,31 @@ namespace Mu2eEvtAna {
       // Initialize event information
       watch_->SetTime("Initialize");
       InitializeEvent();
+      if(verbose_ > 2) {
+        std::cout << "--- After InitializeEvent\n";
+        for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
+          tracks_[itrk].Print((itrk == 0) ? "banner" : "");
+        }
+      }
       watch_->StopTime("Initialize");
 
+      if(verbose_ > 2) {
+        std::cout << "--- Before SetTime\n";
+        for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
+          tracks_[itrk].Print((itrk == 0) ? "banner" : "");
+        }
+      }
       // Decide whether or not to accept the event
+      watch_->SetTime("ProcessEvent");
+      if(verbose_ > 2) {
+        std::cout << "--- After SetTime\n";
+        for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
+          tracks_[itrk].Print((itrk == 0) ? "banner" : "");
+        }
+      }
+
       const bool pass = ProcessEvent();
+      watch_->StopTime("ProcessEvent");
       if(pass) {
         FillOutput();
         ++naccepted;

@@ -7,13 +7,19 @@
 
 #include <map>
 #include <vector>
+#include <string>
 #include <iostream>
 
 namespace Mu2eEvtAna {
   class CutFlow {
   public:
 
-    CutFlow() { ResetEvent(); }
+    CutFlow() {
+      ResetEvent();
+      cuts_.reserve(1000);
+      indices_.reserve(1000);
+      counts_.reserve(1000);
+    }
 
     long Increment(std::string cut, const bool check_if_applied = true) {
       if(!counts_.contains(cut)) {

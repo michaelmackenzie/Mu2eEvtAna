@@ -28,9 +28,9 @@
 namespace Mu2eEvtAna {
   struct Track_t {
 
-    rooutil::Track* track_      = nullptr; // pointer to the EventNtuple::Track object
-    CRVCluster_t* stub_         = nullptr; // best matched CRV cluster
-    Track_t*      upstream_     = nullptr; // pointer to a matched upstream track
+    const rooutil::Track* track_ = nullptr; // pointer to the EventNtuple::Track object
+    CRVCluster_t* stub_          = nullptr; // best matched CRV cluster
+    Track_t*      upstream_      = nullptr; // pointer to a matched upstream track
 
     // Local MVA scores
     float trkqual_;
@@ -69,7 +69,13 @@ namespace Mu2eEvtAna {
     int   NHits     () const { return (track_ && track_->trk) ? track_->trk->nhits : -1; }
     int   NNull     () const { return (track_ && track_->trk) ? track_->trk->nnullambig : -1; }
     int   NMatActive() const { return (track_ && track_->trk) ? track_->trk->nmatactive : -1; }
-    float TrkQual   () const { return (track_ && track_->trkqual && track_->trkqual->valid) ? track_->trkqual->result : -1000.f; }
+    float TrkQual   () const {
+      float score = -1000.f;
+      if(!track_) return score;
+      if(!track_->trkqual) return score;
+      if(!track_->trkqual->valid) return score;
+      return track_->trkqual->result;
+    }
     float PID       () const { return (track_ && track_->trkpid && track_->trkpid->valid) ? track_->trkpid->result : -1000.f; }
     // float PID       () const { return -1000.f; }
     float AltTrkQual() const { return (track_) ? trkqual_      : -1000.f; }
@@ -274,7 +280,6 @@ namespace Mu2eEvtAna {
       auto seg = LHSegment(surface);
       if(seg) return seg->tanDip;
       // Estimate it by hand if the segment is not available
-      // FIXME: Check that this definition is correct
       // tan(theta) = x/y = pz / pt
       const float pt = PTSegment(surface);
       const float pz = PZSegment(surface);
@@ -432,12 +437,12 @@ namespace Mu2eEvtAna {
       if(opt.Contains("banner")) {
         std::string filler(130, '-');
         printf("%s\n", filler.c_str());
-        printf("Idx: %5s %10s %10s %10s %10s %7s %6s %10s %5s %5s %8s %8s\n", "Hyp", "p", "pT", "pz", "t", "Ecl", "tandip", "p(MC)", "PDG", "good", "fitcon", "trkqual");
+        printf("Idx: %5s %10s %10s %10s %10s %7s %6s %10s %5s %5s %8s %8s %10s\n", "Hyp", "p", "pT", "pz", "t", "Ecl", "tandip", "p(MC)", "PDG", "good", "fitcon", "trkqual", "address");
         printf("%s\n", filler.c_str());
       }
       if(!track_) return;
-      printf("Idx: %5i %10.2f %10.2f %10.2f %10.1f %7.1f %6.2f %10.1f %5i %5i %.2e %8.5f\n", FitPDG(), PFront(), PTFront(), PZFront(), TFront(), ECluster(), TanDipFront(),
-             MCPFront(), MCPDG(), IsGood(), FitCon(), TrkQual());
+      printf("Idx: %5i %10.2f %10.2f %10.2f %10.1f %7.1f %6.2f %10.1f %5i %5i %.2e %8.5f %10p\n", FitPDG(), PFront(), PTFront(), PZFront(), TFront(), ECluster(), TanDipFront(),
+             MCPFront(), MCPDG(), IsGood(), FitCon(), TrkQual(), (void*) track_);
     }
 
     Track_t() { Reset(); }

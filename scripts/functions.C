@@ -6,6 +6,9 @@
 #include <sstream>
 #include <algorithm>
 
+// Global debug level
+int debug_level_ = 0;
+
 // Global analyzer pointers
 Mu2eEvtAna::Mu2eEvtAna* gMu2eAna = nullptr;
 Mu2eEvtAna::RMCAna* gRMCAna = nullptr;
@@ -120,6 +123,7 @@ int ProcessThreaded(AnalyzerType ana_type, TString dataset, int Mode, Long64_t m
   ana->cache_size_ = 200000000U;
   ana->load_baskets_ = false;
   ana->report_rate_ = 5000;
+  ana->verbose_ = debug_level_;
 
   const int status = ana->Process(max_entries);
   cout << "Thread " << thread_id << " status = " << status << endl;
@@ -163,6 +167,7 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
     ana->cache_size_ = 200000000U;
     ana->load_baskets_ = false;
     ana->report_rate_ = 5000;
+    ana->verbose_ = debug_level_;
 
     const int status = ana->Process(max_entries);
     cout << "Status code = " << status << endl;
@@ -220,12 +225,6 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
   }
   TString merged_output = Form("%s.%s.%s.m%i.root", header.Data(), analyzer_name.Data(), dataset.Data(), Mode);
 
-  TString threaded_func;
-  switch(ana_type) {
-    case kMu2eAna: threaded_func = "mu2e_ana_threaded"; break;
-    case kRMCAna: threaded_func = "rmc_ana_threaded"; break;
-    case kConvAna: threaded_func = "cnv_ana_threaded"; break;
-  }
 
   // XRootD environment variables to prevent permanent hangs
   gSystem->Setenv("XRD_CONNECTIONRETRY", "32");
@@ -300,21 +299,6 @@ int rmc_ana(TString dataset, int Mode = 0, Long64_t max_entries = -1, Long64_t f
 
 int cnv_ana(TString dataset, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1) {
   return ProcessWithThreads(kConvAna, dataset, Mode, max_entries, first_entry, n_threads);
-}
-
-// C-compatible wrapper functions for ROOT
-extern "C" {
-  int mu2e_ana_threaded(TString dataset, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id) {
-    return ProcessThreaded(kMu2eAna, dataset, Mode, max_entries, first_entry, thread_id);
-  }
-
-  int rmc_ana_threaded(TString dataset, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id) {
-    return ProcessThreaded(kRMCAna, dataset, Mode, max_entries, first_entry, thread_id);
-  }
-
-  int cnv_ana_threaded(TString dataset, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id) {
-    return ProcessThreaded(kConvAna, dataset, Mode, max_entries, first_entry, thread_id);
-  }
 }
 
 #endif

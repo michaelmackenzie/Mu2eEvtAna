@@ -95,6 +95,7 @@ namespace Mu2eEvtAna {
     hist_sets[ 62] = new hist_info_t("e-: Run 1A ID + upstream veto"    ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 65] = new hist_info_t("e-: Run 1A ID, loose time"        ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 66] = new hist_info_t("e-: Run 1A ID, cut-and-count"     ,  true,  true,  true,  true,  true,  true,  true,  true);
+    hist_sets[ 67] = new hist_info_t("e-: Run 1A ID, no tan dip"        ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 70] = new hist_info_t("e-: cut-flow ID"                  ,  true, false, false, false, false, false, false, false);
 
     // CRV studies histograms
@@ -182,7 +183,7 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Initialize track information
-  void ConvAna::InitTrack(rooutil::Track* track, Track_t& trk_par) {
+  void ConvAna::InitTrack(const rooutil::Track* track, Track_t& trk_par) {
     Mu2eEvtAna::InitTrack(track, trk_par);
     if(!trk_par.IsGood()) return;
 
@@ -303,7 +304,8 @@ namespace Mu2eEvtAna {
     if(track->TFront() < 475. || track->TFront() > 1650.)         ID += 1 << kT0;       // FIXME: Check selection
     if(track->ECluster() <= 0.)                                   ID += 1 << kClusterE; // Require a cluster
     if(track->NSTInter() == 0)                                    ID += 1 << kD0;       // Consistent with stopping target
-    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 0.95) ID += 1 << kTDip;     // Tan(dip) = pz / pt here
+    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 0.88) ID += 1 << kTDip;     // Tan(dip) = pz / pt here
+    // if(track->TanDipFront() < 0.5 || track->TanDipFront() > 0.95) ID += 1 << kTDip;     // Tan(dip) = pz / pt here
     if(track->TFront() < 475. || track->TFront() > 1650.)         ID += 1 << kT0Loose;  // For RPC control regions
 
     // PID rejection
@@ -439,9 +441,6 @@ namespace Mu2eEvtAna {
                           2*(!trigger_.FiredAPR() && !trigger_.FiredCPR())
                           );
 
-    if((event_id & 1) != 0) return false;
-    cut_flow_.Increment("de_track_count");
-
     if(track_->FitPDG() != 11) return false;
     if(track_->Charge() > 0)   return false;
     cut_flow_.Increment("is_reco_electron");
@@ -484,6 +483,9 @@ namespace Mu2eEvtAna {
     cut_flow_.Increment("loose_time_region");
     if((ID & (1 << kT0)) != 0) return false;
     cut_flow_.Increment("final_time_region");
+    if((event_id & 1) != 0) return false;
+    cut_flow_.Increment("de_track_count");
+
     if(ID != 0 || event_id != 0) {
       std::cout << "[ConvAna::" << __func__ << "] "
                 << evt_.run_ << ":" << evt_.subrun_ << ":" << evt_.event_
@@ -498,6 +500,7 @@ namespace Mu2eEvtAna {
   //------------------------------------------------------------------------------------
   // Main event-by-event processing
   bool ConvAna::ProcessEvent() {
+    ValidateTracks();
 
     // Cut-flow for Run 1A paper:
     // No cuts
@@ -536,10 +539,19 @@ namespace Mu2eEvtAna {
     // Loop through the track collection
     for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
       track_ = &tracks_[itrk];
+      // std::cout << "Trk " << itrk << ": "
+      //           << tracks_[itrk].track_ << " "
+      //           << tracks_[itrk].track_->trk << std::endl;
+      if(verbose_ > 2) {
+        std::cout << "Address (begin loop): " << track_
+                  << " track = " << track_->track_
+                  << " qual = " << track_->track_->trkqual << " and " << track_->TrkQual() << std::endl;
+        track_->Print((itrk == 0) ? "banner" : ""); // print a second time
+      }
       if(!track_->IsGood()) continue; // if not a properly fit track, skip it
       StandardCutFlow();
       if(Run1ACutFlow()) FillTrackHist(trk_hists_[70], track_);
-      if(track_->FitPDG() != 11) continue; // skip muon fits for now due to PID bug
+      if(track_->FitPDG() != 11) continue; // skip muon fits for now due to rooutil bug
 
       // Downstream electron sets
       if(track_->FitPDG() == 11 && track_->PZFront() > 0.f) {
@@ -592,6 +604,7 @@ namespace Mu2eEvtAna {
         const int run1a_id_no_crv = Run1AID & (~(1 << kCRV)); // ID without the CRV coincidence cluster considered
         const int run1a_id_no_time = Run1AID & (~(1 << kT0)); // ID with a looser timing cut
         const int run1a_id_no_crv_time = run1a_id_no_crv & run1a_id_no_time;
+        const int run1a_id_no_tdip = Run1AID & (~(1 << kTDip)); // ID without the tan dip cut
 
         bool upstream_veto = false;
         if(track_->upstream_) {
@@ -616,6 +629,9 @@ namespace Mu2eEvtAna {
              && track_->TFront() > 640. && track_->TFront() < 1650.) { // FIXME: Timing selection not given for cut-and-count
             FillTrackHist(trk_hists_[66 + run1a_set_offset], track_);
           }
+        }
+        if(event_id == 0 && run1a_id_no_tdip == 0) {
+          FillTrackHist(trk_hists_[67 + run1a_set_offset], track_);
         }
       }
     }
