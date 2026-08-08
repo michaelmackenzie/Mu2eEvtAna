@@ -523,6 +523,8 @@ namespace Mu2eEvtAna {
     Hist->fTZSlope->Fill(Track->TZSlope(), Weight);
     Hist->fTZSlopeSig->Fill(Track->TZSlopeSig(), Weight);
     Hist->fTZSlopeRatio->Fill(Track->TZSlopeRatio(), Weight);
+    Hist->fSTBoundary->Fill(Track->STBoundary(), Weight);
+    Hist->fSTInters->Fill(Track->NSTInter(), Weight);
     // Hist->fBestAlg->Fill(Track->BestAlg(), Weight);
     // Hist->fAlgMask->Fill(Track->AlgMask(), Weight);
     const int ID = Track->ID(0);
@@ -894,6 +896,23 @@ namespace Mu2eEvtAna {
 
       // Set track ID info after CRV cluster and upstream track matching
       de->SetID(TrackID(de), 0);
+
+      // Set an alternate ID
+      bool us_cut = true;
+      if(de->upstream_) {
+        const float dt = de->TFront() - de->upstream_->TFront();
+        us_cut = dt < 60.f || dt > 110.f;
+      }
+      const bool no_csm_opt_id =  (de->FitPDG() == 11 && de->PZFront() < 0.f && de->PFront() > 75.
+                                   && de->STBoundary()
+                                   && de->AltPID() > 0.5f && de->ECluster() > 0.
+                                   && us_cut
+                                   && de->CosThetaFront() > 0.525 && de->CosThetaFront() < 0.649 // start optimized cuts
+                                   && de->RMaxFront() > 482. && de->RMaxFront() < 642.6
+                                   && de->TFront() > 540. && de->TFront() < 1650.
+                                   && de->AltTrkQual() > 0.235352
+                                   && de->TrkPID() > 0.078125);
+      de->SetID(no_csm_opt_id, 2);
     }
     if(verbose_ > 2) {
       std::cout << "--- After matching tracks\n";
@@ -994,7 +1013,8 @@ namespace Mu2eEvtAna {
     if(track->TFront() < 600. || track->TFront() > 1650.)        ID += 1 << kT0;
     if(track->FitCon() < 1.e-5)                                  ID += 1 << kFitCon;
     if(track->ECluster() <= 0.)                                  ID += 1 << kClusterE; //require a cluster
-    if(track->NSTInter() == 0)                                   ID += 1 << kD0; // consistent with stopping target
+    if(!track->STBoundary())                                     ID += 1 << kD0; // consistent with stopping target
+    // if(track->NSTInter() == 0)                                   ID += 1 << kD0; // consistent with stopping target
     // const float d0_sign = track->D0Front() * track->Charge();
     // if(d0_sign < -100. || d0_sign > 60.)                         ID += 1 << kD0; //consistent with ST
     if(track->TanDipFront() < 0.5 || track->TanDipFront() > 2.0) ID += 1 << kTDip;

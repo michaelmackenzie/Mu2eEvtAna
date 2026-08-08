@@ -17,7 +17,14 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
     cout << "Requested " << processes << " parallel processes, but this exceeds the interactive maximum of about 2-3!\n";
     return 1;
   }
+  if(n_threads > 20) {
+    cout << "Requested " << n_threads << " parallel threads, but this exceeds the maximum of about 20!\n";
+    return 1;
+  }
 
+
+  if(dataset.BeginsWith("cele")) max_entries = min(max_entries, Long64_t(1e6/n_threads)); // don't need as many signal events
+  if(dataset.BeginsWith("cpos")) max_entries = min(max_entries, Long64_t(1e6/n_threads));
 
   if(processes > 1 || n_threads > 1) {
     gSystem->Exec("[ ! -d log ] && mkdir log");

@@ -97,6 +97,7 @@ namespace Mu2eEvtAna {
     hist_sets[ 66] = new hist_info_t("e-: Run 1A ID, cut-and-count"     ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 67] = new hist_info_t("e-: Run 1A ID, no tan dip"        ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 70] = new hist_info_t("e-: cut-flow ID"                  ,  true, false, false, false, false, false, false, false);
+    hist_sets[ 73] = new hist_info_t("e-: Optimized cut-set"            ,  true,  true,  true,  true,  true,  true,  true,  true);
 
     // CRV studies histograms
     hist_sets[ 80] = new hist_info_t("CRV: 1"                           ,  true, false, false, false,  true, false, false, false);
@@ -633,7 +634,30 @@ namespace Mu2eEvtAna {
         if(event_id == 0 && run1a_id_no_tdip == 0) {
           FillTrackHist(trk_hists_[67 + run1a_set_offset], track_);
         }
-      }
+
+        // no cosmic ID optimized selection
+        bool us_cut = true;
+        if(track_->upstream_) {
+          const float dt = track_->TFront() - track_->upstream_->TFront();
+          us_cut = dt < 60.f || dt > 110.f;
+        }
+        const bool no_csm_opt_id = ((evt_.nde_tracks_ == 1) && (trigger_.FiredAPR() || trigger_.FiredCPR())
+                                    && track_->Charge() < 0
+                                    && track_->PFront() > 100. && track_->PFront() < 110.
+                                    && track_->STBoundary()
+                                    && track_->AltPID() > 0.5f && track_->ECluster() > 0.
+                                    && us_cut
+                                    && track_->CosThetaFront() > 0.525 && track_->CosThetaFront() < 0.649 // start optimized cuts
+                                    && track_->RMaxFront() > 482. && track_->RMaxFront() < 642.6
+                                    && track_->TFront() > 540. && track_->TFront() < 1650.
+                                    && track_->AltTrkQual() > 0.235352
+                                    && track_->TrkPID() > 0.078125);
+        if(no_csm_opt_id) {
+          int cut_opt_offset = 0;
+          if(ID & (1 << kCRV)) cut_opt_offset += kCRVVetoOffset;
+          FillTrackHist(trk_hists_[73 + cut_opt_offset], track_);
+        }
+      } // end De selection
     }
 
     if(evt_.nde_tracks_ != 1) return false; //exactly one positron or electron

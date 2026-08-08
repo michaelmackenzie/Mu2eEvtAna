@@ -88,6 +88,18 @@ namespace Mu2eEvtAna {
     int   NSTInter  () const {
       return (track_ && track_->trk) ? track_->trk->nstup + track_->trk->nstdown : 0;
     }
+    bool  STBoundary() const {
+      const std::vector<mu2e::SurfaceIdDetail::enum_type> segments = {
+        mu2e::SurfaceIdDetail::ST_Front,
+        mu2e::SurfaceIdDetail::ST_Back,
+        mu2e::SurfaceIdDetail::ST_Outer,
+        mu2e::SurfaceIdDetail::ST_Inner
+      };
+      for(auto seg : segments) {
+        if(Segment(seg)) return true;
+      }
+      return false;
+    }
 
     // Static functions
     static float Velocity(double p, double m) {
