@@ -449,12 +449,12 @@ namespace Mu2eEvtAna {
       if(opt.Contains("banner")) {
         std::string filler(130, '-');
         printf("%s\n", filler.c_str());
-        printf("Idx: %5s %10s %10s %10s %10s %7s %6s %10s %5s %5s %8s %8s %10s\n", "Hyp", "p", "pT", "pz", "t", "Ecl", "tandip", "p(MC)", "PDG", "good", "fitcon", "trkqual", "address");
+        printf("Idx: %5s %10s %10s %10s %10s %7s %6s %10s %5s %5s %8s %8s %10s %10s\n", "Hyp", "p", "pT", "pz", "t", "Ecl", "tandip", "p(MC)", "PDG", "good", "fitcon", "trkqual", "address", "us match");
         printf("%s\n", filler.c_str());
       }
       if(!track_) return;
-      printf("Idx: %5i %10.2f %10.2f %10.2f %10.1f %7.1f %6.2f %10.1f %5i %5i %.2e %8.5f %10p\n", FitPDG(), PFront(), PTFront(), PZFront(), TFront(), ECluster(), TanDipFront(),
-             MCPFront(), MCPDG(), IsGood(), FitCon(), TrkQual(), (void*) track_);
+      printf("Idx: %5i %10.2f %10.2f %10.2f %10.1f %7.1f %6.2f %10.1f %5i %5i %.2e %8.5f %10p %10p\n", FitPDG(), PFront(), PTFront(), PZFront(), TFront(), ECluster(), TanDipFront(),
+             MCPFront(), MCPDG(), IsGood(), FitCon(), TrkQual(), (void*) track_, (void*) ((upstream_) ? upstream_->track_ : nullptr));
     }
 
     Track_t() { Reset(); }

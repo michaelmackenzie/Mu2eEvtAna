@@ -152,6 +152,7 @@ namespace Mu2eEvtAna {
     Hist->fNAprTracks       = new TH1F("nTracksApr"       ,Form("%s: nTracksApr",Folder), 50, 0.0, 50.0);
     Hist->fNCprTracks       = new TH1F("nTracksCpr"       ,Form("%s: nTracksCpr",Folder), 50, 0.0, 50.0);
     Hist->fNTracks          = new TH1F("nTracks"          ,Form("%s: nTracks",Folder), 50, 0.0, 50.0);
+    Hist->fNDeTracks        = new TH1F("nDeTracks"        ,Form("%s: nDeTracks",Folder), 50, 0.0, 50.0);
     Hist->fNUeTracks        = new TH1F("nUeTracks"        ,Form("%s: nUeTracks",Folder), 50, 0.0, 50.0);
     Hist->fNDmuTracks       = new TH1F("nDmuTracks"       ,Form("%s: nUmuTracks",Folder), 50, 0.0, 50.0);
     Hist->fNUmuTracks       = new TH1F("nUmuTracks"       ,Form("%s: nUmuTracks",Folder), 50, 0.0, 50.0);
@@ -439,6 +440,7 @@ namespace Mu2eEvtAna {
 
     Hist->fNTracks   ->Fill(evt_.ntracks_   , Weight);
     Hist->fNGoodTrks ->Fill(evt_.ngoodtrks_ , Weight);
+    Hist->fNDeTracks ->Fill(evt_.nde_tracks_, Weight);
     Hist->fNIDTrks   ->Fill(evt_.ntrks_id_  , Weight);
     Hist->fNDigis    ->Fill(evt_.ndigis_    , Weight);
     Hist->fNClusters ->Fill(evt_.nclusters_ , Weight);

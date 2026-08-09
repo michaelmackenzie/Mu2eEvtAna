@@ -27,8 +27,10 @@ namespace DATA {
     datasets.emplace_back(true ,  "rmce1b1s5r0100", "nts.mu2e.RMCPhaseSpace1NExternalMix1BB.MDC2025ar_best_v1_1.root", 2965072, 7000000000);
     datasets.emplace_back(true ,  "rmci0b1s5r0100", "nts.mu2e.RMCPhaseSpace0NInternalMix1BB.MDC2025ar_best_v1_1.root", 1211753,   50000000);
     datasets.emplace_back(true ,  "rmci1b1s5r0100", "nts.mu2e.RMCPhaseSpace1NInternalMix1BB.MDC2025ar_best_v1_1.root",  507641,   50000000);
+    datasets.emplace_back(true ,  "rpce1b1s5r0100", "nts.mu2e.RPCExternalPhysicalMix1BB.MDC2025au_best_v1_1.root"    ,  458818, 5000000000);
+    datasets.emplace_back(true ,  "rpci1b1s5r0100", "nts.mu2e.RPCInternalPhysicalMix1BB.MDC2025au_best_v1_1.root"    , 1899806,  125000000);
 
-    datasets.emplace_back(true ,  "mds3cb1s5r0100", "nts.mu2e.ensembleMDS3cMix1BB.MDC2025ar_best_v1_1.root"     , 4863968, 1. /*data-ish*/);
+    datasets.emplace_back(true ,  "mds3cb1s5r0100", "nts.mu2e.ensembleMDS3cMix1BB.MDC2025ar_best_v1_1.root"          , 4863968, 1. /*data-ish*/);
     return datasets;
   }
 }

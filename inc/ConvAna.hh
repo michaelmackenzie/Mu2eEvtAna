@@ -40,6 +40,7 @@ namespace Mu2eEvtAna {
 
     void EndJob();
 
+    void FillAllHistograms(const int index);
     void InitTreeData();
     int  Run1ATrackID(Track_t* track);
     bool Run1ACutFlow();

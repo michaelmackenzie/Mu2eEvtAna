@@ -23,6 +23,7 @@ namespace Mu2eEvtAna {
     TH1*    fNAprTracks;
     TH1*    fNCprTracks;
     TH1*    fNTracks;
+    TH1*    fNDeTracks;
     TH1*    fNUeTracks;
     TH1*    fNDmuTracks;
     TH1*    fNUmuTracks;
