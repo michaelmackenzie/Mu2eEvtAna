@@ -23,6 +23,7 @@
 
 // local includes
 #include "Mu2eEvtAna/inc/GlobalConstants.h"
+#include "Mu2eEvtAna/inc/CutID.hh"
 #include "Mu2eEvtAna/inc/CRVCluster_t.hh"
 
 namespace Mu2eEvtAna {
@@ -43,7 +44,7 @@ namespace Mu2eEvtAna {
     float tz_slope_unc_;
 
     // Track IDs
-    int id_[kMaxTrackIDs];
+    CutID id_[kMaxTrackIDs];
 
     // Fit observables
     double obs_[kMaxObservables];
@@ -87,6 +88,9 @@ namespace Mu2eEvtAna {
     bool  OPAInter  () const { return (track_ && track_->trk) ? track_->trk->opainter : false; }
     int   NSTInter  () const {
       return (track_ && track_->trk) ? track_->trk->nstup + track_->trk->nstdown : 0;
+    }
+    int   NIPAInter  () const {
+      return (track_ && track_->trk) ? track_->trk->nipaup + track_->trk->nipadown : 0;
     }
     bool  STBoundary() const {
       const std::vector<mu2e::SurfaceIdDetail::enum_type> segments = {
@@ -406,11 +410,15 @@ namespace Mu2eEvtAna {
 
     //----------------------------------------------
     // Accessing/setting the track IDs
-    void SetID(const int ID, const int index = 0) {
+    void SetID(const CutID ID, const int index = 0) {
       if(index < 0 || index >= kMaxTrackIDs) throw std::runtime_error(Form("Accessing a track ID index (%i) out of bounds!", index));
       id_[index] = ID;
     }
-    int ID(const int index = 0) const {
+    void SetID(const int ID, const int index = 0) {
+      if(index < 0 || index >= kMaxTrackIDs) throw std::runtime_error(Form("Accessing a track ID index (%i) out of bounds!", index));
+      id_[index] = CutID(ID);
+    }
+    CutID ID(const int index = 0) const {
       if(index < 0 || index >= kMaxTrackIDs) throw std::runtime_error(Form("Accessing track ID index (%i) out of bounds!", index));
       return id_[index];
     }
@@ -438,7 +446,7 @@ namespace Mu2eEvtAna {
       cosmic_id_    = -1000.f;
       tz_slope_     = 0.f;
       tz_slope_unc_ = -1.f;
-      for(int iid = 0; iid < kMaxTrackIDs; ++iid) id_[iid] = 0;
+      for(int iid = 0; iid < kMaxTrackIDs; ++iid) id_[iid].Reset();
       for(int iobs = 0; iobs < kMaxObservables; ++iobs) obs_[iobs] = 0.;
     }
 

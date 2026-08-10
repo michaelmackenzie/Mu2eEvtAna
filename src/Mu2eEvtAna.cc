@@ -527,18 +527,20 @@ namespace Mu2eEvtAna {
     Hist->fTZSlopeRatio->Fill(Track->TZSlopeRatio(), Weight);
     Hist->fSTBoundary->Fill(Track->STBoundary(), Weight);
     Hist->fSTInters->Fill(Track->NSTInter(), Weight);
+    Hist->fOPAInters->Fill(Track->OPAInter(), Weight);
+    Hist->fIPAInters->Fill(Track->NIPAInter(), Weight);
     // Hist->fBestAlg->Fill(Track->BestAlg(), Weight);
     // Hist->fAlgMask->Fill(Track->AlgMask(), Weight);
-    const int ID = Track->ID(0);
+    const auto ID = Track->ID(0);
     if(ID == 0) {
       Hist->fTrackID   ->Fill("Passed", Weight);
       Hist->fExlTrackID->Fill("Passed", Weight);
     } else {
       for(int bit = 0; bit < 30; ++bit) {
-        if((ID & (1 << bit)) != 0) {
+        if(ID.CheckBit(bit)) {
           TString name = TrackIDBitName(bit);
           Hist->fTrackID->Fill(name.Data(), Weight);
-          if((ID & ~(1 << bit)) == 0) Hist->fExlTrackID->Fill(name.Data(), Weight);
+          if(ID.CheckBitExclusive(bit)) Hist->fExlTrackID->Fill(name.Data(), Weight);
         }
       }
     }
@@ -820,7 +822,6 @@ namespace Mu2eEvtAna {
       // Initialize the track info
       InitTrack(&tracks[itrk], tracks_[itrk]);
       if(tracks_[itrk].IsGood()) ++evt_.ngoodtrks_;
-      if(verbose_ > 1) tracks_[itrk].Print((itrk == 0) ? "banner" : "");
       if(std::abs(tracks_[itrk].FitPDG()) == 11) { // electron
         if(tracks_[itrk].PZFront() > 0.) {de_tracks_[evt_.nde_tracks_] = &tracks_[itrk]; ++evt_.nde_tracks_;}
         else                             {ue_tracks_[evt_.nue_tracks_] = &tracks_[itrk]; ++evt_.nue_tracks_;}
@@ -835,13 +836,6 @@ namespace Mu2eEvtAna {
       tracks_[itrk].Reset();
     }
     ValidateTracks();
-
-    if(verbose_ > 2) {
-      std::cout << "--- Re-print tracks\n";
-      for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
-        tracks_[itrk].Print((itrk == 0) ? "banner" : "");
-      }
-    }
 
     if(verbose_ > 1) {
       printf("Mu2eEvtAna::%s: Printing event information:\n", __func__);
@@ -917,12 +911,8 @@ namespace Mu2eEvtAna {
       de->SetID(no_csm_opt_id, 2);
     }
     if(verbose_ > 2) {
-      std::cout << "--- After matching tracks\n";
-      auto tracks = event_->GetTracks();
-      for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
-        std::cout << tracks_[itrk].track_ << " vs " << &tracks[itrk] << std::endl;
+      for(int itrk = 0; itrk < evt_.ntracks_; ++itrk)
         tracks_[itrk].Print((itrk == 0) ? "banner" : "");
-      }
     }
   }
 
@@ -1003,46 +993,46 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Track selection
-  int Mu2eEvtAna::TrackID(Track_t* track) {
+  CutID Mu2eEvtAna::TrackID(Track_t* track) {
     if(!track || !track->track_) return 0;
-    int ID(0);
+    CutID ID;
     const float pmin = (track->Charge() < 0) ?  85.f :  85.f;
     const float pmax = (track->Charge() < 0) ? 130.f : 130.f;
-    if(track->PFront() < pmin || track->PFront() > pmax)         ID += 1 << kP;
-    if(track->RMaxFront() < 430. || track->RMaxFront() > 650.)   ID += 1 << kRMax;
-    else if(track->OPAInter())                                   ID += 1 << kRMax;
-    if(track->AltTrkQual() > -10. && track->AltTrkQual() < 0.2)  ID += 1 << kTrkQual;
-    if(track->TFront() < 600. || track->TFront() > 1650.)        ID += 1 << kT0;
-    if(track->FitCon() < 1.e-5)                                  ID += 1 << kFitCon;
-    if(track->ECluster() <= 0.)                                  ID += 1 << kClusterE; //require a cluster
-    if(!track->STBoundary())                                     ID += 1 << kD0; // consistent with stopping target
-    // if(track->NSTInter() == 0)                                   ID += 1 << kD0; // consistent with stopping target
+    if(track->PFront() < pmin || track->PFront() > pmax)         ID.SetBit(kP);
+    if(track->RMaxFront() < 430. || track->RMaxFront() > 650.)   ID.SetBit(kRMax);
+    else if(track->OPAInter())                                   ID.SetBit(kRMax);
+    if(track->AltTrkQual() > -10. && track->AltTrkQual() < 0.2)  ID.SetBit(kTrkQual);
+    if(track->TFront() < 600. || track->TFront() > 1650.)        ID.SetBit(kT0);
+    if(track->FitCon() < 1.e-5)                                  ID.SetBit(kFitCon);
+    if(track->ECluster() <= 0.)                                  ID.SetBit(kClusterE); //require a cluster
+    if(!track->STBoundary())                                     ID.SetBit(kD0); // consistent with stopping target
+    // if(track->NSTInter() == 0)                                   ID.SetBit(kD0); // consistent with stopping target
     // const float d0_sign = track->D0Front() * track->Charge();
-    // if(d0_sign < -100. || d0_sign > 60.)                         ID += 1 << kD0; //consistent with ST
-    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 2.0) ID += 1 << kTDip;
-    if(track->TFront() < 500. || track->TFront() > 1650.)        ID += 1 << kT0Loose; //for control regions
+    // if(d0_sign < -100. || d0_sign > 60.)                         ID.SetBit(kD0); //consistent with ST
+    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 2.0) ID.SetBit(kTDip);
+    if(track->TFront() < 500. || track->TFront() > 1650.)        ID.SetBit(kT0Loose); //for control regions
 
     // upstream track rejection
     auto us_trk = track->upstream_;
     if(us_trk) {
       // minimal selection on the upstream track quality
       if(us_trk->FitCon() > 1.e-5 &&
-         (us_trk->TrkQual() < -10. || us_trk->AltTrkQual() > 0.01)) ID += 1 << kUpstream;
+         (us_trk->TrkQual() < -10. || us_trk->AltTrkQual() > 0.01)) ID.SetBit(kUpstream);
     }
 
     // PID rejection
     if(track->ECluster() <= 0.) { // no cluster associated
-      if(track->TrkPID() < -100.f)    ID += 1 << kClusterE; // no score --> fail it
-      else if(track->TrkPID() < 0.5f) ID += 1 << kPID;
+      if(track->TrkPID() < -100.f)    ID.SetBit(kClusterE); // no score --> fail it
+      else if(track->TrkPID() < 0.5f) ID.SetBit(kPID);
     } else { // cluster associated
       if(track->AltPID() < -100.f) { // no score
-        if(track->EPFront() < 0.65f)    ID += 1 << kPID;
-      } else if(track->AltPID() < 0.5f) ID += 1 << kPID;
+        if(track->EPFront() < 0.65f)    ID.SetBit(kPID);
+      } else if(track->AltPID() < 0.5f) ID.SetBit(kPID);
     }
 
     // Kinematic cosmic ID
     if(track->CosmicID() > -100.f && track->CosmicID() < 0.85f)
-      ID += 1 << kCosmicID;
+      ID.SetBit(kCosmicID);
 
     // CRV rejection
     if(track->stub_) {
@@ -1053,41 +1043,8 @@ namespace Mu2eEvtAna {
       const float min_extrap_dt(-50.f), max_extrap_dt(60.f);
       if((deltat_st   > min_extrap_dt && deltat_st   < max_extrap_dt) ||
          (deltat_calo > min_extrap_dt && deltat_calo < max_extrap_dt) ||
-         (deltat_crv > -25.f && deltat_crv < 0.f))               ID += 1 << kCRV;
+         (deltat_crv > -25.f && deltat_crv < 0.f))               ID.SetBit(kCRV);
     }
-
-    // // MC selection to match MC cuts applied to the Mock Data Samples
-    // bool mc_selection = true;
-    // if(fPrimary
-    //    && fPrimary->CreationCode() != mu2e::ProcessCode::mu2eFlatPhoton  // FIXME: don't cut on RMC photons for now
-    //    && trkpar.fTrack->Charge() < 0) {  // Only apply this to negative tracks
-    //   mc_selection &= trkpar.fGenE <= 0. || trkpar.fGenE > 95.f; // only included DIO with E > 95 MeV
-    // }
-
-    // //MC-truth cut, don't include pileup in background-specific histogramming
-    // if(fDataType == kBackground) {
-    //   bool find_match(false); //FIXME: Add MC relation field to TSimParticle to check track particle relation
-    //   switch(fBackgroundType) {
-    //   case kInternalRPC:
-    //   case kExternalRPC:
-    //   case kInternalRMC:
-    //   case kExternalRMC:
-    //   case kDIO: find_match = true; break;
-    //   default: break;
-    //   }
-    //   if(find_match) {
-    //     bool found(false);
-    //     if(fSimpBlock) {
-    //       for(int isim = 0; isim < fSimpBlock->NParticles(); ++isim) {
-    //         const auto sim = fSimpBlock->Particle(isim);
-    //         found |= track->SimID() == int(sim->GetUniqueID());
-    //         if(found) break;
-    //       }
-    //     }
-    //     mc_selection &= found;
-    //   }
-    // }
-    // if(!mc_selection)                                          ID += 1 << kMC;
 
     return ID;
   }
@@ -1107,15 +1064,11 @@ namespace Mu2eEvtAna {
       trk_id &= tracks_[itrk].PZFront() > 0.f;
       if(trk_id) {
         FillTrackHist(trk_hists_[1], &tracks_[itrk]);
-        const int ID = tracks_[itrk].ID();
-        const int id_no_crv = ID & (~(1 << kCRV)); //ID without the CRV coincidence cluster considered
-        const int id_no_us  = ID & (~(1 << kUpstream)); //ID without the upstream track veto
+        const auto ID = tracks_[itrk].ID();
+        const int id_no_crv = ID.ID(~(1 << kCRV)); //ID without the CRV coincidence cluster considered
+        const int id_no_us  = ID.ID(~(1 << kUpstream)); //ID without the upstream track veto
         const int id_no_us_crv  = id_no_crv & id_no_us; //ID without the upstream track veto or CRV veto
-        // const int id_no_time = ID & (~(1 << kT0)); //ID with a looser timing cut
-        // const int id_no_crv_time = id_no_crv & id_no_time;
-        // const int id_no_mc_cut = ID & (~(1 << kMC)); //ID without the MC cuts
-        // const bool mc_cut = (ID & (1 << kMC)) == 0; // only check the MC bit
-        if(ID == 0) FillTrackHist(trk_hists_[2], &tracks_[itrk]);
+        if(ID.Passes()) FillTrackHist(trk_hists_[2], &tracks_[itrk]);
         if(id_no_crv == 0) FillTrackHist(trk_hists_[3], &tracks_[itrk]);
         if(id_no_us == 0) FillTrackHist(trk_hists_[4], &tracks_[itrk]);
         if(id_no_us_crv == 0) FillTrackHist(trk_hists_[5], &tracks_[itrk]);
@@ -1212,29 +1165,10 @@ namespace Mu2eEvtAna {
       // Initialize event information
       watch_->SetTime("Initialize");
       InitializeEvent();
-      if(verbose_ > 2) {
-        std::cout << "--- After InitializeEvent\n";
-        for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
-          tracks_[itrk].Print((itrk == 0) ? "banner" : "");
-        }
-      }
       watch_->StopTime("Initialize");
 
-      if(verbose_ > 2) {
-        std::cout << "--- Before SetTime\n";
-        for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
-          tracks_[itrk].Print((itrk == 0) ? "banner" : "");
-        }
-      }
       // Decide whether or not to accept the event
       watch_->SetTime("ProcessEvent");
-      if(verbose_ > 2) {
-        std::cout << "--- After SetTime\n";
-        for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
-          tracks_[itrk].Print((itrk == 0) ? "banner" : "");
-        }
-      }
-
       const bool pass = ProcessEvent();
       watch_->StopTime("ProcessEvent");
       if(pass) {

@@ -1,6 +1,7 @@
 #include "Mu2eEvtAna/inc/Norm_t.hh"
 #include "Mu2eEvtAna/inc/Track_t.hh"
 #include "Mu2eEvtAna/inc/SimParticle_t.hh"
+#include "Mu2eEvtAna/inc/CutID.hh"
 #include "Mu2eEvtAna/inc/CutFlow.hh"
 #include "Mu2eEvtAna/inc/Mu2eEvtAna.hh"
 #include "Mu2eEvtAna/inc/RMCAna.hh"

@@ -19,6 +19,7 @@
 #include "Mu2eEvtAna/inc/Systematics.hh"
 #include "Mu2eEvtAna/inc/Tree_t.hh"
 #include "Mu2eEvtAna/inc/MVATools.hh"
+#include "Mu2eEvtAna/inc/CutID.hh"
 #include "Mu2eEvtAna/inc/CutFlow.hh"
 
 using namespace mu2e;
@@ -42,7 +43,7 @@ namespace Mu2eEvtAna {
 
     void FillAllHistograms(const int index);
     void InitTreeData();
-    int  Run1ATrackID(Track_t* track);
+    CutID Run1ATrackID(Track_t* track);
     bool Run1ACutFlow();
     bool StandardCutFlow();
 

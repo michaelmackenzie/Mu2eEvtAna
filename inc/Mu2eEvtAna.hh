@@ -51,6 +51,7 @@
 
 // local includes
 #include "Mu2eEvtAna/inc/GlobalConstants.h"
+#include "Mu2eEvtAna/inc/CutID.hh"
 #include "Mu2eEvtAna/inc/Norm_t.hh"
 #include "Mu2eEvtAna/inc/Event_t.hh"
 #include "Mu2eEvtAna/inc/Track_t.hh"
@@ -100,7 +101,7 @@ namespace Mu2eEvtAna {
     virtual void FillCaloClusterHist(CaloClusterHist_t* Hist, CaloCluster_t* Cluster);
     virtual void FillCRVHist(CRVHist_t* Hist, CRVCluster_t* Stub);
 
-    virtual int TrackID(Track_t* track);
+    virtual CutID TrackID(Track_t* track);
     static TString TrackIDBitName(const int bit) {
       switch(bit) {
       case kP: return "P";
