@@ -773,7 +773,7 @@ namespace Mu2eEvtAna {
 
     // Add Calo cluster information
     for(int i = 0; i < kMaxCaloClusters; ++i) calo_clusters_[i].Reset();
-    auto calo_clusters = event_->GetCaloClusters();
+    const auto& calo_clusters = event_->GetCaloClusters();
     evt_.ncalo_clusters_ = calo_clusters.size();
     if(evt_.ncalo_clusters_ >= kMaxCaloClusters) throw std::runtime_error(Form("Exceeded the maximum number of allowed Calo clusters with %i!", evt_.ncalo_clusters_));
     for(int icls = 0; icls < evt_.ncalo_clusters_; ++icls) {
@@ -782,7 +782,7 @@ namespace Mu2eEvtAna {
 
     // Add CRV information
     for(int i = 0; i < kMaxCRVClusters; ++i) crv_clusters_[i].Reset();
-    auto crv_stubs = event_->GetCrvCoincs();
+    const auto& crv_stubs = event_->GetCrvCoincs();
     evt_.ncrv_clusters_ = crv_stubs.size();
     if(evt_.ncrv_clusters_ >= kMaxCRVClusters) throw std::runtime_error(Form("Exceeded the maximum number of allowed CRV clusters with %i!", evt_.ncrv_clusters_));
     for(int istub = 0; istub < evt_.ncrv_clusters_; ++istub) {
@@ -975,7 +975,7 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Initialize Calo cluster information
-  void Mu2eEvtAna::InitCaloCluster(rooutil::CaloCluster* cluster, CaloCluster_t& cls_par) {
+  void Mu2eEvtAna::InitCaloCluster(const rooutil::CaloCluster* cluster, CaloCluster_t& cls_par) {
     cls_par.Reset();
     if(!cluster) return;
     cls_par.cluster_ = cluster->calocluster;
@@ -984,7 +984,7 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Initialize CRV stub information
-  void Mu2eEvtAna::InitCRVCluster(rooutil::CrvCoinc* stub, CRVCluster_t& stub_par) {
+  void Mu2eEvtAna::InitCRVCluster(const rooutil::CrvCoinc* stub, CRVCluster_t& stub_par) {
     stub_par.Reset();
     if(!stub) return;
     stub_par.crvHit_ = stub->reco;

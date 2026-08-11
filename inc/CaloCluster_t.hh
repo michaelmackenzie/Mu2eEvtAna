@@ -14,8 +14,8 @@
 
 namespace Mu2eEvtAna {
   struct CaloCluster_t {
-    mu2e::CaloClusterInfo* cluster_;
-    mu2e::CaloClusterInfoMC* cluster_mc_;
+    const mu2e::CaloClusterInfo* cluster_;
+    const mu2e::CaloClusterInfoMC* cluster_mc_;
 
 
     //-------------------------------------------------
@@ -45,6 +45,22 @@ namespace Mu2eEvtAna {
     }
 
     CaloCluster_t() { Reset(); }
+
+    //----------------------------------------------
+    // Print the cluster
+    void Print(TString opt = "") const {
+      opt.ToLower();
+      if(opt.Contains("banner")) {
+        std::string filler(130, '-');
+        printf("%s\n", filler.c_str());
+        printf("Idx: %10s %10s %10s %10s %4s %10s %10s %10s %10s\n",
+               "Energy", "E err", "Time", "T err", "Disk", "N(crystals)", "x", "y", "z");
+        printf("%s\n", filler.c_str());
+      }
+      if(!cluster_) return;
+      printf("Idx: %10.1f %10.3f %10.1f %10.3f %4i %10i %10.2f %10.2f %10.2f\n",
+             Energy(), EnergyErr(), Time(), TimeErr(), DiskID(), NCrystals(), X(), Y(), Z());
+    }
   };
 }
 #endif

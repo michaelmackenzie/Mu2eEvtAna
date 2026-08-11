@@ -84,8 +84,8 @@ namespace Mu2eEvtAna {
     virtual void InitializeEvent();
     virtual void InitEvent(Event_t& evt);
     virtual void InitTrack(const rooutil::Track* track, Track_t& track_par);
-    virtual void InitCaloCluster(rooutil::CaloCluster* calo, CaloCluster_t& cls_par);
-    virtual void InitCRVCluster(rooutil::CrvCoinc* stub, CRVCluster_t& stub_par);
+    virtual void InitCaloCluster(const rooutil::CaloCluster* calo, CaloCluster_t& cls_par);
+    virtual void InitCRVCluster(const rooutil::CrvCoinc* stub, CRVCluster_t& stub_par);
     virtual void FillOutput();
     virtual void EndJob();
 

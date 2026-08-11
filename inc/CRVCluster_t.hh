@@ -15,8 +15,8 @@
 
 namespace Mu2eEvtAna {
   struct CRVCluster_t {
-    mu2e::CrvHitInfoReco* crvHit_;
-    mu2e::CrvHitInfoMC* crvHitMC_;
+    const mu2e::CrvHitInfoReco* crvHit_;
+    const mu2e::CrvHitInfoMC* crvHitMC_;
     // Note: CRV positions here are translated into track system units
     // Offsets: x_trk = -3904, y_trk = 0, z_trk = 10175
 
@@ -32,6 +32,8 @@ namespace Mu2eEvtAna {
     int        NHits()      const  { return (crvHit_) ? crvHit_->nHits      : 0           ; }
     int        NLayers()    const  { return (crvHit_) ? crvHit_->nLayers    : 0           ; }
     float      Slope()      const  { return (crvHit_) ? crvHit_->angle      : 0.f         ; }
+    int        MCPDG()      const  { return (crvHitMC_) ? crvHitMC_->pdgId  : 0           ; }
+    float      MCTime()     const  { return (crvHitMC_) ? crvHitMC_->time   : 0.f         ; }
 
     //-------------------------------------------------
     // Additional functions
@@ -111,6 +113,24 @@ namespace Mu2eEvtAna {
     }
 
     CRVCluster_t() { Reset(); }
+
+    //----------------------------------------------
+    // Print the cluster
+    void Print(TString opt = "") const {
+      opt.ToLower();
+      if(opt.Contains("banner")) {
+        std::string filler(130, '-');
+        printf("%s\n", filler.c_str());
+        printf("Idx: %10s %10s %8s %8s %8s %10s %10s %10s %10s %8s %10s\n",
+               "Time", "dT", "N(PE)", "N(hits)", "N(layers)", "Slope", "x", "y", "z", "PDG", "MC time");
+        printf("%s\n", filler.c_str());
+      }
+      if(!crvHit_) return;
+      printf("Idx: %10.1f %10.3f %8.1f %8i %8i %10.3f %10.2f %10.2f %10.2f %8i %10.1f\n",
+             Time(), TimeSpan(), PEs(), NHits(), NLayers(), Slope(),
+             Position().x(), Position().y(), Position().z(),
+             MCPDG(), MCTime());
+    }
   };
 }
 #endif

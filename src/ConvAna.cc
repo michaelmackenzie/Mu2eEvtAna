@@ -395,19 +395,22 @@ namespace Mu2eEvtAna {
                       run1a_cut_flow_.Increment("pz_over_pt");
                       if(trigger_.FiredAPR() || trigger_.FiredCPR()) {
                         run1a_cut_flow_.Increment("good_trigger");
-                        if(track_->PFront() > 103.34 && track_->PFront() < 104.74) {
-                          run1a_cut_flow_.Increment("final_mom_region");
-                          if(track_->TFront() > 640. && track_->TFront() < 1650.) {
-                            run1a_cut_flow_.Increment("final_time_region");
-                            if(!Run1AID.Passes() || event_id != 0) {
-                              std::cout << "[ConvAna::" << __func__ << "] "
-                                        << evt_.run_ << ":" << evt_.subrun_ << ":" << evt_.event_
-                                        << " Event passes paper cuts but fails Run1AID = "
-                                        << std::hex << Run1AID << std::dec
-                                        << " or event_id = " << event_id
-                                        << std::endl;
+                        if(evt_.nde_tracks_ == 1) {
+                          run1a_cut_flow_.Increment("nde_tracks");
+                          if(track_->PFront() > 103.34 && track_->PFront() < 104.74) {
+                            run1a_cut_flow_.Increment("final_mom_region");
+                            if(track_->TFront() > 640. && track_->TFront() < 1650.) {
+                              run1a_cut_flow_.Increment("final_time_region");
+                              if(!Run1AID.Passes() || event_id != 0) {
+                                std::cout << "[ConvAna::" << __func__ << "] "
+                                          << evt_.run_ << ":" << evt_.subrun_ << ":" << evt_.event_
+                                          << " Event passes paper cuts but fails Run1AID = "
+                                          << std::hex << Run1AID << std::dec
+                                          << " or event_id = " << event_id
+                                          << std::endl;
+                              }
+                              return true;
                             }
-                            return true;
                           }
                         }
                       }
@@ -678,6 +681,23 @@ namespace Mu2eEvtAna {
           else                       FillAllHistograms(78 + cut_opt_offset);
           if(evt_.nde_tracks_ == 1 && track_->TFront() > 640.) // strict track counting and t0 cut
             FillAllHistograms(76 + cut_opt_offset);
+
+          // Print cosmics that pass all cuts
+          if(name_.Contains("cry4a") && !Run1AID.CheckBit(kCRV)) {
+            printf("[ConvAna::%s] Event %5i:%6i:%8i passes Run 1A selection\n",
+                   __func__, evt_.run_, evt_.subrun_, evt_.event_);
+            track_->Print("banner");
+            printf("CRV clusters:\n");
+            for(int istub = 0; istub < evt_.ncrv_clusters_; ++istub) {
+              const auto& stub = crv_clusters_[istub];
+              stub.Print((istub == 0) ? "banner" : "");
+            }
+            printf("Calo clusters:\n");
+            for(int icls = 0; icls < evt_.ncalo_clusters_; ++icls) {
+              const auto& cls = calo_clusters_[icls];
+              cls.Print((icls == 0) ? "banner" : "");
+            }
+          }
         }
 
         bool test_id = true;
