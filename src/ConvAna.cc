@@ -101,6 +101,7 @@ namespace Mu2eEvtAna {
     hist_sets[ 76] = new hist_info_t("e-: Provided cut-set"             ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 77] = new hist_info_t("e-: ID, > 3 ST inters"            ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 78] = new hist_info_t("e-: ID, <= 3 ST inters"           ,  true,  true,  true,  true,  true,  true,  true,  true);
+    hist_sets[ 79] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true,  true);
 
     // CRV studies histograms
     hist_sets[ 80] = new hist_info_t("CRV: 1"                           ,  true, false, false, false,  true, false, false, false);
@@ -506,6 +507,8 @@ namespace Mu2eEvtAna {
     cut_flow_.Increment("All");
     run1a_cut_flow_.ResetEvent();
     run1a_cut_flow_.Increment("All");
+    dev_cut_flow_.ResetEvent();
+    dev_cut_flow_.Increment("All");
 
     // Event-level requirements
     const int event_id = (
@@ -516,13 +519,17 @@ namespace Mu2eEvtAna {
     // Loop through the track collection
     for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
       track_ = &tracks_[itrk];
+      dev_cut_flow_.Increment("a_track");
       if(!track_->IsGood()) continue; // if not a properly fit track, skip it
+      dev_cut_flow_.Increment("a_converged_track");
       StandardCutFlow();
       if(Run1ACutFlow()) FillAllHistograms(70);
       if(track_->FitPDG() != 11) continue; // skip muon fits for now due to rooutil bug
+      dev_cut_flow_.Increment("is_eminus");
 
       // Downstream electron sets
       if(track_->FitPDG() == 11 && track_->PZFront() > 0.f) {
+        dev_cut_flow_.Increment("is_downstream");
         // All high momentum electron tracks
         if(track_->PFront() > 95.f && track_->Charge() < 0) FillAllHistograms(4);
 
@@ -639,28 +646,58 @@ namespace Mu2eEvtAna {
         }
 
         // Version provided by Natalie from detailed selection optimization
-        const bool prv_opt_id = ((trigger_.FiredAPR() || trigger_.FiredCPR())
-                                 && track_->Charge() < 0
-                                 && track_->PFront() > 100. && track_->PFront() < 110.
-                                 && track_->NSTInter() > 0
-                                 && track_->OPAInter() == 0
-                                 && track_->PID() > 0.54f && track_->ECluster() > 0.
-                                 && track_->TanDipFront() > 0.575 && track_->TanDipFront() < 0.85
-                                 && track_->TFront() > 540. && track_->TFront() < 1650.
-                                 && track_->TrkQual() > 0.155
-                                 && track_->TErrFront() < 0.85
-                                 && track_->NActive() >= 20);
+        bool prv_opt_id = true;
+        prv_opt_id &= track_->Charge() < 0; if(prv_opt_id) dev_cut_flow_.Increment("charge");
+        prv_opt_id &= (trigger_.FiredAPR() || trigger_.FiredCPR()); if(prv_opt_id) dev_cut_flow_.Increment("trigger");
+        prv_opt_id &= upstream_veto; if(prv_opt_id) dev_cut_flow_.Increment("upstream");
+        prv_opt_id &= multi_trk; if(prv_opt_id) dev_cut_flow_.Increment("multi_trk");
+        prv_opt_id &= track_->PID() > 0.54f && track_->ECluster() > 0.; if(prv_opt_id) dev_cut_flow_.Increment("PID");
+        prv_opt_id &= track_->TanDipFront() > 0.575 && track_->TanDipFront() < 0.85; if(prv_opt_id) dev_cut_flow_.Increment("tan_dip");
+        prv_opt_id &= track_->STBoundary() > 0; if(prv_opt_id) dev_cut_flow_.Increment("st_boundary");
+        prv_opt_id &= track_->NSTInter() > 0; if(prv_opt_id) dev_cut_flow_.Increment("st_inter");
+        prv_opt_id &= track_->OPAInter() == 0; if(prv_opt_id) dev_cut_flow_.Increment("opa_inter");
+        prv_opt_id &= track_->TrkQual() > 0.155; if(prv_opt_id) dev_cut_flow_.Increment("trkqual");
+        prv_opt_id &= track_->NActive() >= 20; if(prv_opt_id) dev_cut_flow_.Increment("nactive");
+        prv_opt_id &= track_->TErrMiddle() < 0.85; if(prv_opt_id) dev_cut_flow_.Increment("t0_err");
+        if(!Run1AID.CheckBit(kCRV)) {
+          if(prv_opt_id) dev_cut_flow_.Increment("crv_veto");
+          prv_opt_id &= track_->PFront() > 100. && track_->PFront() < 110.;  if(prv_opt_id) dev_cut_flow_.Increment("momentum");
+          prv_opt_id &= track_->TFront() > 475. && track_->TFront() < 1650.; if(prv_opt_id) dev_cut_flow_.Increment("t_475");
+          prv_opt_id &= track_->TFront() > 540. && track_->TFront() < 1650.; if(prv_opt_id) dev_cut_flow_.Increment("t_540");
+          if(prv_opt_id && track_->TFront() > 640) {
+            dev_cut_flow_.Increment("t_640"); // don't actually apply this here
+            if(track_->PFront() > 103.34 && track_->PFront() < 104.74) dev_cut_flow_.Increment("sr_momentum");
+          }
+        }
         if(prv_opt_id) {
           int cut_opt_offset = 0;
           if(Run1AID.CheckBit(kCRV)) cut_opt_offset += kCRVVetoOffset;
-          if(upstream_veto && multi_trk) { // using my cosmic multi-track veto
-            FillAllHistograms(75 + cut_opt_offset);
-            // Test splitting on N(ST foil intersections)
-            if(track_->NSTInter() > 3) FillAllHistograms(77 + cut_opt_offset);
-            else                       FillAllHistograms(78 + cut_opt_offset);
-          }
+          FillAllHistograms(75 + cut_opt_offset);
+          // Test splitting on N(ST foil intersections)
+          if(track_->NSTInter() > 3) FillAllHistograms(77 + cut_opt_offset);
+          else                       FillAllHistograms(78 + cut_opt_offset);
           if(evt_.nde_tracks_ == 1 && track_->TFront() > 640.) // strict track counting and t0 cut
             FillAllHistograms(76 + cut_opt_offset);
+        }
+
+        bool test_id = true;
+        test_id &= track_->Charge() < 0;
+        test_id &= (trigger_.FiredAPR() || trigger_.FiredCPR());
+        test_id &= upstream_veto;
+        test_id &= multi_trk;
+        test_id &= track_->PID() > 0.535f && track_->ECluster() > 0.;
+        test_id &= track_->TanDipFront() > 0.5675 && track_->TanDipFront() < 0.82;
+        test_id &= track_->NSTInter() > 0;
+        test_id &= track_->OPAInter() == 0;
+        test_id &= track_->TrkQual() > 0.154;
+        test_id &= track_->NActive() >= 18;
+        test_id &= track_->TErrMiddle() < 0.8425;
+        test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
+        test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
+        if(test_id) {
+          int cut_opt_offset = 0;
+          if(Run1AID.CheckBit(kCRV)) cut_opt_offset += kCRVVetoOffset;
+          FillAllHistograms(79 + cut_opt_offset);
         }
 
       } // end De selection
@@ -676,5 +713,6 @@ namespace Mu2eEvtAna {
     printf("ConvAna::%s\n", __func__);
     cut_flow_.Print();
     run1a_cut_flow_.Print();
+    dev_cut_flow_.Print();
   }
 }

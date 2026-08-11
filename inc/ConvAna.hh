@@ -57,6 +57,7 @@ namespace Mu2eEvtAna {
 
     CutFlow            cut_flow_                        ; // standard selection
     CutFlow            run1a_cut_flow_                  ; // Run 1A paper selection
+    CutFlow            dev_cut_flow_                    ; // For cut-set testing
 
     Bool_t             fill_verbose_sys_ = false        ; // add additional info with each systematic
 
