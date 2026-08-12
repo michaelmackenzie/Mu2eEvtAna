@@ -543,21 +543,22 @@ namespace Mu2eEvtAna {
         const auto Run1AID = track_->ID(1);
 
         // Cosmic multiplicity/reflection vetos
-        bool upstream_veto = true;
-        if(track_->upstream_) {
-          const float dt = track_->TFront() - track_->upstream_->TFront();
-          upstream_veto = dt < 40.f || dt > 110.f;
-        }
-        bool multi_trk = true;
+        bool multi_trk(true), upstream_veto(true);
         for(int i = 0; i < evt_.ntracks_; ++i) {
           if(i == itrk) continue; // skip this track
           const auto alt_trk = &tracks_[i];
           if(!alt_trk->IsGood()) continue; // if not a properly fit track, skip it
-          // if(alt_trk->PFront() < 50.) continue; // ignore low momentum tracks, not cosmics-like
+
+          // Check for an upstream partner track
+          if(alt_trk->PZFront() < 0.f) {
+            const float dt = track_->TFront() - alt_trk->TFront();
+            upstream_veto &= dt < 40.f || dt > 110.f; // veto events that are reflection candidates
+          }
+
+          // Check for other electrons/positrons in-time with this track
           if(std::abs(alt_trk->FitPDG()) == 11 && alt_trk->PZFront() > 0.f) { // downstream electron/positron track
             const float dt = track_->TFront() - alt_trk->TFront();
             multi_trk &= std::fabs(dt) > 150.; // veto events with tracks coincident with the main track
-            if(!multi_trk) break; // no need to keep checking
           }
         }
 
@@ -655,7 +656,7 @@ namespace Mu2eEvtAna {
         bool prv_opt_id = true;
         prv_opt_id &= track_->Charge() < 0; if(prv_opt_id) dev_cut_flow_.Increment("charge");
         prv_opt_id &= (trigger_.FiredAPR() || trigger_.FiredCPR()); if(prv_opt_id) dev_cut_flow_.Increment("trigger");
-        prv_opt_id &= upstream_veto; if(prv_opt_id) dev_cut_flow_.Increment("upstream");
+        prv_opt_id &= upstream_veto; if(prv_opt_id) dev_cut_flow_.Increment("upstream_reflection");
         prv_opt_id &= multi_trk; if(prv_opt_id) dev_cut_flow_.Increment("multi_trk");
         prv_opt_id &= track_->PID() > 0.54f && track_->ECluster() > 0.; if(prv_opt_id) dev_cut_flow_.Increment("PID");
         prv_opt_id &= track_->TanDipFront() > 0.575 && track_->TanDipFront() < 0.85; if(prv_opt_id) dev_cut_flow_.Increment("tan_dip");
