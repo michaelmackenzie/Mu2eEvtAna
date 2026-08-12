@@ -525,13 +525,15 @@ namespace Mu2eEvtAna {
       dev_cut_flow_.Increment("a_track");
       if(!track_->IsGood()) continue; // if not a properly fit track, skip it
       dev_cut_flow_.Increment("a_converged_track");
+      if(track_->PFront() <= 0.) continue;
+      dev_cut_flow_.Increment("has_front_seg");
       StandardCutFlow();
       if(Run1ACutFlow()) FillAllHistograms(70);
-      if(track_->FitPDG() != 11) continue; // skip muon fits for now due to rooutil bug
-      dev_cut_flow_.Increment("is_eminus");
+      if(std::abs(track_->FitPDG()) != 11) continue; // skip muon fits for now due to rooutil bug
+      dev_cut_flow_.Increment("is_electron");
 
       // Downstream electron sets
-      if(track_->FitPDG() == 11 && track_->PZFront() > 0.f) {
+      if(std::abs(track_->FitPDG()) == 11 && track_->PZFront() > 0.f) {
         dev_cut_flow_.Increment("is_downstream");
         // All high momentum electron tracks
         if(track_->PFront() > 95.f && track_->Charge() < 0) FillAllHistograms(4);
@@ -555,6 +557,7 @@ namespace Mu2eEvtAna {
           if(std::abs(alt_trk->FitPDG()) == 11 && alt_trk->PZFront() > 0.f) { // downstream electron/positron track
             const float dt = track_->TFront() - alt_trk->TFront();
             multi_trk &= std::fabs(dt) > 150.; // veto events with tracks coincident with the main track
+            if(!multi_trk) break; // no need to keep checking
           }
         }
 
@@ -595,7 +598,7 @@ namespace Mu2eEvtAna {
         const int run1a_id_no_time = Run1AID.ID(~(1 << kT0)); // ID with a looser timing cut
         const int run1a_id_no_crv_time = run1a_id_no_crv & run1a_id_no_time;
 
-        if(event_id == 0 && run1a_id_no_crv_time == 0) {
+        if(event_id == 0 && run1a_id_no_crv_time == 0 && track_->Charge() < 0) {
           if(track_->TFront() > 640.) { // nominal timing window for 1D fit
             if(evt_.nde_tracks_ == 1) FillAllHistograms(60 + run1a_set_offset);
             if(upstream_veto && multi_trk) {

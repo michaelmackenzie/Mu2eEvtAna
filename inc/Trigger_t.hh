@@ -36,7 +36,7 @@ namespace Mu2eEvtAna {
       for(const auto& itr : trig_->NameToIndexMap()) {
         const std::string& name = itr.first;
         bool found = false;
-        found |= name.find("apr_TrkDe_75") != std::string::npos;
+        // found |= name.find("apr_TrkDe_75") != std::string::npos;
         found |= name.find("apr_TrkDe_80") != std::string::npos;
         if(found) {
           if(trig_->Fired(name)) return true;
@@ -50,7 +50,7 @@ namespace Mu2eEvtAna {
       for(const auto& itr : trig_->NameToIndexMap()) {
         const std::string& name = itr.first;
         bool found = false;
-        found |= name.find("cpr_TrkDe_75") != std::string::npos;
+        // found |= name.find("cpr_TrkDe_75") != std::string::npos;
         found |= name.find("cpr_TrkDe_80") != std::string::npos;
         if(found) {
           if(trig_->Fired(name)) return true;

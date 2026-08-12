@@ -225,20 +225,27 @@ namespace Mu2eEvtAna {
 
     //----------------------------------------------
     // Segment info
+    // Defaulting to the earliest for multiple matches
     const mu2e::TrkSegInfo* Segment(mu2e::SurfaceIdDetail::enum_type surface) const {
       if(!track_ || !track_->trksegs) return nullptr;
+      const mu2e::TrkSegInfo* found = nullptr;
       for(const auto& seg : *(track_->trksegs)) {
-        if(seg.sid == surface) return &seg;
+        if(seg.sid == surface) {
+          if(!found || found->time > seg.time) found = &seg;
+        }
       }
-      return nullptr;
+      return found;
     }
     int SegmentIndex(mu2e::SurfaceIdDetail::enum_type surface) const {
       if(!track_ || !track_->trksegs) return -1;
+      int found = -1;
       for(size_t index = 0; index < track_->trksegs->size(); ++index) {
         const auto& seg =  track_->trksegs->at(index);
-        if(seg.sid == surface) return int(index);
+        if(seg.sid == surface) {
+          if(found < 0 || track_->trksegs->at(found).time > seg.time) found = index;
+        }
       }
-      return -1;
+      return found;
     }
     const mu2e::LoopHelixInfo* LHSegment(mu2e::SurfaceIdDetail::enum_type surface) const {
       if(!track_ || !track_->trksegpars_lh) return nullptr;

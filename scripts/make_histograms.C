@@ -23,19 +23,19 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
   }
 
 
-  if(dataset.BeginsWith("cele")) max_entries = min(max_entries, Long64_t(1e6/n_threads)); // don't need as many signal events
+  // if(dataset.BeginsWith("cele")) max_entries = min(max_entries, Long64_t(1e6/n_threads)); // don't need as many signal events
   if(dataset.BeginsWith("cpos")) max_entries = min(max_entries, Long64_t(1e6/n_threads));
 
   if(processes > 1 || n_threads > 1) {
     gSystem->Exec("[ ! -d log ] && mkdir log");
     gSystem->Exec("[ ! -d temp ] && mkdir temp");
     gSystem->Exec("[ ! -d output ] && mkdir output");
-    // Check the token is available
-    TString token_str = gSystem->GetFromPipe("timeout 10 getToken; if [ $? -ne 0 ]; then echo Failed; else echo Passed; fi");
-    if(!token_str.Contains("Passed")) {
-      cout << "Failed to get token!\n";
-      return 1;
-    }
+  }
+  // Check the token is available
+  TString token_str = gSystem->GetFromPipe("timeout 10 getToken; if [ $? -ne 0 ]; then echo Failed; else echo Passed; fi");
+  if(!token_str.Contains("Passed")) {
+    cout << "Failed to get token!\n";
+    return 1;
   }
 
   auto datasets = DATA::datasets();
