@@ -102,16 +102,7 @@ namespace Mu2eEvtAna {
     hist_sets[ 77] = new hist_info_t("e-: ID, > 3 ST inters"            ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 78] = new hist_info_t("e-: ID, <= 3 ST inters"           ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 79] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true,  true);
-
-    // CRV studies histograms
-    hist_sets[ 80] = new hist_info_t("CRV: 1"                           ,  true, false, false, false,  true, false, false, false);
-    hist_sets[ 81] = new hist_info_t("CRV: Ue/Umu tracks"               ,  true, false, false, false,  true, false, false, false);
-    hist_sets[ 82] = new hist_info_t("CRV: calo cluster with track"     ,  true, false, false, false,  true, false, false, false);
-    hist_sets[ 83] = new hist_info_t("CRV: dt < -60 ns"                 ,  true, false, false, false,  true, false, false, false);
-    hist_sets[ 84] = new hist_info_t("CRV: MC electrons"                ,  true, false, false, false,  true, false, false,  true);
-    hist_sets[ 85] = new hist_info_t("CRV: MC muons"                    ,  true, false, false, false,  true, false, false,  true);
-    hist_sets[ 86] = new hist_info_t("CRV: Correct cluster"             ,  true, false, false, false,  true, false, false, false);
-    hist_sets[ 87] = new hist_info_t("CRV: Upstream veto"               ,  true, false, false, false,  true, false, false, false);
+    hist_sets[ 80] = new hist_info_t("e-: 2D (t,p) selection"           ,  true,  true,  true,  true,  true,  true,  true,  true);
 
     for (int i=0; i<kMaxHists; i++) {
       const int index = i % 1000; // base index, ignoring control region offset
@@ -670,38 +661,43 @@ namespace Mu2eEvtAna {
           if(prv_opt_id) dev_cut_flow_.Increment("crv_veto");
           prv_opt_id &= track_->PFront() > 100. && track_->PFront() < 110.;  if(prv_opt_id) dev_cut_flow_.Increment("momentum");
           prv_opt_id &= track_->TFront() > 475. && track_->TFront() < 1650.; if(prv_opt_id) dev_cut_flow_.Increment("t_475");
-          prv_opt_id &= track_->TFront() > 540. && track_->TFront() < 1650.; if(prv_opt_id) dev_cut_flow_.Increment("t_540");
-          if(prv_opt_id && track_->TFront() > 640) {
-            dev_cut_flow_.Increment("t_640"); // don't actually apply this here
-            if(track_->PFront() > 103.34 && track_->PFront() < 104.74) dev_cut_flow_.Increment("sr_momentum");
+          if(prv_opt_id && track_->TFront() > 540.) {
+            dev_cut_flow_.Increment("t_540"); // don't actually apply this here
+            if(prv_opt_id && track_->TFront() > 640) {
+              dev_cut_flow_.Increment("t_640"); // don't actually apply this here
+              if(track_->PFront() > 103.34 && track_->PFront() < 104.74) dev_cut_flow_.Increment("sr_momentum");
+            }
           }
         }
         if(prv_opt_id) {
           int cut_opt_offset = 0;
           if(Run1AID.CheckBit(kCRV)) cut_opt_offset += kCRVVetoOffset;
-          FillAllHistograms(75 + cut_opt_offset);
-          // Test splitting on N(ST foil intersections)
-          if(track_->NSTInter() > 3) FillAllHistograms(77 + cut_opt_offset);
-          else                       FillAllHistograms(78 + cut_opt_offset);
-          if(evt_.nde_tracks_ == 1 && track_->TFront() > 640.) // strict track counting and t0 cut
-            FillAllHistograms(76 + cut_opt_offset);
+          if(track_->TFront() > 540.f) {  // nominal 1D selection
+            FillAllHistograms(75 + cut_opt_offset);
+            // Test splitting on N(ST foil intersections)
+            if(track_->NSTInter() > 3) FillAllHistograms(77 + cut_opt_offset);
+            else                       FillAllHistograms(78 + cut_opt_offset);
+            if(evt_.nde_tracks_ == 1 && track_->TFront() > 640.) // strict track counting and t0 cut
+              FillAllHistograms(76 + cut_opt_offset);
 
-          // Print cosmics that pass all cuts
-          if(name_.Contains("cry4a") && !Run1AID.CheckBit(kCRV)) {
-            printf("[ConvAna::%s] Event %5i:%6i:%8i passes Run 1A selection\n",
-                   __func__, evt_.run_, evt_.subrun_, evt_.event_);
-            track_->Print("banner");
-            printf("CRV clusters:\n");
-            for(int istub = 0; istub < evt_.ncrv_clusters_; ++istub) {
-              const auto& stub = crv_clusters_[istub];
-              stub.Print((istub == 0) ? "banner" : "");
+            // Print cosmics that pass all cuts
+            if(name_.Contains("cry4a") && !Run1AID.CheckBit(kCRV)) {
+              printf("[ConvAna::%s] Event %5i:%6i:%8i passes Run 1A selection\n",
+                     __func__, evt_.run_, evt_.subrun_, evt_.event_);
+              track_->Print("banner");
+              printf("CRV clusters:\n");
+              for(int istub = 0; istub < evt_.ncrv_clusters_; ++istub) {
+                const auto& stub = crv_clusters_[istub];
+                stub.Print((istub == 0) ? "banner" : "");
+              }
+              printf("Calo clusters:\n");
+              for(int icls = 0; icls < evt_.ncalo_clusters_; ++icls) {
+                const auto& cls = calo_clusters_[icls];
+                cls.Print((icls == 0) ? "banner" : "");
+              }
             }
-            printf("Calo clusters:\n");
-            for(int icls = 0; icls < evt_.ncalo_clusters_; ++icls) {
-              const auto& cls = calo_clusters_[icls];
-              cls.Print((icls == 0) ? "banner" : "");
-            }
-          }
+          } // end 540 ns selection
+          if(track_->TFront() > 475.f) FillAllHistograms(80 + cut_opt_offset); // nominal 2D selection
         }
 
         bool test_id = true;

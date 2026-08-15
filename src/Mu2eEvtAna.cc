@@ -71,8 +71,13 @@ namespace Mu2eEvtAna {
           TFile* f = TFile::Open(line_t, "READ");
           if(f) {
             TTree* t = (TTree*) f->Get("EventNtuple/ntuple");
-            if(t) accumulated_entries += t->GetEntriesFast();
+            if(t) accumulated_entries += t->GetEntries();
+            else {
+              printf("%s: Error! Unable to retrieve the ntuple from %s\n", __func__, line_t.Data());
+            }
             f->Close();
+          } else {
+            printf("%s: Error! Unable to open file %s\n", __func__, line_t.Data());
           }
           if(max_entries > 0 && accumulated_entries > max_entries + first_entry) {
             if(verbose_ > -1) printf("\r%s: Loaded %i files of %i with %llu entries", __func__, ifile, nfiles, accumulated_entries);

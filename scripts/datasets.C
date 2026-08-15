@@ -22,7 +22,7 @@ namespace DATA {
 
     datasets.emplace_back(true ,  "cele1b1s5r0100", "nts.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_1.root"          , 4141125,   10000000);
     datasets.emplace_back(false,  "cpos1b1s5r0100", "nts.mu2e.CePLeadingLogMix1BB.MDC2025ar_best_v1_1.root"          , 3235878,   10000000);
-    datasets.emplace_back(true ,  "cry4ab1s5r0100", "nts.mu2e.CosmicSignalMix1BB.MDC2025ar_best_v1_1.root"           , 4120241,    4437500. /*livetime*/);
+    datasets.emplace_back(true ,  "cry4ab1s5r0100", "nts.mu2e.CosmicSignalMix1BB.MDC2025au_best_v1_1.root"           , 4155435,    4437500. /*livetime*/);
     datasets.emplace_back(true ,  "dio00b1s5r0100", "nts.mu2e.DIOtail95Mix1BB.MDC2025ar_best_v1_1.root"              , 9348862,   25000000);
     datasets.emplace_back(true ,  "rmce0b1s5r0100", "nts.mu2e.RMCPhaseSpace0NExternalMix1BB.MDC2025ar_best_v1_1.root", 4952890, 7000000000);
     datasets.emplace_back(false,  "rmce1b1s5r0100", "nts.mu2e.RMCPhaseSpace1NExternalMix1BB.MDC2025ar_best_v1_1.root", 2965072, 7000000000);

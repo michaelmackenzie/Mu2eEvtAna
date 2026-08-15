@@ -203,6 +203,8 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
   for(int t = 0; t < actual_n_threads; ++t) {
     TString thread_file = Form("temp/%s_thread_%i.files", dataset.Data(), t);
     thread_files.push_back(thread_file);
+    // be very sure we're not using an old file
+    gSystem->Exec(Form("[ -f temp/%s ] && rm %s", thread_file.Data(), thread_file.Data()));
 
     int per_part = (n_input_files + actual_n_threads - 1) / actual_n_threads;
     int start = t * per_part;
