@@ -23,7 +23,7 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
   }
 
 
-  if(dataset.BeginsWith("cele")) max_entries = min(max_entries, Long64_t(1e6/n_threads)); // don't need as many signal events
+  // if(dataset.BeginsWith("cele")) max_entries = min(max_entries, Long64_t(1e6/n_threads)); // don't need as many signal events
   if(dataset.BeginsWith("cpos")) max_entries = min(max_entries, Long64_t(1e6/n_threads));
 
   if(processes > 1 || n_threads > 1) {
