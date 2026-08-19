@@ -88,7 +88,7 @@ namespace Mu2eEvtAna {
     hist_sets[ 35] = new hist_info_t("e-: high dP(ST)"                  ,  true, false, false, false, false,  true,  true, false);
     hist_sets[ 40] = new hist_info_t("e+: full window"                  ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 41] = new hist_info_t("e+: narrow window"                ,  true,  true,  true,  true, false, false,  true, false);
-    hist_sets[ 42] = new hist_info_t("e+: full window, no weights"      ,  true,  true,  true,  true, false, false,  true, false);
+    hist_sets[ 42] = new hist_info_t("e+: broad window"                 ,  true,  true,  true,  true, false, false,  true, false);
     hist_sets[ 50] = new hist_info_t("e+: no CRV veto"                  ,  true, false, false, false,  true, false,  true, false);
     hist_sets[ 60] = new hist_info_t("e-: Run 1A ID"                    ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 62] = new hist_info_t("e-: Run 1A ID + upstream veto"    ,  true,  true,  true,  true,  true,  true,  true,  true);
@@ -700,18 +700,18 @@ namespace Mu2eEvtAna {
           if(track_->TFront() > 475.f) FillAllHistograms(80 + cut_opt_offset); // nominal 2D selection
         }
 
-        bool test_id = true;
+        bool test_id = true; // As of 2026-08-19 from Natalie
         test_id &= track_->Charge() < 0;
         test_id &= (trigger_.FiredAPR() || trigger_.FiredCPR());
         test_id &= upstream_veto;
         test_id &= multi_trk;
-        test_id &= track_->PID() > 0.535f && track_->ECluster() > 0.;
-        test_id &= track_->TanDipFront() > 0.5675 && track_->TanDipFront() < 0.82;
         test_id &= track_->NSTInter() > 0;
         test_id &= track_->OPAInter() == 0;
-        test_id &= track_->TrkQual() > 0.154;
-        test_id &= track_->NActive() >= 18;
-        test_id &= track_->TErrMiddle() < 0.8425;
+        test_id &= track_->PID() > 0.525f && track_->ECluster() > 0.;
+        test_id &= track_->TanDipFront() > 0.57 && track_->TanDipFront() < 0.85;
+        test_id &= track_->TrkQual() > 0.22;
+        test_id &= track_->NActive() >= 21;
+        test_id &= track_->TErrMiddle() < 0.84;
         test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
         test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
         if(test_id) {
@@ -720,7 +720,20 @@ namespace Mu2eEvtAna {
           FillAllHistograms(79 + cut_opt_offset);
         }
 
+        //------------------------------------
+        // Positron selections
+        //------------------------------------
+
+        if(track_->PFront() > 75.f && track_->Charge() > 0) FillAllHistograms(5);
+        if(track_->Charge() > 0 && id_no_crv_time == 0) {
+          if(track_->PFront() > 80.f && track_->PFront() < 100.f) {
+            FillAllHistograms(40 + set_offset);
+          }
+          FillAllHistograms(42 + set_offset); // broad momentum window
+        }
+
       } // end De selection
+
     }
 
     if(evt_.nde_tracks_ != 1) return false; //exactly one positron or electron

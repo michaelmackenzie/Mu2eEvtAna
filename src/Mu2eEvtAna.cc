@@ -1,6 +1,8 @@
 #include "Mu2eEvtAna/inc/Mu2eEvtAna.hh"
 
 #include "TEnv.h"
+#include <stdlib.h>
+
 
 using namespace mu2e;
 namespace Mu2eEvtAna {
@@ -57,6 +59,11 @@ namespace Mu2eEvtAna {
         filelist.clear();
         filelist.seekg(0, std::ios::beg);
 
+        // Timeout for opening a file via XRootD (in seconds)
+        setenv("XRD_REQUESTTIMEOUT", "10", 1);
+        setenv("XRD_STREAMTIMEOUT", "10", 1);
+        setenv("XRD_CONNECTIONTIMEOUT", "10", 1);
+
         // Add each file to the TChain
         if(verbose_ > -1) printf("%s: Loading file list %s with %i files\n", __func__, file_name.Data(), nfiles);
         std::string line;
@@ -71,7 +78,7 @@ namespace Mu2eEvtAna {
           TFile* f = TFile::Open(line_t, "READ");
           if(f) {
             TTree* t = (TTree*) f->Get("EventNtuple/ntuple");
-            if(t) accumulated_entries += t->GetEntries();
+            if(t) accumulated_entries += t->GetEntriesFast();
             else {
               printf("%s: Error! Unable to retrieve the ntuple from %s\n", __func__, line_t.Data());
             }
@@ -1001,43 +1008,62 @@ namespace Mu2eEvtAna {
   CutID Mu2eEvtAna::TrackID(Track_t* track) {
     if(!track || !track->track_) return 0;
     CutID ID;
-    const float pmin = (track->Charge() < 0) ?  85.f :  85.f;
-    const float pmax = (track->Charge() < 0) ? 130.f : 130.f;
-    if(track->PFront() < pmin || track->PFront() > pmax)         ID.SetBit(kP);
-    if(track->RMaxFront() < 430. || track->RMaxFront() > 650.)   ID.SetBit(kRMax);
-    else if(track->OPAInter())                                   ID.SetBit(kRMax);
-    if(track->AltTrkQual() > -10. && track->AltTrkQual() < 0.2)  ID.SetBit(kTrkQual);
-    if(track->TFront() < 600. || track->TFront() > 1650.)        ID.SetBit(kT0);
-    if(track->FitCon() < 1.e-5)                                  ID.SetBit(kFitCon);
-    if(track->ECluster() <= 0.)                                  ID.SetBit(kClusterE); //require a cluster
-    if(!track->STBoundary())                                     ID.SetBit(kD0); // consistent with stopping target
-    // if(track->NSTInter() == 0)                                   ID.SetBit(kD0); // consistent with stopping target
-    // const float d0_sign = track->D0Front() * track->Charge();
-    // if(d0_sign < -100. || d0_sign > 60.)                         ID.SetBit(kD0); //consistent with ST
-    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 2.0) ID.SetBit(kTDip);
-    if(track->TFront() < 500. || track->TFront() > 1650.)        ID.SetBit(kT0Loose); //for control regions
 
-    // upstream track rejection
-    auto us_trk = track->upstream_;
-    if(us_trk) {
-      // minimal selection on the upstream track quality
-      if(us_trk->FitCon() > 1.e-5 &&
-         (us_trk->TrkQual() < -10. || us_trk->AltTrkQual() > 0.01)) ID.SetBit(kUpstream);
+    // Charge-specific cuts
+    if(track->Charge() < 0) { // electrons
+      if(track->PFront() < 85.f || track->PFront() > 130.f)        ID.SetBit(kP);
+      if(track->RMaxFront() < 430. || track->RMaxFront() > 650.)   ID.SetBit(kRMax);
+      if(track->AltTrkQual() > -10. && track->AltTrkQual() < 0.2)  ID.SetBit(kTrkQual);
+      if(track->TFront() < 540. || track->TFront() > 1650.)        ID.SetBit(kT0);
+      if(track->FitCon() < 1.e-5)                                  ID.SetBit(kFitCon);
+      if(track->ECluster() <= 0.)                                  ID.SetBit(kClusterE);
+      else if(track->AltPID() < 0.5f)                              ID.SetBit(kPID);
+      if(track->TanDipFront() < 0.5 || track->TanDipFront() > 2.0) ID.SetBit(kTDip);
+
+      // Kinematic cosmic ID
+      if(track->CosmicID() > -100.f && track->CosmicID() < 0.85f)  ID.SetBit(kCosmicID);
+
+    } else {                  // positrons
+      if(track->PFront() < 80.f || track->PFront() > 120.f)        ID.SetBit(kP);
+      if(track->RMaxFront() < 400. || track->RMaxFront() > 610.)   ID.SetBit(kRMax);
+      if(track->AltTrkQual() > -10. && track->AltTrkQual() < 0.02) ID.SetBit(kTrkQual);
+      if(track->TFront() < 500. || track->TFront() > 1650.)        ID.SetBit(kT0);
+      if(track->FitCon() < 1.e-8)                                  ID.SetBit(kFitCon);
+      if(track->TanDipFront() < 0.5 || track->TanDipFront() > 1.5) ID.SetBit(kTDip);
+
+      if(track->ECluster() <= 0.) { // no cluster associated
+        if(track->TrkPID() < -100.f)                               ID.SetBit(kClusterE); // no score --> fail it
+        else if(track->TrkPID() < 0.15f)                           ID.SetBit(kPID); // tracker-only PID
+      } else if(track->AltPID() < 0.10f)                           ID.SetBit(kPID); // full PID
     }
 
-    // PID rejection
-    if(track->ECluster() <= 0.) { // no cluster associated
-      if(track->TrkPID() < -100.f)    ID.SetBit(kClusterE); // no score --> fail it
-      else if(track->TrkPID() < 0.5f) ID.SetBit(kPID);
-    } else { // cluster associated
-      if(track->AltPID() < -100.f) { // no score
-        if(track->EPFront() < 0.65f)    ID.SetBit(kPID);
-      } else if(track->AltPID() < 0.5f) ID.SetBit(kPID);
+    // General selections
+    if(track->OPAInter())                                          ID.SetBit(kRMax);
+    if(!track->STBoundary())                                       ID.SetBit(kD0); // consistent with stopping target
+    if(track->TFront() < 475. || track->TFront() > 1650.)          ID.SetBit(kT0Loose); //for control regions
+
+    // upstream and multi-track rejection
+    bool multi_trk(true), upstream_veto(true);
+    for(int i = 0; i < evt_.ntracks_; ++i) {
+      if(&tracks_[i] == &(*track)) continue; // skip this track
+      const auto alt_trk = &tracks_[i];
+      if(!alt_trk->IsGood()) continue; // if not a properly fit track, skip it
+
+      // Check for an upstream partner track
+      if(alt_trk->PZFront() < 0.f) {
+        const float dt = track->TFront() - alt_trk->TFront();
+        upstream_veto &= dt < 40.f || dt > 110.f; // veto events that are reflection candidates
+      }
+
+      // Check for other electrons/positrons in-time with this track
+      if(std::abs(alt_trk->FitPDG()) == 11 && alt_trk->PZFront() > 0.f) { // downstream electron/positron track
+        const float dt = track->TFront() - alt_trk->TFront();
+        multi_trk &= std::fabs(dt) > 150.; // veto events with tracks coincident with the main track
+      }
     }
 
-    // Kinematic cosmic ID
-    if(track->CosmicID() > -100.f && track->CosmicID() < 0.85f)
-      ID.SetBit(kCosmicID);
+    if(!upstream_veto)                                           ID.SetBit(kUpstream);
+    if(!multi_trk)                                               ID.SetBit(kUpstream); // FIXME: Add a bit
 
     // CRV rejection
     if(track->stub_) {
