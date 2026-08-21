@@ -700,16 +700,18 @@ namespace Mu2eEvtAna {
           if(track_->TFront() > 475.f) FillAllHistograms(80 + cut_opt_offset); // nominal 2D selection
         }
 
-        bool test_id = true; // As of 2026-08-19 from Natalie
+
+        bool test_id = true; // As of 2026-08-21 from Natalie
         test_id &= track_->Charge() < 0;
         test_id &= (trigger_.FiredAPR() || trigger_.FiredCPR());
         test_id &= upstream_veto;
         test_id &= multi_trk;
         test_id &= track_->NSTInter() > 0;
         test_id &= track_->OPAInter() == 0;
+        test_id &= track_->D0Front() < 90.;
         test_id &= track_->PID() > 0.525f && track_->ECluster() > 0.;
-        test_id &= track_->TanDipFront() > 0.57 && track_->TanDipFront() < 0.85;
-        test_id &= track_->TrkQual() > 0.22;
+        test_id &= track_->TanDipFront() > 0.57 && track_->TanDipFront() < 0.9;
+        test_id &= track_->TrkQual() > 0.20;
         test_id &= track_->NActive() >= 21;
         test_id &= track_->TErrMiddle() < 0.84;
         test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
