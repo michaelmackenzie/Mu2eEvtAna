@@ -42,10 +42,11 @@ fi
 
 echo "Merging ${#files[@]} files into $output"
 if [ "$force" = true ]; then
-    hadd -f "$output" "${files[@]}"
+    hadd -f "$output" "${files[@]}" >| $input_list.merge
 else
-    hadd "$output" "${files[@]}"
+    hadd "$output" "${files[@]}" >| $input_list.merge
 fi
+echo "Finished merging files into $output"
 
 if [ "$clean" = true ]; then
     echo "Cleaning files"

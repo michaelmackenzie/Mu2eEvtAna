@@ -701,19 +701,20 @@ namespace Mu2eEvtAna {
         }
 
 
-        bool test_id = true; // As of 2026-08-21 from Natalie
+        bool test_id = true; // As of 2026-08-26 from Natalie
         test_id &= track_->Charge() < 0;
         test_id &= (trigger_.FiredAPR() || trigger_.FiredCPR());
         test_id &= upstream_veto;
         test_id &= multi_trk;
         test_id &= track_->NSTInter() > 0;
         test_id &= track_->OPAInter() == 0;
-        test_id &= track_->D0Front() < 90.;
-        test_id &= track_->PID() > 0.525f && track_->ECluster() > 0.;
-        test_id &= track_->TanDipFront() > 0.57 && track_->TanDipFront() < 0.9;
-        test_id &= track_->TrkQual() > 0.20;
-        test_id &= track_->NActive() >= 21;
-        test_id &= track_->TErrMiddle() < 0.84;
+        test_id &= track_->D0Front() < 80.;
+        test_id &= track_->D0Front() > -170.;
+        test_id &= track_->PID() > 0.547453f && track_->ECluster() > 0.;
+        test_id &= track_->TanDipFront() > 0.518967 && track_->TanDipFront() < 0.88642;
+        test_id &= track_->TrkQual() > 0.185;
+        test_id &= track_->NActive() >= 18;
+        test_id &= track_->TErrMiddle() < 0.802125;
         test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
         test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
         if(test_id) {
