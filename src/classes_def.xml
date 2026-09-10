@@ -7,4 +7,5 @@
   <class name="Mu2eEvtAna::Mu2eEvtAna" />
   <class name="Mu2eEvtAna::RMCAna" />
   <class name="Mu2eEvtAna::ConvAna" />
+  <class name="Mu2eEvtAna::Run1BAna" />
 </lcgdict>
