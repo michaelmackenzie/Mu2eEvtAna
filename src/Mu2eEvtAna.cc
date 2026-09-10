@@ -121,15 +121,12 @@ namespace Mu2eEvtAna {
       // ntuple_->SetBranchStatus("trkhits.earlyend" , 1);
       // ntuple_->SetBranchStatus("trkhits.tottdrift", 1);
     }
-    if(ntuple_->GetBranch("trkhitscalibs"  )) ntuple_->SetBranchStatus("trkhitscalibs"    , 0);
-    if(ntuple_->GetBranch("trkhitsmc"      )) ntuple_->SetBranchStatus("trkhitsmc"        , 0);
-    if(ntuple_->GetBranch("trkmats"        )) ntuple_->SetBranchStatus("trkmats"          , 0);
-    if(ntuple_->GetBranch("trksegpars_ch"  )) ntuple_->SetBranchStatus("trksegpars_ch"    , 0);
-    if(ntuple_->GetBranch("trksegpars_kl"  )) ntuple_->SetBranchStatus("trksegpars_kl"    , 0);
-    if(ntuple_->GetBranch("calohits"       )) ntuple_->SetBranchStatus("calohits"         , 0);
-    if(ntuple_->GetBranch("calodigis"      )) ntuple_->SetBranchStatus("calodigis"        , 0);
-    if(ntuple_->GetBranch("calorecodigis"  )) ntuple_->SetBranchStatus("calorecodigis"    , 0);
-    if(ntuple_->GetBranch("crvcoincmcplane")) ntuple_->SetBranchStatus("crvcoincmcplane"  , 0);
+    for(const auto& branch : disabled_branches_) {
+      if(ntuple_->GetBranch(branch)) ntuple_->SetBranchStatus(branch, 0);
+    }
+    for(const auto& branch : enabled_branches_) {
+      if(ntuple_->GetBranch(branch)) ntuple_->SetBranchStatus(branch, 1);
+    }
 
     event_ = new rooutil::Event(ntuple_);
     if(load_baskets_) {

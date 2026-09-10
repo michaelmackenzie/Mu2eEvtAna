@@ -190,6 +190,16 @@ namespace Mu2eEvtAna {
 
     Long64_t        tree_entries_ = 0;
 
+    // Branches turned off/on by InitializeInput() before the rooutil::Event is constructed.
+    // disabled_branches_ starts with the same set Mu2eEvtAna has always disabled by default;
+    // a derived class can erase entries from it (e.g. to keep trksegpars_kl) or add to
+    // enabled_branches_ (applied after) without touching the base list.
+    std::vector<TString> disabled_branches_ = {
+      "trkhitscalibs", "trkhitsmc", "trkmats", "trksegpars_ch", "trksegpars_kl",
+      "calohits", "calodigis", "calorecodigis", "crvcoincmcplane"
+    };
+    std::vector<TString> enabled_branches_; //applied after disabled_branches_
+
     mu2e::StopWatch* watch_; // track processing times
   };
 }
