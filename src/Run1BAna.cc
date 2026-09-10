@@ -216,6 +216,72 @@ namespace Mu2eEvtAna {
         coll.emplace_back(ls);
       }
     }
+
+    // Match every calo cluster to its best line/line seed/time cluster/CRV cluster. Must run
+    // last: it needs tracks_, crv_clusters_ (both filled by Mu2eEvtAna::InitializeEvent() above)
+    // and time_clusters_/line_seeds_ (just filled above) all populated for this event.
+    MatchCaloClusters();
+  }
+
+  //------------------------------------------------------------------------------------
+  // Populate each calo cluster's best-matched line/line seed/time cluster/CRV cluster.
+  //
+  // A line, line seed, or time cluster that has an associated calo cluster stores a copy of that
+  // cluster's own energy/time (LineSeedInfo::ecalo/tcalo, EventNtupleTimeClusterInfo::ecalo/tcalo,
+  // TrkCaloHitInfo::edep/ctime) -- literal copies made when Offline filled that object, not an
+  // independent measurement -- so matching on (near-)equality of those copies against a
+  // calo_clusters_[] entry's own Energy()/Time() recovers the *same* association Offline already
+  // made, rather than reconstructing an approximate one. CRV clusters carry no such calo
+  // association at all, so that match instead reuses the extrapolated-time-window approach
+  // Mu2eEvtAna::InitTrack() already uses for track-to-CRV matching.
+  void Run1BAna::MatchCaloClusters() {
+    const float kCaloMatchEps(1.e-3f); // energy [MeV] / time [ns] tolerance for the copied-value match
+    const float kCRVMatchWindow(250.f); // ns, matching Mu2eEvtAna::InitTrack()'s CRV time window
+
+    for(int icls = 0; icls < evt_.ncalo_clusters_; ++icls) {
+      auto& cls = calo_clusters_[icls];
+      const float E(cls.Energy());
+      const float T(cls.Time());
+
+      // Best matched line (track)
+      cls.line_ = nullptr;
+      for(int itrk = 0; itrk < evt_.ntracks_ && !cls.line_; ++itrk) {
+        Track_t* trk = &tracks_[itrk];
+        if(!trk->IsGood()) continue;
+        const auto* tch = trk->TCH();
+        if(!tch) continue;
+        if(std::fabs(tch->edep - E) < kCaloMatchEps && std::fabs(tch->ctime - T) < kCaloMatchEps) cls.line_ = trk;
+      }
+
+      // Best matched line seed (any collection)
+      cls.line_seed_ = nullptr;
+      for(size_t icoll = 0; icoll < ls_names_.size() && !cls.line_seed_; ++icoll) {
+        for(auto& seed : line_seeds_[icoll]) {
+          if(!seed.HasCalo()) continue;
+          if(std::fabs(seed.ECalo() - E) < kCaloMatchEps && std::fabs(seed.TCalo() - T) < kCaloMatchEps) { cls.line_seed_ = &seed; break; }
+        }
+      }
+
+      // Best matched time cluster (any collection)
+      cls.time_cluster_ = nullptr;
+      for(size_t icoll = 0; icoll < tc_names_.size() && !cls.time_cluster_; ++icoll) {
+        for(auto& tc : time_clusters_[icoll]) {
+          if(!tc.HasCalo()) continue;
+          if(std::fabs(tc.ECalo() - E) < kCaloMatchEps && std::fabs(tc.TCalo() - T) < kCaloMatchEps) { cls.time_cluster_ = &tc; break; }
+        }
+      }
+
+      // Best matched CRV cluster: no direct calo association recorded on either side, so search
+      // by extrapolated time instead (same style as the track-to-CRV match in InitTrack()).
+      CRVCluster_t* crv_match(nullptr);
+      float match_min_dt(1.e10);
+      for(int icrv = 0; icrv < evt_.ncrv_clusters_; ++icrv) {
+        CRVCluster_t* stub = &crv_clusters_[icrv];
+        const float dt = std::fabs(stub->TimeViaCaloFront() - T);
+        if(dt < kCRVMatchWindow && (!crv_match || dt < match_min_dt)) { crv_match = stub; match_min_dt = dt; }
+      }
+      cls.crv_cluster_ = crv_match;
+    }
   }
 
   //------------------------------------------------------------------------------------
@@ -285,6 +351,13 @@ namespace Mu2eEvtAna {
         cut_flow_.Increment("track_id");
         FillTrackHist(trk_hists_[1], &tracks_[itrk]);
       }
+    }
+
+    // Calo cluster histograms (base-class hist set, never filled by the base since
+    // Mu2eEvtAna::ProcessEvent() isn't called here; matched line/line seed/time cluster/CRV
+    // cluster info is already populated on each cluster, from InitializeEvent()'s MatchCaloClusters())
+    for(int icls = 0; icls < evt_.ncalo_clusters_; ++icls) {
+      FillCaloClusterHist(cls_hists_[0], &calo_clusters_[icls]);
     }
 
     // Time cluster / line seed histograms, and matching for efficiency studies

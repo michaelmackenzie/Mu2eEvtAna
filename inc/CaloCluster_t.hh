@@ -13,9 +13,23 @@
 #include "EventNtuple/inc/CaloHitInfo.hh"
 
 namespace Mu2eEvtAna {
+  // Forward declarations only: CaloCluster_t just holds pointers to these (set by whichever
+  // analysis module does the matching, e.g. Run1BAna), so it doesn't need their full definitions.
+  struct Track_t;
+  struct LineSeed_t;
+  struct TimeCluster_t;
+  struct CRVCluster_t;
+
   struct CaloCluster_t {
     const mu2e::CaloClusterInfo* cluster_;
     const mu2e::CaloClusterInfoMC* cluster_mc_;
+
+    // Best-matched objects for this cluster (nullptr if none/not searched for). Populated by an
+    // analysis module, not by the base Mu2eEvtAna -- e.g. Run1BAna::MatchCaloClusters().
+    Track_t*       line_        ; // best matched track (line fit)
+    LineSeed_t*    line_seed_   ; // best matched line seed
+    TimeCluster_t* time_cluster_; // best matched time cluster
+    CRVCluster_t*  crv_cluster_ ; // best matched CRV coincidence cluster
 
 
     //-------------------------------------------------
@@ -42,6 +56,10 @@ namespace Mu2eEvtAna {
     void Reset() {
       cluster_ = nullptr;
       cluster_mc_ = nullptr;
+      line_ = nullptr;
+      line_seed_ = nullptr;
+      time_cluster_ = nullptr;
+      crv_cluster_ = nullptr;
     }
 
     CaloCluster_t() { Reset(); }

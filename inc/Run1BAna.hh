@@ -60,6 +60,13 @@ namespace Mu2eEvtAna {
     int BestLineSeed(const Track_t* track, int icoll) const;
     int BestTimeCluster(const LineSeed_t* seed, int icoll) const;
 
+    // Populate each calo_clusters_[icls]'s best-matched line/line seed/time cluster/CRV cluster
+    // (CaloCluster_t::line_/line_seed_/time_cluster_/crv_cluster_). Must run after tracks_,
+    // crv_clusters_, time_clusters_, and line_seeds_ are all populated for the event -- i.e. at
+    // the end of InitializeEvent(), the same way the base class' upstream-track matching runs
+    // only after every track has been through InitTrack().
+    void MatchCaloClusters();
+
     // Discovered collection names (from the input ntuple; may differ file to file)
     std::vector<TString> tc_names_;
     std::vector<TString> ls_names_;
