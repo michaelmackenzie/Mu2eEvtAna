@@ -17,6 +17,7 @@
 #include "EventNtuple/inc/TrkCaloHitInfo.hh"
 #include "EventNtuple/inc/TrkSegInfo.hh"
 #include "EventNtuple/inc/LoopHelixInfo.hh"
+#include "EventNtuple/inc/KinematicLineInfo.hh"
 #include "EventNtuple/inc/SimInfo.hh"
 
 #include "EventNtuple/rooutil/inc/Track.hh"
@@ -254,6 +255,24 @@ namespace Mu2eEvtAna {
       if(index < 0 || index >= int(track_->trksegpars_lh->size())) return nullptr;
       return &(track_->trksegpars_lh->at(index));
     }
+    const mu2e::KinematicLineInfo* KLSegment(mu2e::SurfaceIdDetail::enum_type surface) const {
+      if(!track_ || !track_->trksegpars_kl) return nullptr;
+      const int index = SegmentIndex(surface);
+      if(index < 0 || index >= int(track_->trksegpars_kl->size())) return nullptr;
+      return &(track_->trksegpars_kl->at(index));
+    }
+
+    //----------------------------------------------
+    // Which fit parametrization this track's segments carry (Run1B/field-off tracks are
+    // KinematicLine; standard Run-1A tracks are LoopHelix). Checked once from whichever
+    // trksegpars_* branch is populated -- independent of which surface is queried.
+    FitType FitTypeOf() const {
+      if(!track_) return FitType::kUnknown;
+      if(track_->trksegpars_lh) return FitType::kLoopHelix;
+      if(track_->trksegpars_ch) return FitType::kCentralHelix;
+      if(track_->trksegpars_kl) return FitType::kKinematicLine;
+      return FitType::kUnknown;
+    }
     const mu2e::SurfaceStepInfo* MCSegment(mu2e::SurfaceIdDetail::enum_type surface) const {
       if(!track_ || !track_->trksegsmc) return nullptr; // No MC info
       auto reco_seg = Segment(surface);
@@ -285,20 +304,42 @@ namespace Mu2eEvtAna {
     float DMomSegment   (mu2e::SurfaceIdDetail::enum_type surface) const { auto seg =   Segment(surface); return (seg) ? seg->dmom                  :  0.; }
     float MomErrSegment (mu2e::SurfaceIdDetail::enum_type surface) const { auto seg =   Segment(surface); return (seg) ? seg->momerr                : -1.; }
     float TSegment      (mu2e::SurfaceIdDetail::enum_type surface) const { auto seg =   Segment(surface); return (seg) ? seg->time                  :  0.; }
-    float TErrSegment   (mu2e::SurfaceIdDetail::enum_type surface) const { auto seg = LHSegment(surface); return (seg) ? seg->t0err                 : -1.; }
+    float TErrSegment   (mu2e::SurfaceIdDetail::enum_type surface) const {
+      auto seg = LHSegment(surface);
+      if(seg) return seg->t0err;
+      auto kl_seg = KLSegment(surface);
+      if(kl_seg) return kl_seg->t0err;
+      return -1.;
+    }
     float RMaxSegment   (mu2e::SurfaceIdDetail::enum_type surface) const { auto seg = LHSegment(surface); return (seg) ? seg->maxr                  :  0.; }
     float RadiusSegment (mu2e::SurfaceIdDetail::enum_type surface) const { auto seg = LHSegment(surface); return (seg) ? std::fabs(seg->rad)        :  0.; }
     float RMinSegment   (mu2e::SurfaceIdDetail::enum_type surface) const { return std::fabs(RMaxSegment(surface) - 2.f*RadiusSegment(surface)); }
 
+    // Transverse radius of the fit trajectory itself at a given surface -- unlike RMaxSegment
+    // (a LoopHelix-only quantity), this is defined for any fit parametrization since it's read
+    // straight from the fit position, not a helix parameter.
+    float RSegment(mu2e::SurfaceIdDetail::enum_type surface) const {
+      auto seg = Segment(surface);
+      return (seg) ? seg->pos.rho() : -1.;
+    }
+
     float D0Segment(mu2e::SurfaceIdDetail::enum_type surface) const {
       auto seg = LHSegment(surface);
-      // return (seg) ? seg->d0 : -1.e6;
-      if(!seg) return -1.e6;
-      // FIXME: Evaluating this locally to get the sign
-      const double radius = std::fabs(seg->rad);
-      const double max_r  = seg->maxr;
-      return max_r - 2.*radius;
+      if(seg) {
+        // FIXME: Evaluating this locally to get the sign
+        const double radius = std::fabs(seg->rad);
+        const double max_r  = seg->maxr;
+        return max_r - 2.*radius;
+      }
+      auto kl_seg = KLSegment(surface);
+      if(kl_seg) return kl_seg->d0; // already signed
+      return -1.e6;
     }
+
+    // KinematicLine-only fit parameters (no LoopHelix analog): sentinel -1.e6 if not a line fit.
+    float Phi0Segment (mu2e::SurfaceIdDetail::enum_type surface) const { auto seg = KLSegment(surface); return (seg) ? seg->phi0  : -1.e6; }
+    float Z0Segment   (mu2e::SurfaceIdDetail::enum_type surface) const { auto seg = KLSegment(surface); return (seg) ? seg->z0    : -1.e6; }
+    float ThetaSegment(mu2e::SurfaceIdDetail::enum_type surface) const { auto seg = KLSegment(surface); return (seg) ? seg->theta : -1.e6; }
 
     float TanDipSegment(mu2e::SurfaceIdDetail::enum_type surface) const {
       auto seg = LHSegment(surface);
@@ -340,6 +381,10 @@ namespace Mu2eEvtAna {
     float CosThetaFront () const { return CosThetaSegment(mu2e::SurfaceIdDetail::TT_Front); }
     float RMaxFront     () const { return RMaxSegment    (mu2e::SurfaceIdDetail::TT_Front); }
     float RadiusFront   () const { return RadiusSegment  (mu2e::SurfaceIdDetail::TT_Front); }
+    float RFront        () const { return RSegment       (mu2e::SurfaceIdDetail::TT_Front); }
+    float Phi0Front     () const { return Phi0Segment    (mu2e::SurfaceIdDetail::TT_Front); }
+    float Z0Front       () const { return Z0Segment      (mu2e::SurfaceIdDetail::TT_Front); }
+    float ThetaFront    () const { return ThetaSegment   (mu2e::SurfaceIdDetail::TT_Front); }
     int   Trajectory    () const {
       const float pz = PZFront();
       if(pz == 0.f) return 0;
@@ -370,6 +415,7 @@ namespace Mu2eEvtAna {
     float TanDipMiddle  () const { return TanDipSegment  (mu2e::SurfaceIdDetail::TT_Mid); }
     float CosThetaMiddle() const { return CosThetaSegment(mu2e::SurfaceIdDetail::TT_Mid); }
     float RMaxMiddle    () const { return RMaxSegment    (mu2e::SurfaceIdDetail::TT_Mid); }
+    float RMiddle       () const { return RSegment       (mu2e::SurfaceIdDetail::TT_Mid); }
 
     //----------------------------------------------
     // Track kinematics at the tracker back
@@ -384,6 +430,26 @@ namespace Mu2eEvtAna {
     float TanDipBack  () const { return TanDipSegment  (mu2e::SurfaceIdDetail::TT_Back); }
     float CosThetaBack() const { return CosThetaSegment(mu2e::SurfaceIdDetail::TT_Back); }
     float RMaxBack    () const { return RMaxSegment    (mu2e::SurfaceIdDetail::TT_Back); }
+    float RBack       () const { return RSegment       (mu2e::SurfaceIdDetail::TT_Back); }
+
+    //----------------------------------------------
+    // Fit-agnostic transverse radius across the tracker (front/middle/back), for use in place of
+    // RMaxFront() (a LoopHelix-only quantity) when the fit could be a straight line.
+    float RTrackerMax() const {
+      float rmax = -1.;
+      for(const float r : {RFront(), RMiddle(), RBack()}) {
+        if(r >= 0. && r > rmax) rmax = r;
+      }
+      return rmax;
+    }
+    float RTrackerMin() const {
+      float rmin = -1.;
+      for(const float r : {RFront(), RMiddle(), RBack()}) {
+        if(r < 0.) continue;
+        if(rmin < 0. || r < rmin) rmin = r;
+      }
+      return rmin;
+    }
 
     //----------------------------------------------
     // Track kinematics at the stopping target exit

@@ -25,6 +25,10 @@ namespace Mu2eEvtAna {
   // Set offsets
   enum { kCRVVetoOffset = 1000, kTimeCutOffset = 2000 }; // control region offsets
 
+  // Track fit parametrization, derived from which trksegpars_* branch is populated for a track.
+  // Run1B (straight-line, field-off) tracks are KinematicLine; standard Run-1A tracks are LoopHelix.
+  enum class FitType {kUnknown, kLoopHelix, kCentralHelix, kKinematicLine};
+
   // Particle data
   static double ParticleMass(const int pdg) {
     const int abs_pdg(std::abs(pdg));
