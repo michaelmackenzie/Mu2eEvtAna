@@ -489,6 +489,25 @@ namespace Mu2eEvtAna {
   bool ConvAna::ProcessEvent() {
     ValidateTracks();
 
+    // Determine the event weight
+    for(int isimp = 0; isimp < evt_.nsimps_; ++isimp) {
+      auto& simp = simps_[isimp];
+      if(simp.pdg_ == -2212 && simp.start_code_ == mu2e::ProcessCode::mu2eAntiproton) { // antiproton sim
+        const float x = simp.pos_start_.x(); // tracker system
+        const float y = simp.pos_start_.y();
+        const float z = simp.pos_start_.z() + 8540. + 3270./2.; // move to Mu2e z
+        const float t = simp.pos_start_.t();
+        const float r = std::sqrt(std::pow(x,2) + y*y);
+        const float w = PBarWeight(z,t,r);;
+        evt_.weight_ *= w;
+        if(verbose_ > 1) printf("[ConvAna::%s] Event %5i:%6i:%8i : Antiproton: (x,y,z,t) = (%.1f, %.1f, %.1f, %.1f) --> weight = %.3g\n",
+                                __func__, evt_.run_, evt_.subrun_, evt_.event_,
+                                x,y,z,t,w
+                                );
+      }
+    }
+
+
     // const float nominal_weight = evt_.weight_;
 
     FillEventHist(evt_hists_[0]); //all events with well defined inputs
@@ -546,8 +565,10 @@ namespace Mu2eEvtAna {
             upstream_veto &= dt < 40.f || dt > 110.f; // veto events that are reflection candidates
           }
 
-          // Check for other electrons/positrons in-time with this track
-          if(std::abs(alt_trk->FitPDG()) == 11 && alt_trk->PZFront() > 0.f) { // downstream electron/positron track
+          // Check for other tracks in-time with this track (skipping alternate fits of the same track)
+          bool alt_ele = std::abs(alt_trk->FitPDG()) == 11 && alt_trk->PZFront() > 0.f;  // downstream electron/positron track
+          bool other_hel = false && (track_->Charge()*track_->PZFront())*(alt_trk->Charge()*alt_trk->PZFront()) < 0; // opposite helicity track
+          if(alt_ele || other_hel) {
             const float dt = track_->TFront() - alt_trk->TFront();
             multi_trk &= std::fabs(dt) > 150.; // veto events with tracks coincident with the main track
           }
@@ -654,6 +675,7 @@ namespace Mu2eEvtAna {
         prv_opt_id &= track_->STBoundary() > 0; if(prv_opt_id) dev_cut_flow_.Increment("st_boundary");
         prv_opt_id &= track_->NSTInter() > 0; if(prv_opt_id) dev_cut_flow_.Increment("st_inter");
         prv_opt_id &= track_->OPAInter() == 0; if(prv_opt_id) dev_cut_flow_.Increment("opa_inter");
+        prv_opt_id &= track_->TSDAInter() == 0; if(prv_opt_id) dev_cut_flow_.Increment("tsda_inter");
         prv_opt_id &= track_->TrkQual() > 0.155; if(prv_opt_id) dev_cut_flow_.Increment("trkqual");
         prv_opt_id &= track_->NActive() >= 20; if(prv_opt_id) dev_cut_flow_.Increment("nactive");
         prv_opt_id &= track_->TErrMiddle() < 0.85; if(prv_opt_id) dev_cut_flow_.Increment("t0_err");
@@ -685,6 +707,10 @@ namespace Mu2eEvtAna {
               printf("[ConvAna::%s] Event %5i:%6i:%8i passes Run 1A selection\n",
                      __func__, evt_.run_, evt_.subrun_, evt_.event_);
               track_->Print("banner");
+              for(int i = 0; i < evt_.ntracks_; ++i) {
+                if(i == itrk) continue; // skip this track
+                tracks_[i].Print();
+              }
               printf("CRV clusters:\n");
               for(int istub = 0; istub < evt_.ncrv_clusters_; ++istub) {
                 const auto& stub = crv_clusters_[istub];
@@ -701,20 +727,20 @@ namespace Mu2eEvtAna {
         }
 
 
-        bool test_id = true; // As of 2026-08-26 from Natalie
+        bool test_id = true; // As of 2026-08-29 from Natalie
         test_id &= track_->Charge() < 0;
         test_id &= (trigger_.FiredAPR() || trigger_.FiredCPR());
         test_id &= upstream_veto;
         test_id &= multi_trk;
         test_id &= track_->NSTInter() > 0;
         test_id &= track_->OPAInter() == 0;
-        test_id &= track_->D0Front() < 80.;
-        test_id &= track_->D0Front() > -170.;
-        test_id &= track_->PID() > 0.547453f && track_->ECluster() > 0.;
-        test_id &= track_->TanDipFront() > 0.518967 && track_->TanDipFront() < 0.88642;
-        test_id &= track_->TrkQual() > 0.185;
-        test_id &= track_->NActive() >= 18;
-        test_id &= track_->TErrMiddle() < 0.802125;
+        test_id &= track_->D0Front() < 82.1943365;
+        test_id &= track_->D0Front() > -74.479075;
+        test_id &= track_->PID() > 0.60835038 && track_->ECluster() > 0.;
+        test_id &= track_->TanDipFront() > 0.520177267 && track_->TanDipFront() < 0.8539424;
+        test_id &= track_->TrkQual() > 0.1718097;
+        test_id &= track_->NActive() >= 21;
+        test_id &= track_->TErrMiddle() < 0.7900952;
         test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
         test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
         if(test_id) {

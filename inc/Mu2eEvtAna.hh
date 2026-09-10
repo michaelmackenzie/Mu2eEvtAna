@@ -137,6 +137,14 @@ namespace Mu2eEvtAna {
       }
     }
 
+    double PBarWeight(float z, float time, float r) {
+      // FIXME: Initial corrections
+      const float z_wt = (z < 5520.) ? 0.689113 : 57.4314;
+      const float t_wt = (time < 850.) ? 5.49869 * std::exp(-0.5 * std::pow((time - 636.651) / 98.3452, 2)) : std::max(0., 0.906741 - 0.00422318 * time);
+      const float r_wt = (r < 25.f) ? std::exp(6.5611 - 0.279425 * r) : (r < 65.f) ? 0.472027 + 0.00398991 * r : (r < 75.f) ? std::exp(-15.0391 + 0.223124 * r) : 0.f;
+      return z_wt * t_wt * r_wt;
+    }
+
     rooutil::Event*  event_ ; //input TChain wrapper
     TChain* ntuple_; //input ntuple
     TTree*  tree_  = nullptr; //current tree in the TChain

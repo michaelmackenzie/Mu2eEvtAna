@@ -1039,6 +1039,7 @@ namespace Mu2eEvtAna {
 
     // General selections
     if(track->OPAInter())                                          ID.SetBit(kRMax);
+    if(track->TSDAInter())                                         ID.SetBit(kRMax);
     if(!track->STBoundary())                                       ID.SetBit(kD0); // consistent with stopping target
     if(track->TFront() < 475. || track->TFront() > 1650.)          ID.SetBit(kT0Loose); //for control regions
 

@@ -86,6 +86,7 @@ namespace Mu2eEvtAna {
     float TZSlope   () const { return (track_) ? tz_slope_     :     0.f; }
     float TZSlopeUnc() const { return (track_) ? tz_slope_unc_ :    -1.f; }
     bool  OPAInter  () const { return (track_ && track_->trk) ? track_->trk->opainter : false; }
+    bool  TSDAInter () const { return (track_ && track_->trk) ? track_->trk->tsdainter : false; }
     int   NSTInter  () const {
       return (track_ && track_->trk) ? track_->trk->nstup + track_->trk->nstdown : 0;
     }

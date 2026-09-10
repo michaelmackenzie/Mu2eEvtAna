@@ -33,6 +33,7 @@ namespace DATA {
     datasets.emplace_back(!ele ,  "rmci1b1s5r0100", "nts.mu2e.RMCPhaseSpace1NInternalMix1BB.MDC2025au_best_v1_1.root",  517029,   50000000);
     datasets.emplace_back(true ,  "rpce1b1s5r0100", "nts.mu2e.RPCExternalPhysicalMix1BB.MDC2025au_best_v1_1.root"    ,  458818, 5000000000);
     datasets.emplace_back(true ,  "rpci1b1s5r0100", "nts.mu2e.RPCInternalPhysicalMix1BB.MDC2025au_best_v1_1.root"    , 1899806,  125000000);
+    datasets.emplace_back(!ele ,  "pbar1b1s5r0100", "nts.mu2e.PbarResamplingMix1BB.MDC2025au_best_v1_1.root"         , 6461314,   30000000);
 
     datasets.emplace_back(!ele ,  "mds3cb1s5r0100", "nts.mu2e.ensembleMDS3cMix1BB.MDC2025au_best_v1_1.root"          , 4926941, 1. /*data-ish*/);
     return datasets;
