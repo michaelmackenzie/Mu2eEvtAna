@@ -39,10 +39,15 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
   }
 
   auto datasets = DATA::datasets();
+  const bool is_run1b = TString(function) == "run1b_ana";
 
   vector<TString> logs;
   for(auto config : datasets) {
-    if(dataset == "" && !config.process_) continue;
+    if(dataset == "") {
+      if(!config.process_) continue;
+      const bool is_run1b_data = config.name_.EndsWith("r0204");
+      if(is_run1b_data != is_run1b) continue;
+    }
     if(dataset != "" && config.name_ != dataset) continue;
     if(processes > 1) {
       while(CountAnalyzerProcesses() >= processes) sleep(10);
@@ -53,9 +58,10 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
       gSystem->Exec(command.Data());
     } else {
       if(n_threads > 1) {
-        if(     strcmp(function, "mu2e_ana") == 0) mu2e_ana(config.name_, mode, max_entries, 0, n_threads);
-        else if(strcmp(function, "rmc_ana")  == 0) rmc_ana (config.name_, mode, max_entries, 0, n_threads);
-        else if(strcmp(function, "cnv_ana")  == 0) cnv_ana (config.name_, mode, max_entries, 0, n_threads);
+        if(     strcmp(function, "mu2e_ana")  == 0) mu2e_ana (config.name_, mode, max_entries, 0, n_threads);
+        else if(strcmp(function, "rmc_ana")   == 0) rmc_ana  (config.name_, mode, max_entries, 0, n_threads);
+        else if(strcmp(function, "cnv_ana")   == 0) cnv_ana  (config.name_, mode, max_entries, 0, n_threads);
+        else if(strcmp(function, "run1b_ana") == 0) run1b_ana(config.name_, mode, max_entries, 0, n_threads);
       } else {
         gInterpreter->ProcessLine(Form("%s(\"%s\", %i, %lld);",
                                        function, config.name_.Data(), mode, max_entries));

@@ -13,12 +13,14 @@ int debug_level_ = 0;
 Mu2eEvtAna::Mu2eEvtAna* gMu2eAna = nullptr;
 Mu2eEvtAna::RMCAna* gRMCAna = nullptr;
 Mu2eEvtAna::ConvAna* gConvAna = nullptr;
+Mu2eEvtAna::Run1BAna* gRun1BAna = nullptr;
 
 // Analyzer type identifiers
 enum AnalyzerType {
   kMu2eAna = 0,
   kRMCAna = 1,
-  kConvAna = 2
+  kConvAna = 2,
+  kRun1BAna = 3
 };
 
 // Get analyzer name as string
@@ -27,6 +29,7 @@ inline TString GetAnalyzerName(AnalyzerType ana_type) {
     case kMu2eAna: return "mu2e_ana";
     case kRMCAna: return "rmc_ana";
     case kConvAna: return "cnv_ana";
+    case kRun1BAna: return "run1b_ana";
     default: return "unknown";
   }
 }
@@ -84,7 +87,7 @@ int functions(int ana_type, TString dataset, int Mode, Long64_t max_entries, Lon
 int ProcessThreaded(AnalyzerType ana_type, TString dataset, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id) {
   TString file_list = GetDatasetFileList(dataset);
   if(file_list == "") {
-    cout << "Dataset " << dataset << " not found!" << endl;
+    cout << __func__ << ": Dataset " << dataset << " not found!" << endl;
     return -1;
   }
 
@@ -116,6 +119,11 @@ int ProcessThreaded(AnalyzerType ana_type, TString dataset, int Mode, Long64_t m
       gConvAna = new Mu2eEvtAna::ConvAna(0);
       ana = gConvAna;
       break;
+    case kRun1BAna:
+      if(gRun1BAna) delete gRun1BAna;
+      gRun1BAna = new Mu2eEvtAna::Run1BAna(0);
+      ana = gRun1BAna;
+      break;
   }
 
   ana->AddFile(input_file, max_entries, first_entry);
@@ -136,7 +144,7 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
                        Long64_t max_entries, Long64_t first_entry, int n_threads) {
   TString file_list = GetDatasetFileList(dataset);
   if(file_list == "") {
-    cout << "Dataset " << dataset << " not found!" << endl;
+    cout << __func__ << ": Dataset " << dataset << " not found!" << endl;
     return -1;
   }
 
@@ -159,6 +167,11 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
         if(gConvAna) delete gConvAna;
         gConvAna = new Mu2eEvtAna::ConvAna(0);
         ana = gConvAna;
+        break;
+      case kRun1BAna:
+        if(gRun1BAna) delete gRun1BAna;
+        gRun1BAna = new Mu2eEvtAna::Run1BAna(0);
+        ana = gRun1BAna;
         break;
     }
 
@@ -224,6 +237,7 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
   case kMu2eAna: header = "EvtAna"; break;
   case kRMCAna: header = "RMCAna"; break;
   case kConvAna: header = "ConvAna"; break;
+  case kRun1BAna: header = "Run1BAna"; break;
   }
   TString merged_output = Form("%s.%s.%s.m%i.root", header.Data(), analyzer_name.Data(), dataset.Data(), Mode);
 
@@ -301,6 +315,10 @@ int rmc_ana(TString dataset, int Mode = 0, Long64_t max_entries = -1, Long64_t f
 
 int cnv_ana(TString dataset, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1) {
   return ProcessWithThreads(kConvAna, dataset, Mode, max_entries, first_entry, n_threads);
+}
+
+int run1b_ana(TString dataset, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1) {
+  return ProcessWithThreads(kRun1BAna, dataset, Mode, max_entries, first_entry, n_threads);
 }
 
 #endif

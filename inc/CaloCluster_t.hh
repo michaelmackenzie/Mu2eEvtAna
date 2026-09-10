@@ -9,6 +9,8 @@
 #include "Rtypes.h"
 
 // EventNtuple includes
+#include "EventNtuple/rooutil/inc/CaloCluster.hh"
+#include "EventNtuple/rooutil/inc/CaloHit.hh"
 #include "EventNtuple/inc/CaloClusterInfo.hh"
 #include "EventNtuple/inc/CaloHitInfo.hh"
 
@@ -23,6 +25,7 @@ namespace Mu2eEvtAna {
   struct CaloCluster_t {
     const mu2e::CaloClusterInfo* cluster_;
     const mu2e::CaloClusterInfoMC* cluster_mc_;
+    const rooutil::CaloCluster* cc_;
 
     // Best-matched objects for this cluster (nullptr if none/not searched for). Populated by an
     // analysis module, not by the base Mu2eEvtAna -- e.g. Run1BAna::MatchCaloClusters().
@@ -46,16 +49,46 @@ namespace Mu2eEvtAna {
     int   NCrystals() const { return (cluster_) ? cluster_->size_         : -1   ; }
     int   IsSplit  () const { return (cluster_) ? cluster_->isSplit_      : -1   ; }
 
+    //-------------------------------------------------
+    // Hit information
+
+    const rooutil::CaloHits& Hits() const { return cc_->GetHits(); }
+    const rooutil::CaloHit& Hit(size_t index) const { return Hits().at(index); }
+    bool ValidHit(size_t index) const {
+      if(!cluster_ || index >= Hits().size()) return false;
+      const auto& hit = Hit(index);
+      if(!hit.reco) return false;
+      return true;
+    }
+
+    float HitE(size_t index) const {
+      if(!ValidHit(index)) return 0.f;
+      const auto& hit = Hit(index);
+      return hit.reco->eDep_;
+    }
+    float HitT(size_t index) const {
+      if(!ValidHit(index)) return 0.f;
+      const auto& hit = Hit(index);
+      return hit.reco->time_;
+    }
+    XYZVectorF HitPos(size_t index) const {
+      if(!ValidHit(index)) return  XYZVectorF();
+      const auto& hit = Hit(index);
+      return hit.reco->crystalPos_;
+    }
 
     //-------------------------------------------------
     // Additional functions
 
     float R        () const { return std::sqrt(X()*X() + Y()*Y()); }
 
+    float E1       () const { return HitE(0); }
+    float E2       () const { return E1() + HitE(1); }
 
     void Reset() {
       cluster_ = nullptr;
       cluster_mc_ = nullptr;
+      cc_ = nullptr;
       line_ = nullptr;
       line_seed_ = nullptr;
       time_cluster_ = nullptr;

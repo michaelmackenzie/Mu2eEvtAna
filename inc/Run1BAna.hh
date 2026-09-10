@@ -35,10 +35,6 @@ namespace Mu2eEvtAna {
 
     void InitHistSelections();
     void BookHistograms(TDirectory* dir);
-    void BookTimeClusterHist(TimeClusterHist_t* Hist, const char* Folder);
-    void BookLineSeedHist(LineSeedHist_t* Hist, const char* Folder);
-    void FillTimeClusterHist(TimeClusterHist_t* Hist, const TimeCluster_t* Cluster);
-    void FillLineSeedHist(LineSeedHist_t* Hist, const LineSeed_t* Seed);
 
     bool ProcessEvent();
     void InitializeEvent();
@@ -75,12 +71,7 @@ namespace Mu2eEvtAna {
     std::vector<std::vector<TimeCluster_t>> time_clusters_; // [collection][cluster]
     std::vector<std::vector<LineSeed_t>>    line_seeds_;    // [collection][seed]
 
-    std::vector<TDirectory*>        tc_dirs_;
-    std::vector<TDirectory*>        ls_dirs_;
-    std::vector<TimeClusterHist_t*> tc_hists_;
-    std::vector<LineSeedHist_t*>    ls_hists_;
-
-    CutFlow cut_flow_; // straight-line track selection cut flow
+    CutFlow cut_flow_; // default selection
   };
 }
 

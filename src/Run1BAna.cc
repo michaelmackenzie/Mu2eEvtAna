@@ -12,6 +12,10 @@ namespace Mu2eEvtAna {
     disabled_branches_.erase(
       std::remove(disabled_branches_.begin(), disabled_branches_.end(), TString("trksegpars_kl")),
       disabled_branches_.end());
+    // Calo hits are used by default
+    disabled_branches_.erase(
+      std::remove(disabled_branches_.begin(), disabled_branches_.end(), TString("calohits")),
+      disabled_branches_.end());
   }
 
   //------------------------------------------------------------------------------------
@@ -57,128 +61,56 @@ namespace Mu2eEvtAna {
   //------------------------------------------------------------------------------------
   // Define the histogram selections
   void Run1BAna::InitHistSelections() {
-    Mu2eEvtAna::InitHistSelections();
-    tc_hists_.assign(tc_names_.size(), nullptr);
-    for(size_t icoll = 0; icoll < tc_names_.size(); ++icoll) tc_hists_[icoll] = new TimeClusterHist_t;
-    ls_hists_.assign(ls_names_.size(), nullptr);
-    for(size_t icoll = 0; icoll < ls_names_.size(); ++icoll) ls_hists_[icoll] = new LineSeedHist_t;
+    //-----------------------------------------------------------------------------
+    // book histogram selections
+    //-----------------------------------------------------------------------------
+    struct hist_info_t {
+      TString _dsc; // description of the selection
+      bool    _cls; // calo cluster histograms
+      bool    _trk; // track histograms
+      bool    _tcs; // time cluster histograms
+      bool    _lns; // line seed histograms
+      bool    _smp; // sim particle histograms
+      bool    _gnp; // gen particle histograms
+      bool    _crv; // CRV histograms
+      bool    _crs; // control regions included
+      hist_info_t(TString dsc = "", bool cls = false, bool trk = false, bool tcs = false, bool lns = false,
+                  bool smp = false, bool gnp = false,
+                  bool crv = false, bool crs = false)
+        : _dsc(dsc), _cls(cls), _trk(trk), _tcs(tcs), _lns(lns), _smp(smp), _gnp(gnp), _crv(crv),
+          _crs(crs) {}
+    };
+
+    hist_info_t* hist_sets[kMaxHists];
+    for (int i=0; i<kMaxHists; i++) {
+      hist_sets[i] = nullptr;
+    }
+
+    //                                 description                         cls    trk    tcs    lns    simp   genp   crv    crs
+    hist_sets[  0] = new hist_info_t("All events"                      ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[  1] = new hist_info_t("E > 50 MeV"                      ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[  2] = new hist_info_t("E > 70 MeV"                      ,  true,  true,  true,  true,  true,  true, false, false);
+
+    for (int i=0; i<kMaxHists; i++) {
+      const int index = i % 1000; // base index, ignoring control region offset
+      if(!hist_sets[index]) continue;
+      const bool is_cr = i >= 1000 && !hist_sets[index]->_crs;
+      if(is_cr && !hist_sets[index]->_crs) continue; // control region
+      if(i >= 4000) break; //Control regions above 4000 not yet implemented
+      evt_hists_[i] = new EventHist_t;
+      if(hist_sets[index]->_cls) cls_hists_[i] = new CaloClusterHist_t;
+      if(hist_sets[index]->_trk) trk_hists_[i] = new TrackHist_t;
+      if(hist_sets[index]->_crv && ! is_cr) crv_hists_[i] = new CRVHist_t;
+      if(hist_sets[index]->_tcs) tcs_hists_[i] = new TimeClusterHist_t;
+      if(hist_sets[index]->_lns) lns_hists_[i] = new LineSeedHist_t;
+      // FIXME: Add missing histogram types
+    }
   }
 
   //------------------------------------------------------------------------------------
-  // Book the time cluster histograms
-  void Run1BAna::BookTimeClusterHist(TimeClusterHist_t* Hist, const char* Folder) {
-    if(!Hist) throw std::runtime_error("Attempting to book histograms in a null TimeClusterHist_t\n");
-    Hist->fNHits      = new TH1F("nhits"     , Form("%s: N(combo hits)"    , Folder), 100,    0.,  200.);
-    Hist->fNStrawHits = new TH1F("nstrawhits", Form("%s: N(straw hits)"    , Folder), 100,    0.,  200.);
-    Hist->fT0         = new TH1F("t0"        , Form("%s: T0 (ns)"          , Folder), 200,    0., 2000.);
-    Hist->fX          = new TH1F("x"         , Form("%s: x (mm)"           , Folder), 100,-1000., 1000.);
-    Hist->fY          = new TH1F("y"         , Form("%s: y (mm)"           , Folder), 100,-1000., 1000.);
-    Hist->fZ          = new TH1F("z"         , Form("%s: z (mm)"           , Folder), 100,-5000., 5000.);
-    Hist->fR          = new TH1F("r"         , Form("%s: r (mm)"           , Folder), 100,    0., 1000.);
-    Hist->fECalo      = new TH1F("ecalo"     , Form("%s: E(calo) (MeV)"    , Folder), 100,    0.,  200.);
-    Hist->fTCalo      = new TH1F("tcalo"     , Form("%s: T(calo) (ns)"     , Folder), 200,    0., 2000.);
-    Hist->fHasCalo    = new TH1F("hascalo"   , Form("%s: Has calo cluster?", Folder),   2,    0.,    2.);
-  }
-
-  //------------------------------------------------------------------------------------
-  // Book the line seed histograms
-  void Run1BAna::BookLineSeedHist(LineSeedHist_t* Hist, const char* Folder) {
-    if(!Hist) throw std::runtime_error("Attempting to book histograms in a null LineSeedHist_t\n");
-    Hist->fStatus         = new TH1F("status"        , Form("%s: TrkFitFlag status"  , Folder),  10,   -2.,    8.);
-    Hist->fNHits          = new TH1F("nhits"         , Form("%s: N(combo hits)"      , Folder), 100,    0.,  200.);
-    Hist->fNStrawHits     = new TH1F("nstrawhits"    , Form("%s: N(straw hits)"      , Folder), 100,    0.,  200.);
-    Hist->fT0             = new TH1F("t0"            , Form("%s: T0 (ns)"            , Folder), 200,    0., 2000.);
-    Hist->fD0             = new TH1F("d0"            , Form("%s: d_{0} (mm)"         , Folder), 100,-1000., 1000.);
-    Hist->fPhi0           = new TH1F("phi0"          , Form("%s: #phi_{0}"           , Folder), 100,   -4.,    4.);
-    Hist->fZ0             = new TH1F("z0"            , Form("%s: z_{0} (mm)"         , Folder), 100,-5000., 5000.);
-    Hist->fCos            = new TH1F("cos"           , Form("%s: cos(#theta)"        , Folder), 100,   -1.,    1.);
-    Hist->fA0             = new TH1F("A0"            , Form("%s: Fit parameter A0"   , Folder), 100,-2000., 2000.);
-    Hist->fB0             = new TH1F("B0"            , Form("%s: Fit parameter B0"   , Folder), 100,-8000., 8000.);
-    Hist->fA1             = new TH1F("A1"            , Form("%s: Fit parameter A1"   , Folder), 100,  -10.,   10.);
-    Hist->fB1             = new TH1F("B1"            , Form("%s: Fit parameter B1"   , Folder), 100,  -60.,   60.);
-    Hist->fECalo          = new TH1F("ecalo"         , Form("%s: E(calo) (MeV)"      , Folder), 100,    0.,  200.);
-    Hist->fTCalo          = new TH1F("tcalo"         , Form("%s: T(calo) (ns)"       , Folder), 200,    0., 2000.);
-    Hist->fHasCalo        = new TH1F("hascalo"       , Form("%s: Has calo cluster?"  , Folder),   2,    0.,    2.);
-    Hist->fMatchedTrackDt = new TH1F("matchedtrackdt", Form("%s: T0(seed) - T0(track) (ns)", Folder), 200, -200., 200.);
-    Hist->fMatchedTrackDD0= new TH1F("matchedtrackdd0",Form("%s: d0(seed) - d0(track) (mm)", Folder), 200, -200., 200.);
-    Hist->fMatchedTCDt    = new TH1F("matchedtcdt"   , Form("%s: T0(seed) - T0(time cluster) (ns)", Folder), 200, -200., 200.);
-  }
-
-  //------------------------------------------------------------------------------------
-  // Book the histogram sets, extending the base class' event/track/calo/CRV histograms
+  // Book the histogram sets
   void Run1BAna::BookHistograms(TDirectory* dir) {
     Mu2eEvtAna::BookHistograms(dir);
-
-    tc_dirs_.assign(tc_hists_.size(), nullptr);
-    for(size_t icoll = 0; icoll < tc_hists_.size(); ++icoll) {
-      const TString folder = "tc_" + tc_names_[icoll];
-      auto subdir = dir->mkdir(folder);
-      subdir->cd();
-      BookTimeClusterHist(tc_hists_[icoll], folder.Data());
-      dir->cd();
-      tc_dirs_[icoll] = subdir;
-    }
-
-    ls_dirs_.assign(ls_hists_.size(), nullptr);
-    for(size_t icoll = 0; icoll < ls_hists_.size(); ++icoll) {
-      const TString folder = "ls_" + ls_names_[icoll];
-      auto subdir = dir->mkdir(folder);
-      subdir->cd();
-      BookLineSeedHist(ls_hists_[icoll], folder.Data());
-      dir->cd();
-      ls_dirs_[icoll] = subdir;
-    }
-  }
-
-  //------------------------------------------------------------------------------------
-  // Fill the time cluster histograms
-  void Run1BAna::FillTimeClusterHist(TimeClusterHist_t* Hist, const TimeCluster_t* Cluster) {
-    if(!Hist) {
-      if(verbose_ > 0) printf("Run1BAna::%s: Filling time cluster histogram set with null hist par\n", __func__);
-      return;
-    }
-    if(!Cluster || !Cluster->cluster_) {
-      if(verbose_ > 0) printf("Run1BAna::%s: Filling time cluster histogram set with null time cluster\n", __func__);
-      return;
-    }
-    Hist->fNHits     ->Fill(Cluster->NHits());
-    Hist->fNStrawHits->Fill(Cluster->NStrawHits());
-    Hist->fT0        ->Fill(Cluster->T0());
-    Hist->fX         ->Fill(Cluster->X());
-    Hist->fY         ->Fill(Cluster->Y());
-    Hist->fZ         ->Fill(Cluster->Z());
-    Hist->fR         ->Fill(Cluster->R());
-    Hist->fECalo     ->Fill(Cluster->ECalo());
-    if(Cluster->HasCalo()) Hist->fTCalo->Fill(Cluster->TCalo());
-    Hist->fHasCalo   ->Fill(Cluster->HasCalo());
-  }
-
-  //------------------------------------------------------------------------------------
-  // Fill the line seed histograms
-  void Run1BAna::FillLineSeedHist(LineSeedHist_t* Hist, const LineSeed_t* Seed) {
-    if(!Hist) {
-      if(verbose_ > 0) printf("Run1BAna::%s: Filling line seed histogram set with null hist par\n", __func__);
-      return;
-    }
-    if(!Seed || !Seed->seed_) {
-      if(verbose_ > 0) printf("Run1BAna::%s: Filling line seed histogram set with null line seed\n", __func__);
-      return;
-    }
-    Hist->fStatus    ->Fill(Seed->Status());
-    Hist->fNHits     ->Fill(Seed->NHits());
-    Hist->fNStrawHits->Fill(Seed->NStrawHits());
-    Hist->fT0        ->Fill(Seed->T0());
-    Hist->fD0        ->Fill(Seed->D0());
-    Hist->fPhi0      ->Fill(Seed->Phi0());
-    Hist->fZ0        ->Fill(Seed->Z0());
-    Hist->fCos       ->Fill(Seed->Cos());
-    Hist->fA0        ->Fill(Seed->A0());
-    Hist->fB0        ->Fill(Seed->B0());
-    Hist->fA1        ->Fill(Seed->A1());
-    Hist->fB1        ->Fill(Seed->B1());
-    Hist->fECalo     ->Fill(Seed->ECalo());
-    if(Seed->HasCalo()) Hist->fTCalo->Fill(Seed->TCalo());
-    Hist->fHasCalo   ->Fill(Seed->HasCalo());
   }
 
   //------------------------------------------------------------------------------------
@@ -341,55 +273,19 @@ namespace Mu2eEvtAna {
     cut_flow_.ResetEvent();
     FillEventHist(evt_hists_[0]); // all events with well defined inputs
 
-    // Track selection, using the straight-line-appropriate TrackID()
-    for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
-      FillTrackHist(trk_hists_[0], &tracks_[itrk]);
-      if(!tracks_[itrk].IsGood()) continue;
-      cut_flow_.Increment("a_track");
-      const auto ID = TrackID(&tracks_[itrk]);
-      if(ID.Passes()) {
-        cut_flow_.Increment("track_id");
-        FillTrackHist(trk_hists_[1], &tracks_[itrk]);
-      }
-    }
-
-    // Calo cluster histograms (base-class hist set, never filled by the base since
-    // Mu2eEvtAna::ProcessEvent() isn't called here; matched line/line seed/time cluster/CRV
-    // cluster info is already populated on each cluster, from InitializeEvent()'s MatchCaloClusters())
     for(int icls = 0; icls < evt_.ncalo_clusters_; ++icls) {
-      FillCaloClusterHist(cls_hists_[0], &calo_clusters_[icls]);
-    }
-
-    // Time cluster / line seed histograms, and matching for efficiency studies
-    bool has_good_seed(false);
-    for(size_t icoll = 0; icoll < tc_names_.size(); ++icoll) {
-      for(const auto& cluster : time_clusters_[icoll]) FillTimeClusterHist(tc_hists_[icoll], &cluster);
-    }
-    for(size_t icoll = 0; icoll < ls_names_.size(); ++icoll) {
-      for(const auto& seed : line_seeds_[icoll]) {
-        FillLineSeedHist(ls_hists_[icoll], &seed);
-        if(seed.IsGood()) has_good_seed = true;
-
-        // Match to the best time cluster in the same collection index, if one exists
-        const int itc = BestTimeCluster(&seed, icoll);
-        if(itc >= 0) ls_hists_[icoll]->fMatchedTCDt->Fill(seed.T0() - time_clusters_[icoll][itc].T0());
-
-        // Match to the best reconstructed track
-        int best_track(-1);
-        float best_dt(1.e10);
-        for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
-          if(!tracks_[itrk].IsGood()) continue;
-          const float dt = std::fabs(seed.T0() - tracks_[itrk].TFront());
-          if(dt < best_dt) { best_dt = dt; best_track = itrk; }
-        }
-        if(best_track >= 0) {
-          ls_hists_[icoll]->fMatchedTrackDt ->Fill(seed.T0() - tracks_[best_track].TFront());
-          ls_hists_[icoll]->fMatchedTrackDD0->Fill(seed.D0() - tracks_[best_track].D0Front());
+      const auto cluster = &calo_clusters_[icls];
+      cut_flow_.Increment("has_cluster");
+      FillCaloClusterHist(cls_hists_[0], cluster);
+      if(cluster->Energy() > 50.) FillCaloClusterHist(cls_hists_[1], cluster);
+      if(cluster->Energy() > 70.) FillCaloClusterHist(cls_hists_[2], cluster);
+      if(cluster->Energy() > 50.) {
+        cut_flow_.Increment("e_50");
+        if(cluster->Energy() > 70.) {
+          cut_flow_.Increment("e_70");
         }
       }
     }
-
-    if(has_good_seed) cut_flow_.Increment("has_good_line_seed");
 
     return false; // default to not writing output trees, matching the base class
   }

@@ -17,6 +17,7 @@ namespace DATA {
   vector<Dataset_t> datasets() {
     vector<Dataset_t> datasets;
 
+    // Run 1A datasets
     const bool ele = true; // only do datasets relevant for fast electron channel evaluation
 
     datasets.emplace_back(false,  "cele1b0s5r0100", "nts.mu2e.CeMLeadingLogOnSpill-reco-ntuple.MDC2025-002.root"     , 4009075,   10000000);
@@ -36,6 +37,20 @@ namespace DATA {
     datasets.emplace_back(!ele ,  "pbar1b1s5r0100", "nts.mu2e.PbarResamplingMix1BB.MDC2025au_best_v1_1.root"         , 6461314,   30000000);
 
     datasets.emplace_back(!ele ,  "mds3cb1s5r0100", "nts.mu2e.ensembleMDS3cMix1BB.MDC2025au_best_v1_1.root"          , 4926941, 1. /*data-ish*/);
+
+    // Run 1B datasets
+    // datasets.emplace_back(true , "mnbs0b1s51r0204", "dig.mu2e.NoPrimaryMix1BB.Run1Ban_best_v1_4-000.art"       ,  99995000,   99995000); // unbiased pileup
+    datasets.emplace_back(false, "mnbs1b1s51r0204", "nts.mu2e.NoPrimaryMix1BB-KL.Run1Baw_best_v1_5-001.root"       , 344196254, 5000000000); // biased to high energy clusters
+    datasets.emplace_back(false, "cele0b1s51r0204", "nts.mu2e.CeEndpointMix1BB-KL.Run1Baw_best_v1_5.root"          ,   1326786, 1999000000);
+    datasets.emplace_back(false, "fgam0b1s51r0204", "nts.mu2e.FlatGammaMix1BB-KL.Run1Baw_best_v1_5.root"           ,   1039674, 1999000000);
+    datasets.emplace_back(false, "csms0b1s51r0204", "nts.mu2e.CosmicCRYAllMix1BB-KL.Run1Baw_best_v1_5.root"        ,   2351533,     2.29e4); // cosmic N(gen) is livetime
+    datasets.emplace_back(false, "dio00b1s51r0204", "dig.mu2e.DIOMix1BB.Run1Ban_best_v1_4-000.art"                 ,        1.,         1.);
+    datasets.emplace_back(false, "fele0b1s51r0204", "nts.mu2e.FlateMinusMix1BB-KL.Run1Baw_best_v1_5.root"          ,    704053, 1998000000);
+    datasets.emplace_back(false, "pgamcb1s51r0204", "nts.mu2e.PolyFlatGammaCaloMix1BB-KL.Run1Baw_best_v1_5.root"   ,   5249814,  100000000);
+    datasets.emplace_back(false, "neut0b1s51r0204", "nts.mu2e.MuCapNeutronTailCaloMix1BB-KL.Run1Baw_best_v1_5.root",    154086,  125000000);
+    datasets.emplace_back(false, "prot0b1s51r0204", "nts.mu2e.MuCapProtonTailCaloMix1BB-KL.Run1Baw_best_v1_5.root" ,    158688,  100000000);
+    datasets.emplace_back(false, "rpce0b1s51r0204", "nts.mu2e.RPCExternalMix1BB-KL.Run1Baw_best_v1_5.root"         ,    643155, 4999841344);
+
     return datasets;
   }
 }

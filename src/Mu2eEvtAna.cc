@@ -16,6 +16,8 @@ namespace Mu2eEvtAna {
     for(int ihist = 0; ihist < kMaxHists; ++ihist) {
       evt_hists_[ihist] = nullptr;
       trk_hists_[ihist] = nullptr;
+      lns_hists_[ihist] = nullptr;
+      tcs_hists_[ihist] = nullptr;
       cls_hists_[ihist] = nullptr;
       crv_hists_[ihist] = nullptr;
     }
@@ -304,28 +306,69 @@ namespace Mu2eEvtAna {
     Hist->fMCPGenEDiff   = new TH1F("MC_PGenEDiff",Form("%s: P(front of tracker) - Gen(energy)",Folder), 500, -10., 5.);
   }
 
+
+  //------------------------------------------------------------------------------------
+  // Book the time cluster histograms
+  void Mu2eEvtAna::BookTimeClusterHist(TimeClusterHist_t* Hist, const char* Folder) {
+    if(!Hist) throw std::runtime_error("Attempting to book histograms in a null TimeClusterHist_t\n");
+    Hist->fNHits      = new TH1F("nhits"     , Form("%s: N(combo hits)"    , Folder), 100,    0.,  200.);
+    Hist->fNStrawHits = new TH1F("nstrawhits", Form("%s: N(straw hits)"    , Folder), 100,    0.,  200.);
+    Hist->fT0         = new TH1F("t0"        , Form("%s: T0 (ns)"          , Folder), 200,    0., 2000.);
+    Hist->fX          = new TH1F("x"         , Form("%s: x (mm)"           , Folder), 100,-1000., 1000.);
+    Hist->fY          = new TH1F("y"         , Form("%s: y (mm)"           , Folder), 100,-1000., 1000.);
+    Hist->fZ          = new TH1F("z"         , Form("%s: z (mm)"           , Folder), 100,-5000., 5000.);
+    Hist->fR          = new TH1F("r"         , Form("%s: r (mm)"           , Folder), 100,    0., 1000.);
+    Hist->fECalo      = new TH1F("ecalo"     , Form("%s: E(calo) (MeV)"    , Folder), 100,    0.,  200.);
+    Hist->fTCalo      = new TH1F("tcalo"     , Form("%s: T(calo) (ns)"     , Folder), 200,    0., 2000.);
+    Hist->fHasCalo    = new TH1F("hascalo"   , Form("%s: Has calo cluster?", Folder),   2,    0.,    2.);
+  }
+
+  //------------------------------------------------------------------------------------
+  // Book the line seed histograms
+  void Mu2eEvtAna::BookLineSeedHist(LineSeedHist_t* Hist, const char* Folder) {
+    if(!Hist) throw std::runtime_error("Attempting to book histograms in a null LineSeedHist_t\n");
+    Hist->fStatus         = new TH1F("status"        , Form("%s: TrkFitFlag status"  , Folder),  10,   -2.,    8.);
+    Hist->fNHits          = new TH1F("nhits"         , Form("%s: N(combo hits)"      , Folder), 100,    0.,  200.);
+    Hist->fNStrawHits     = new TH1F("nstrawhits"    , Form("%s: N(straw hits)"      , Folder), 100,    0.,  200.);
+    Hist->fT0             = new TH1F("t0"            , Form("%s: T0 (ns)"            , Folder), 200,    0., 2000.);
+    Hist->fD0             = new TH1F("d0"            , Form("%s: d_{0} (mm)"         , Folder), 100,-1000., 1000.);
+    Hist->fPhi0           = new TH1F("phi0"          , Form("%s: #phi_{0}"           , Folder), 100,   -4.,    4.);
+    Hist->fZ0             = new TH1F("z0"            , Form("%s: z_{0} (mm)"         , Folder), 100,-5000., 5000.);
+    Hist->fCos            = new TH1F("cos"           , Form("%s: cos(#theta)"        , Folder), 100,   -1.,    1.);
+    Hist->fA0             = new TH1F("A0"            , Form("%s: Fit parameter A0"   , Folder), 100,-2000., 2000.);
+    Hist->fB0             = new TH1F("B0"            , Form("%s: Fit parameter B0"   , Folder), 100,-8000., 8000.);
+    Hist->fA1             = new TH1F("A1"            , Form("%s: Fit parameter A1"   , Folder), 100,  -10.,   10.);
+    Hist->fB1             = new TH1F("B1"            , Form("%s: Fit parameter B1"   , Folder), 100,  -60.,   60.);
+    Hist->fECalo          = new TH1F("ecalo"         , Form("%s: E(calo) (MeV)"      , Folder), 100,    0.,  200.);
+    Hist->fTCalo          = new TH1F("tcalo"         , Form("%s: T(calo) (ns)"       , Folder), 200,    0., 2000.);
+    Hist->fHasCalo        = new TH1F("hascalo"       , Form("%s: Has calo cluster?"  , Folder),   2,    0.,    2.);
+    Hist->fMatchedTrackDt = new TH1F("matchedtrackdt", Form("%s: T0(seed) - T0(track) (ns)", Folder), 200, -200., 200.);
+    Hist->fMatchedTrackDD0= new TH1F("matchedtrackdd0",Form("%s: d0(seed) - d0(track) (mm)", Folder), 200, -200., 200.);
+    Hist->fMatchedTCDt    = new TH1F("matchedtcdt"   , Form("%s: T0(seed) - T0(time cluster) (ns)", Folder), 200, -200., 200.);
+  }
+
   //-----------------------------------------------------------------------------
   void Mu2eEvtAna::BookCaloClusterHist(CaloClusterHist_t* Hist, const char* Folder) {
     Hist->fDiskID           = new TH1D("disk_id"       ,Form("%s: Disk ID"                       ,Folder), 2   , 0   , 2    );
     Hist->fEnergy           = new TH1F("energy"        ,Form("%s: Cluster Energy"                ,Folder), 500 , 0   , 250  );
     Hist->fT0               = new TH1F("t0"            ,Form("%s: cluster T0"                    ,Folder), 200 , 0   , 2000 );
-    Hist->fRow              = new TH1F("row"           ,Form("%s: cluster Row"                   ,Folder), 200 , 0   , 200  );
-    Hist->fCol              = new TH1F("col"           ,Form("%s: cluster column"                ,Folder), 200 , 0   , 200  );
+    // Hist->fRow              = new TH1F("row"           ,Form("%s: cluster Row"                   ,Folder), 200 , 0   , 200  );
+    // Hist->fCol              = new TH1F("col"           ,Form("%s: cluster column"                ,Folder), 200 , 0   , 200  );
     Hist->fX                = new TH1F("x"             ,Form("%s: cluster X"                     ,Folder), 200 ,-1000 , 1000 );
     Hist->fY                = new TH1F("y"             ,Form("%s: cluster Y"                     ,Folder), 200 ,-1000 , 1000 );
-    Hist->fZ                = new TH1F("z"             ,Form("%s: cluster Z"                     ,Folder), 200 ,-10   , 10   );
+    // Hist->fZ                = new TH1F("z"             ,Form("%s: cluster Z"                     ,Folder), 200 ,-10   , 10   );
     Hist->fR                = new TH1F("r"             ,Form("%s: cluster Radius"                ,Folder), 100 , 300 , 800  );
-    Hist->fYMean            = new TH1F("ymean"         ,Form("%s: cluster YMean"                 ,Folder), 200 ,-1000 , 1000 );
-    Hist->fZMean            = new TH1F("zmean"         ,Form("%s: cluster ZMean"                 ,Folder), 200 ,-1000 , 1000 );
-    Hist->fSigY             = new TH1F("sigy"          ,Form("%s: cluster SigY"                  ,Folder), 100 , 0   , 100  );
-    Hist->fSigZ             = new TH1F("sigz"          ,Form("%s: cluster SigZ"                  ,Folder), 100 , 0   , 100  );
-    Hist->fSigR             = new TH1F("sigr"          ,Form("%s: cluster SigR"                  ,Folder), 100 , 0   , 100  );
+    // Hist->fYMean            = new TH1F("ymean"         ,Form("%s: cluster YMean"                 ,Folder), 200 ,-1000 , 1000 );
+    // Hist->fZMean            = new TH1F("zmean"         ,Form("%s: cluster ZMean"                 ,Folder), 200 ,-1000 , 1000 );
+    // Hist->fSigY             = new TH1F("sigy"          ,Form("%s: cluster SigY"                  ,Folder), 100 , 0   , 100  );
+    // Hist->fSigZ             = new TH1F("sigz"          ,Form("%s: cluster SigZ"                  ,Folder), 100 , 0   , 100  );
+    // Hist->fSigR             = new TH1F("sigr"          ,Form("%s: cluster SigR"                  ,Folder), 100 , 0   , 100  );
     Hist->fNCr0             = new TH1F("ncr0"          ,Form("%s: cluster NCR[0]"                ,Folder), 100 , 0   , 100  );
-    Hist->fNCr1             = new TH1F("ncr1"          ,Form("%s: cluster NCR[1]"                ,Folder), 100 , 0   , 100  );
+    // Hist->fNCr1             = new TH1F("ncr1"          ,Form("%s: cluster NCR[1]"                ,Folder), 100 , 0   , 100  );
     Hist->fFrE1             = new TH1F("fre1"          ,Form("%s: E1/Etot"                       ,Folder), 220 , 0   , 1.1  );
     Hist->fFrE2             = new TH1F("fre2"          ,Form("%s: (E1+E2)/Etot"                  ,Folder), 220 , 0   , 1.1  );
-    Hist->fSigE1            = new TH1F("sige1"         ,Form("%s: SigmaE/Etot"                   ,Folder), 200 , 0   , 10   );
-    Hist->fSigE2            = new TH1F("sige2"         ,Form("%s: SigmaE/Emean"                  ,Folder), 200 , 0   , 10   );
+    // Hist->fSigE1            = new TH1F("sige1"         ,Form("%s: SigmaE/Etot"                   ,Folder), 200 , 0   , 10   );
+    // Hist->fSigE2            = new TH1F("sige2"         ,Form("%s: SigmaE/Emean"                  ,Folder), 200 , 0   , 10   );
     Hist->fTimeRMS          = new TH1F("time_rms"      ,Form("%s: T(RMS)"                        ,Folder), 200 , 0   , 10   );
     Hist->fMaxR             = new TH1F("maxr"          ,Form("%s: Max R from main"               ,Folder), 200 , 0   , 400  );
     Hist->fE9OverE          = new TH1F("e9_over_e"     ,Form("%s: E(3x3)/E"                      ,Folder), 220 , 0   , 1.1  );
@@ -418,6 +461,22 @@ namespace Mu2eEvtAna {
         BookTrackHist(trk_hists_[ihist], folder);
         dir->cd();
         trk_dirs_[ihist] = subdir;
+      }
+      if(lns_hists_[ihist]) {
+        const char* folder = Form("lns_%i", ihist);
+        auto subdir = dir->mkdir(folder);
+        subdir->cd();
+        BookLineSeedHist(lns_hists_[ihist], folder);
+        dir->cd();
+        lns_dirs_[ihist] = subdir;
+      }
+      if(tcs_hists_[ihist]) {
+        const char* folder = Form("tcs_%i", ihist);
+        auto subdir = dir->mkdir(folder);
+        subdir->cd();
+        BookTimeClusterHist(tcs_hists_[ihist], folder);
+        dir->cd();
+        tcs_dirs_[ihist] = subdir;
       }
       if(cls_hists_[ihist]) {
         const char* folder = Form("cls_%i", ihist);
@@ -598,6 +657,57 @@ namespace Mu2eEvtAna {
     Hist->fMCSimProc->Fill(Track->MCProcess(), Weight);
   }
 
+  //------------------------------------------------------------------------------------
+  // Fill the time cluster histograms
+  void Mu2eEvtAna::FillTimeClusterHist(TimeClusterHist_t* Hist, const TimeCluster_t* Cluster) {
+    if(!Hist) {
+      if(verbose_ > 0) printf("Mu2eEvtAna::%s: Filling time cluster histogram set with null hist par\n", __func__);
+      return;
+    }
+    if(!Cluster || !Cluster->cluster_) {
+      if(verbose_ > 0) printf("Mu2eEvtAna::%s: Filling time cluster histogram set with null time cluster\n", __func__);
+      return;
+    }
+    Hist->fNHits     ->Fill(Cluster->NHits());
+    Hist->fNStrawHits->Fill(Cluster->NStrawHits());
+    Hist->fT0        ->Fill(Cluster->T0());
+    Hist->fX         ->Fill(Cluster->X());
+    Hist->fY         ->Fill(Cluster->Y());
+    Hist->fZ         ->Fill(Cluster->Z());
+    Hist->fR         ->Fill(Cluster->R());
+    Hist->fECalo     ->Fill(Cluster->ECalo());
+    if(Cluster->HasCalo()) Hist->fTCalo->Fill(Cluster->TCalo());
+    Hist->fHasCalo   ->Fill(Cluster->HasCalo());
+  }
+
+  //------------------------------------------------------------------------------------
+  // Fill the line seed histograms
+  void Mu2eEvtAna::FillLineSeedHist(LineSeedHist_t* Hist, const LineSeed_t* Seed) {
+    if(!Hist) {
+      if(verbose_ > 0) printf("Mu2eEvtAna::%s: Filling line seed histogram set with null hist par\n", __func__);
+      return;
+    }
+    if(!Seed || !Seed->seed_) {
+      if(verbose_ > 0) printf("Mu2eEvtAna::%s: Filling line seed histogram set with null line seed\n", __func__);
+      return;
+    }
+    Hist->fStatus    ->Fill(Seed->Status());
+    Hist->fNHits     ->Fill(Seed->NHits());
+    Hist->fNStrawHits->Fill(Seed->NStrawHits());
+    Hist->fT0        ->Fill(Seed->T0());
+    Hist->fD0        ->Fill(Seed->D0());
+    Hist->fPhi0      ->Fill(Seed->Phi0());
+    Hist->fZ0        ->Fill(Seed->Z0());
+    Hist->fCos       ->Fill(Seed->Cos());
+    Hist->fA0        ->Fill(Seed->A0());
+    Hist->fB0        ->Fill(Seed->B0());
+    Hist->fA1        ->Fill(Seed->A1());
+    Hist->fB1        ->Fill(Seed->B1());
+    Hist->fECalo     ->Fill(Seed->ECalo());
+    if(Seed->HasCalo()) Hist->fTCalo->Fill(Seed->TCalo());
+    Hist->fHasCalo   ->Fill(Seed->HasCalo());
+  }
+
   //-----------------------------------------------------------------------------
   void Mu2eEvtAna::FillCaloClusterHist(CaloClusterHist_t* Hist,
                                        CaloCluster_t* Cluster) {
@@ -622,7 +732,7 @@ namespace Mu2eEvtAna {
     Hist->fT0->Fill(Cluster->Time(), Weight);
     Hist->fX->Fill(Cluster->X(), Weight);
     Hist->fY->Fill(Cluster->Y(), Weight);
-    Hist->fZ->Fill(Cluster->Z(), Weight);
+    // Hist->fZ->Fill(Cluster->Z(), Weight);
     Hist->fR->Fill(Cluster->R(), Weight);
 
     // Hist->fYMean->Fill(Cluster->fYMean, Weight);
@@ -632,8 +742,8 @@ namespace Mu2eEvtAna {
     // Hist->fSigR->Fill(Cluster->fSigR, Weight);
     Hist->fNCr0->Fill(Cluster->NCrystals(), Weight);
     // Hist->fNCr1->Fill(Cluster->fNCr1, Weight);
-    // Hist->fFrE1->Fill(Cluster->fFrE1, Weight);
-    // Hist->fFrE2->Fill(Cluster->fFrE2, Weight);
+    Hist->fFrE1->Fill(Cluster->E1() / Cluster->Energy(), Weight);
+    Hist->fFrE2->Fill(Cluster->E2() / Cluster->Energy(), Weight);
     // Hist->fSigE1->Fill(Cluster->fSigE1, Weight);
     // Hist->fSigE2->Fill(Cluster->fSigE2, Weight);
     // Hist->fTimeRMS->Fill(Cluster->fTimeRMS, Weight);
@@ -989,6 +1099,7 @@ namespace Mu2eEvtAna {
     if(!cluster) return;
     cls_par.cluster_ = cluster->calocluster;
     cls_par.cluster_mc_ = cluster->caloclustermc;
+    cls_par.cc_ = cluster;
   }
 
   //------------------------------------------------------------------------------------
