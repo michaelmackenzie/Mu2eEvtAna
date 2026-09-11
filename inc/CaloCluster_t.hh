@@ -76,6 +76,13 @@ namespace Mu2eEvtAna {
       const auto& hit = Hit(index);
       return hit.reco->crystalPos_;
     }
+    float HitR(size_t index) const {
+      if(!ValidHit(index)) return 0.f;
+      const auto& pos = HitPos(index);
+      const float x = pos.x();
+      const float y = pos.y();
+      return std::sqrt(x*x+y*y);
+    }
 
     //-------------------------------------------------
     // Additional functions
@@ -84,6 +91,60 @@ namespace Mu2eEvtAna {
 
     float E1       () const { return HitE(0); }
     float E2       () const { return E1() + HitE(1); }
+    float TMean    (bool usewt = false) const { // mean hit time, with/without energy weights
+      if(!cc_) return 0.f;
+      const size_t nhits = Hits().size();
+      if(nhits == 0) return 0.f;
+      float tmean = 0.f;
+      float sumwt = 0.f;
+      for(size_t ihit = 0; ihit < nhits; ++ihit) {
+        const float wt = (usewt) ? HitE(ihit) : 1.f;
+        tmean += wt*HitT(ihit);
+        sumwt += wt;
+      }
+      tmean /= sumwt;
+      return tmean;
+    }
+    float TVar     (bool usewt = false) const { // hit time variance, with/without energy weights
+      if(!cc_) return -1.f;
+      const size_t nhits = Hits().size();
+      if(nhits == 0) return 0.f;
+      const float tmean = TMean();
+      float var = 0.f;
+      float sumwt = 0.f;
+      for(size_t ihit = 0; ihit < nhits; ++ihit) {
+        const float dt = HitT(ihit) - tmean;
+        const float wt = (usewt) ? HitE(ihit) : 1.f;
+        var += wt*dt*dt;
+        sumwt += wt;
+      }
+      var /= sumwt;
+      return var;
+    }
+    float MaxHitR() const { // radial position of highest radius hit
+      if(!cc_) return 0.f;
+      const size_t nhits = Hits().size();
+      if(nhits == 0) return 0.f;
+      float max_r = 0.f;
+      for(size_t ihit = 0; ihit < nhits; ++ihit) {
+        const float r = HitR(ihit);
+        max_r = std::max(r, max_r);
+      }
+      return max_r;
+    }
+    float MaxHitExtent() const { // distance from the main hit and the farthest hit
+      if(!cc_) return 0.f;
+      const size_t nhits = Hits().size();
+      if(nhits <= 1) return 0.f;
+      const auto& main_pos = HitPos(0);
+      float max_r = 0.f;
+      for(size_t ihit = 1; ihit < nhits; ++ihit) {
+        const auto& hit_pos = HitPos(ihit);
+        const float r = (main_pos - hit_pos).r();
+        max_r = std::max(r, max_r);
+      }
+      return max_r;
+    }
 
     void Reset() {
       cluster_ = nullptr;

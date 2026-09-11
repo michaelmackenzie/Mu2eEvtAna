@@ -90,6 +90,11 @@ namespace Mu2eEvtAna {
     hist_sets[  0] = new hist_info_t("All events"                      ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[  1] = new hist_info_t("E > 50 MeV"                      ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[  2] = new hist_info_t("E > 70 MeV"                      ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 70] = new hist_info_t("60 < E < 120 MeV"                ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 71] = new hist_info_t("rmc_base"                        ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 72] = new hist_info_t("rmc_r_cut"                       ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 73] = new hist_info_t("rmc_line_cut"                    ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 74] = new hist_info_t("rmc_seed_cut"                    ,  true,  true,  true,  true,  true,  true, false, false);
 
     for (int i=0; i<kMaxHists; i++) {
       const int index = i % 1000; // base index, ignoring control region offset
@@ -261,7 +266,6 @@ namespace Mu2eEvtAna {
     if(track->FitCon() < 1.e-5)                                    ID.SetBit(kFitCon);
     if(track->ECluster() <= 0.)                                    ID.SetBit(kClusterE);
 
-    if(track->OPAInter())                                          ID.SetBit(kRMax);
     if(track->TSDAInter())                                         ID.SetBit(kRMax);
 
     return ID;
@@ -276,16 +280,53 @@ namespace Mu2eEvtAna {
     for(int icls = 0; icls < evt_.ncalo_clusters_; ++icls) {
       const auto cluster = &calo_clusters_[icls];
       cut_flow_.Increment("has_cluster");
+
+      // Common variables
+      const float energy        = cluster->Energy();
+      const int   ncr           = cluster->NCrystals();
+      const float e1_r          = cluster->E1() / energy;
+      const float e2_r          = cluster->E2() / energy;
+      const float tvar          = cluster->TVar();
+      const float second_moment = 0.f; // FIXME
+      const int   disk          = cluster->DiskID();
+      const float r             = cluster->R();
+
+
       FillCaloClusterHist(cls_hists_[0], cluster);
-      if(cluster->Energy() > 50.) FillCaloClusterHist(cls_hists_[1], cluster);
-      if(cluster->Energy() > 70.) FillCaloClusterHist(cls_hists_[2], cluster);
-      if(cluster->Energy() > 50.) {
+      if(energy > 50.) FillCaloClusterHist(cls_hists_[1], cluster);
+      if(energy > 70.) FillCaloClusterHist(cls_hists_[2], cluster);
+      if(energy > 50.) {
         cut_flow_.Increment("e_50");
-        if(cluster->Energy() > 70.) {
+        if(energy > 70.) {
           cut_flow_.Increment("e_70");
         }
       }
-    }
+
+      // photon selection
+      if(energy > 60.f && energy < 120.f ) {
+        FillCaloClusterHist(cls_hists_[70], cluster);
+        if(ncr > 1 && ncr < 6 &&
+           e1_r > 0.6f && e2_r > 0.8f &&
+           tvar < 1.f &&
+           second_moment < 1.e3 &&
+           disk == 0
+           ) {
+          FillCaloClusterHist(cls_hists_[71], cluster);
+          if(r > 500.f && r < 580.f) {
+            FillCaloClusterHist(cls_hists_[72], cluster);
+            bool trk_veto = false;
+            trk_veto |= cluster->line_ != nullptr;
+            if(!trk_veto) {
+              FillCaloClusterHist(cls_hists_[73], cluster);
+              trk_veto |= cluster->line_seed_ != nullptr;
+              if(!trk_veto) {
+                FillCaloClusterHist(cls_hists_[74], cluster);
+              }
+            }
+          }
+        }
+      }
+    } // end of cluster loop
 
     return false; // default to not writing output trees, matching the base class
   }
