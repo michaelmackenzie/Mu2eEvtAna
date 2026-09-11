@@ -362,13 +362,15 @@ namespace Mu2eEvtAna {
     Hist->fTMeanDiff        = new TH1F("time_mean_diff",Form("%s: T(mean) - T_{0}"               ,Folder), 200 , -5. , 5.   );
     Hist->fTVarWt           = new TH1F("time_var_wt"      ,Form("%s: weighted T(variance)"       ,Folder), 200 , 0   , 10.  );
     Hist->fTMeanDiffWt      = new TH1F("time_mean_diff_wt",Form("%s: weighted T(mean) - T_{0}"   ,Folder), 200 , -5. , 5.   );
-    Hist->fMaxR             = new TH1F("maxr"          ,Form("%s: Max R from main"               ,Folder), 200 , 0   , 400  );
+    Hist->fMaxHitExtent     = new TH1F("max_hit_extent",Form("%s: Max hit extent"                ,Folder), 200 , 0.  , 400  );
+    Hist->fMaxHitR          = new TH1F("max_hit_r"     ,Form("%s: Max hit R"                     ,Folder), 100 , 300 , 700  );
     Hist->fE9OverE          = new TH1F("e9_over_e"     ,Form("%s: E(3x3)/E"                      ,Folder), 220 , 0   , 1.1  );
     Hist->fE25OverE         = new TH1F("e25_over_e"    ,Form("%s: E(5x5)/E"                      ,Folder), 220 , 0   , 1.1  );
     Hist->fRingEOverE       = new TH1F("ring_e_over_e" ,Form("%s: E(ring)/E"                     ,Folder), 220 , 0   , 1.1  );
     Hist->fRingEOverE1      = new TH1F("ring_e_over_e1",Form("%s: E(ring)/E1"                    ,Folder), 200 , 0   , 3.0  );
     Hist->fOutRingE         = new TH1F("out_ring_e"    ,Form("%s: E(out ring)"                   ,Folder), 200 , 0   , 200  );
     Hist->fOutRingEOverE    = new TH1F("out_ring_e_over_e",Form("%s: E(out ring)/E"              ,Folder), 200 , 0   , 1.1  );
+    Hist->fSecondMoment     = new TH1F("second_moment"  ,Form("%s: Second moment"                ,Folder), 200 , 0   , 1.e4 );
     Hist->fNCoreCrystals    = new TH1F("n_core_crystals",Form("%s: N(core crystals)"             ,Folder), 20  , 0.  , 20.  );
     Hist->fCoreEnergy       = new TH1F("core_energy"   ,Form("%s: Core Energy"                   ,Folder), 200 , 0.  , 150. );
     Hist->fCoreEnergyFrac   = new TH1F("core_energy_frac",Form("%s: Core Energy/Energy"          ,Folder), 200 , 0.  , 1.1  );
@@ -733,13 +735,15 @@ namespace Mu2eEvtAna {
     Hist->fTMeanDiff->Fill(Cluster->TMean() - Cluster->Time(), Weight);
     Hist->fTVarWt->Fill(Cluster->TVar(true), Weight);
     Hist->fTMeanDiffWt->Fill(Cluster->TMean(true) - Cluster->Time(), Weight);
-    Hist->fMaxR->Fill(Cluster->MaxHitExtent(), Weight);
-    // Hist->fE9OverE->Fill(Cluster->fE9 / energy, Weight);
-    // Hist->fE25OverE->Fill(Cluster->fE25 / energy, Weight);
-    // Hist->fRingEOverE->Fill(Cluster->RingE() / energy, Weight);
-    // Hist->fRingEOverE1->Fill(Cluster->RingE() / Cluster->E1(), Weight);
-    // Hist->fOutRingE->Fill(Cluster->fOutRingE, Weight);
-    // Hist->fOutRingEOverE->Fill(Cluster->fOutRingE / energy, Weight);
+    Hist->fMaxHitExtent->Fill(Cluster->MaxHitExtent(), Weight);
+    Hist->fMaxHitR->Fill(Cluster->MaxHitR(), Weight);
+    Hist->fE9OverE->Fill(Cluster->E9() / Cluster->Energy(), Weight);
+    Hist->fE25OverE->Fill(Cluster->E25() / Cluster->Energy(), Weight);
+    Hist->fRingEOverE->Fill(Cluster->ERing() / Cluster->Energy(), Weight);
+    Hist->fRingEOverE1->Fill(Cluster->ERing() / Cluster->E1(), Weight);
+    Hist->fOutRingE->Fill(Cluster->EOutRing(), Weight);
+    Hist->fOutRingEOverE->Fill(Cluster->EOutRing() / Cluster->Energy(), Weight);
+    Hist->fSecondMoment->Fill(Cluster->SecondMoment(), Weight);
     // Hist->fNCoreCrystals->Fill(Par->n_core_crystals(), Weight);
     // Hist->fCoreEnergy->Fill(core_energy, Weight);
     // Hist->fCoreEnergyFrac->Fill(core_energy / energy, Weight);
@@ -1081,11 +1085,7 @@ namespace Mu2eEvtAna {
   //------------------------------------------------------------------------------------
   // Initialize Calo cluster information
   void Mu2eEvtAna::InitCaloCluster(const rooutil::CaloCluster* cluster, CaloCluster_t& cls_par) {
-    cls_par.Reset();
-    if(!cluster) return;
-    cls_par.cluster_ = cluster->calocluster;
-    cls_par.cluster_mc_ = cluster->caloclustermc;
-    cls_par.cc_ = cluster;
+    cls_par.Init(cluster);
   }
 
   //------------------------------------------------------------------------------------

@@ -34,6 +34,21 @@ namespace Mu2eEvtAna {
     TimeCluster_t* time_cluster_; // best matched time cluster
     CRVCluster_t*  crv_cluster_ ; // best matched CRV coincidence cluster
 
+    // Derived hit-based quantities, cached by Init() so repeated accessor calls don't
+    // re-walk the hit collection. Indexed by usewt for the (un)weighted variants.
+    bool  is_init_        ;
+    float tmean_[2]       ; // [0] = unweighted, [1] = energy-weighted
+    float tvar_ [2]       ; // [0] = unweighted, [1] = energy-weighted
+    float hit_max_r_      ;
+    float hit_max_extent_ ;
+    float e_out_ring_     ; // energy beyond 600 mm
+    float e9_             ; // energy of 3x3 around the main hit
+    float e25_            ; // energy of 5x5 around the main hit
+    float second_moment_  ; // hit position second moment, weighted by hit energy
+
+    // crystal size
+    constexpr static float crystal_dx_ = 34.; // crystal width
+
 
     //-------------------------------------------------
     // Accessors
@@ -88,10 +103,47 @@ namespace Mu2eEvtAna {
     // Additional functions
 
     float R        () const { return std::sqrt(X()*X() + Y()*Y()); }
-
     float E1       () const { return HitE(0); }
     float E2       () const { return E1() + HitE(1); }
     float TMean    (bool usewt = false) const { // mean hit time, with/without energy weights
+      if(is_init_) return tmean_[usewt ? 1 : 0];
+      return CalcTMean(usewt);
+    }
+    float TVar     (bool usewt = false) const { // hit time variance, with/without energy weights
+      if(is_init_) return tvar_[usewt ? 1 : 0];
+      return CalcTVar(usewt);
+    }
+    float MaxHitR() const { // radial position of highest radius hit
+      if(is_init_) return hit_max_r_;
+      return CalcMaxHitR();
+    }
+    float MaxHitExtent() const { // distance from the main hit and the farthest hit
+      if(is_init_) return hit_max_extent_;
+      return CalcMaxHitExtent();
+    }
+    float EOutRing() const { // energy at high radius (uses default value)
+      if(is_init_) return e_out_ring_;
+      return CalcEOutRing();
+    }
+    float E9() const {
+      if(is_init_) return e9_;
+      return CalcENeighbors(1.5*crystal_dx_);
+    }
+    float E25() const {
+      if(is_init_) return e25_;
+      return CalcENeighbors(2.5*crystal_dx_);
+    }
+    float ERing() const { return E9() - E1(); }
+    float SecondMoment() const {
+      if(is_init_) return second_moment_;
+      return CalcSecondMoment();
+    }
+
+    //-------------------------------------------------
+    // Uncached implementations of the derived hit-based quantities above, used both as the
+    // fallback when the cluster hasn't been Init()-ed and to fill the cache inside Init().
+
+    float CalcTMean(bool usewt) const {
       if(!cc_) return 0.f;
       const size_t nhits = Hits().size();
       if(nhits == 0) return 0.f;
@@ -105,11 +157,11 @@ namespace Mu2eEvtAna {
       tmean /= sumwt;
       return tmean;
     }
-    float TVar     (bool usewt = false) const { // hit time variance, with/without energy weights
+    float CalcTVar(bool usewt) const {
       if(!cc_) return -1.f;
       const size_t nhits = Hits().size();
       if(nhits == 0) return 0.f;
-      const float tmean = TMean();
+      const float tmean = CalcTMean(false);
       float var = 0.f;
       float sumwt = 0.f;
       for(size_t ihit = 0; ihit < nhits; ++ihit) {
@@ -121,7 +173,7 @@ namespace Mu2eEvtAna {
       var /= sumwt;
       return var;
     }
-    float MaxHitR() const { // radial position of highest radius hit
+    float CalcMaxHitR() const {
       if(!cc_) return 0.f;
       const size_t nhits = Hits().size();
       if(nhits == 0) return 0.f;
@@ -132,18 +184,66 @@ namespace Mu2eEvtAna {
       }
       return max_r;
     }
-    float MaxHitExtent() const { // distance from the main hit and the farthest hit
+    float CalcMaxHitExtent() const {
       if(!cc_) return 0.f;
       const size_t nhits = Hits().size();
       if(nhits <= 1) return 0.f;
-      const auto& main_pos = HitPos(0);
+      const auto main_pos = HitPos(0);
       float max_r = 0.f;
       for(size_t ihit = 1; ihit < nhits; ++ihit) {
-        const auto& hit_pos = HitPos(ihit);
+        const auto hit_pos = HitPos(ihit);
         const float r = (main_pos - hit_pos).r();
         max_r = std::max(r, max_r);
       }
       return max_r;
+    }
+    float CalcEOutRing(const float r_cut = 600.) const {
+      if(!cc_) return 0.f;
+      const size_t nhits = Hits().size();
+      if(nhits == 0) return 0.f;
+      float energy = 0.f;
+      for(size_t ihit = 1; ihit < nhits; ++ihit) {
+        const float r = HitR(ihit);
+        if(r > r_cut) energy += HitE(ihit);
+      }
+      return energy;
+    }
+    float CalcENeighbors(const float dx) const { // calculate energy within a (dx, dx) matrix around the main hit
+      if(!cc_) return 0.f;
+      const size_t nhits = Hits().size();
+      if(nhits == 0) return 0.f;
+      const auto& main_pos = HitPos(0);
+      float energy = HitE(0);
+      for(size_t ihit = 1; ihit < nhits; ++ihit) {
+        const auto hit_pos = HitPos(ihit);
+        const auto dp = hit_pos - main_pos;
+        // within the (dx, dx) matrix
+        if(std::fabs(dp.x()) < dx && std::fabs(dp.y()) < dx)
+          energy += HitE(ihit);
+      }
+      return energy;
+    }
+    float CalcSecondMoment() const { // calculate energy second moment
+      if(!cc_) return 0.f;
+      const size_t nhits = Hits().size();
+      if(nhits == 0) return 0.f;
+      double sx(0.),sy(0.),sx2(0.),sy2(0.),sw(0.);
+      for(size_t ihit = 0; ihit < nhits; ++ihit) {
+        const double energy(HitE(ihit));
+        const auto pos = HitPos(ihit);
+        double xCrystal = pos.x();
+        double yCrystal = pos.y();
+
+        double weight = energy;
+
+        sw  += weight;
+        sx  += xCrystal*weight;
+        sy  += yCrystal*weight;
+        sx2 += xCrystal*xCrystal*weight;
+        sy2 += yCrystal*yCrystal*weight;
+      }
+      const float moment = (sx2-sx*sx/sw + sy2-sy*sy/sw)/sw;
+      return moment;
     }
 
     void Reset() {
@@ -154,6 +254,38 @@ namespace Mu2eEvtAna {
       line_seed_ = nullptr;
       time_cluster_ = nullptr;
       crv_cluster_ = nullptr;
+
+      is_init_ = false;
+      tmean_[0] = tmean_[1] = 0.f;
+      tvar_ [0] = tvar_ [1] = 0.f;
+      hit_max_r_ = 0.f;
+      hit_max_extent_ = 0.f;
+      e_out_ring_ = 0.f;
+      e9_ = 0.f;
+      e25_ = 0.f;
+      second_moment_ = 0.f;
+    }
+
+    // Set the underlying cluster pointers and cache the derived hit-based quantities above
+    // (TMean, TVar, MaxHitR, MaxHitExtent) so later accessor calls are O(1).
+    void Init(const rooutil::CaloCluster* cluster) {
+      Reset();
+      if(!cluster) return;
+      cluster_ = cluster->calocluster;
+      cluster_mc_ = cluster->caloclustermc;
+      cc_ = cluster;
+
+      tmean_[0] = CalcTMean(false);
+      tmean_[1] = CalcTMean(true);
+      tvar_ [0] = CalcTVar(false);
+      tvar_ [1] = CalcTVar(true);
+      hit_max_r_ = CalcMaxHitR();
+      hit_max_extent_ = CalcMaxHitExtent();
+      e_out_ring_ = CalcEOutRing();
+      e9_ = CalcENeighbors(1.5*crystal_dx_);
+      e25_ = CalcENeighbors(2.5*crystal_dx_);
+      second_moment_ = CalcSecondMoment();
+      is_init_ = true;
     }
 
     CaloCluster_t() { Reset(); }

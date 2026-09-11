@@ -25,13 +25,15 @@ namespace Mu2eEvtAna {
     TH1F* fTMeanDiff;
     TH1F* fTVarWt;
     TH1F* fTMeanDiffWt;
-    TH1F* fMaxR;
+    TH1F* fMaxHitExtent;
+    TH1F* fMaxHitR;
     TH1F* fE9OverE;
     TH1F* fE25OverE;
     TH1F* fRingEOverE;
     TH1F* fRingEOverE1;
     TH1F* fOutRingE;
     TH1F* fOutRingEOverE;
+    TH1F* fSecondMoment;
     TH1F* fNCoreCrystals;
     TH1F* fCoreEnergy;
     TH1F* fCoreEnergyFrac;

@@ -287,7 +287,7 @@ namespace Mu2eEvtAna {
       const float e1_r          = cluster->E1() / energy;
       const float e2_r          = cluster->E2() / energy;
       const float tvar          = cluster->TVar();
-      const float second_moment = 0.f; // FIXME
+      const float second_moment = cluster->SecondMoment();
       const int   disk          = cluster->DiskID();
       const float r             = cluster->R();
 
