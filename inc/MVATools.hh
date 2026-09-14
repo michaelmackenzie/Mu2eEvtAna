@@ -73,29 +73,29 @@ namespace Mu2eEvtAna {
       }
 
       // necessary event information
-      variables.push_back(Var_t("eventweight", "eventWeight", "", &tree.fWeight));
+      variables.push_back(Var_t("eventweight", "eventWeight", "", &tree.weight));
 
       // normal variables
-      variables.push_back(Var_t("nactive", "N(active)", "", &tree.fTrkQual_nactive));
-      variables.push_back(Var_t("activehitsfraction", "N(active)/N(hits)", "", &tree.fTrkQual_activehitsfraction));
-      variables.push_back(Var_t("nullhitsfraction", "N(null)/N(active)", "", &tree.fTrkQual_nullhitsfraction));
-      variables.push_back(Var_t("activematsitesfraction", "N(active)/N(mat)", "", &tree.fTrkQual_activematsitesfraction));
-      variables.push_back(Var_t("fitcons", "p(#chi^2)", "", &tree.fTrkQual_fitcons));
-      variables.push_back(Var_t("momerr", "#sigma(p)", "", &tree.fTrkQual_momerr));
-      variables.push_back(Var_t("t0err", "#sigma(t)", "", &tree.fTrkQual_t0err));
+      variables.push_back(Var_t("nactive", "N(active)", "", &tree.trkqual_nactive));
+      variables.push_back(Var_t("activehitsfraction", "N(active)/N(hits)", "", &tree.trkqual_activehitsfraction));
+      variables.push_back(Var_t("nullhitsfraction", "N(null)/N(active)", "", &tree.trkqual_nullhitsfraction));
+      variables.push_back(Var_t("activematsitesfraction", "N(active)/N(mat)", "", &tree.trkqual_activematsitesfraction));
+      variables.push_back(Var_t("fitcons", "p(#chi^2)", "", &tree.trkqual_fitcons));
+      variables.push_back(Var_t("momerr", "#sigma(p)", "", &tree.trkqual_momerr));
+      variables.push_back(Var_t("t0err", "#sigma(t)", "", &tree.trkqual_t0err));
 
-      variables.push_back(Var_t("eclusteroverptrack", "E/P", "", &tree.fTrkEP));
-      variables.push_back(Var_t("dt", "#deltat", "ns", &tree.fTrkDt));
+      variables.push_back(Var_t("eclusteroverptrack", "E/P", "", &tree.trk_ep));
+      variables.push_back(Var_t("dt", "#deltat", "ns", &tree.trk_dt));
 
-      variables.push_back(Var_t("trkactiveratio", "N(active)/N(hits)", "", &tree.fTrkActiveRatio));
-      variables.push_back(Var_t("trknullratio", "N(null)/N(active)", "", &tree.fTrkNullRatio));
-      variables.push_back(Var_t("trktzsloperatio", "(dt/dz) / expected", "", &tree.fTrkTZSlopeRatio));
-      variables.push_back(Var_t("trkfitcon", "p(#chi^2)", "", &tree.fTrkFitCon));
+      variables.push_back(Var_t("trkactiveratio", "N(active)/N(hits)", "", &tree.trk_active_ratio));
+      variables.push_back(Var_t("trknullratio", "N(null)/N(active)", "", &tree.trk_null_ratio));
+      variables.push_back(Var_t("trktzsloperatio", "(dt/dz) / expected", "", &tree.trk_tzslope_ratio));
+      variables.push_back(Var_t("trkfitcon", "p(#chi^2)", "", &tree.trk_fitcon));
 
-      variables.push_back(Var_t("trkd0", "d_{0}", "mm", &tree.fTrkD0));
-      variables.push_back(Var_t("trkrmax", "R(max)", "mm", &tree.fTrkRMax));
-      variables.push_back(Var_t("trktandip", "tan(dip)", "mm", &tree.fTrkTanDip));
-      variables.push_back(Var_t("trkcostheta", "cos(#theta)", "", &tree.fTrkCosTheta));
+      variables.push_back(Var_t("trkd0", "d_{0}", "mm", &tree.trk_d0));
+      variables.push_back(Var_t("trkrmax", "R(max)", "mm", &tree.trk_rmax));
+      variables.push_back(Var_t("trktandip", "tan(dip)", "mm", &tree.trk_tandip));
+      variables.push_back(Var_t("trkcostheta", "cos(#theta)", "", &tree.trk_cos));
 
       // Set flags for variables identified as training variables
       for(TString name : train_var) {

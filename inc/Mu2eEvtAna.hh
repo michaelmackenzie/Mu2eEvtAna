@@ -63,6 +63,7 @@
 #include "Mu2eEvtAna/inc/TrackHist_t.hh"
 #include "Mu2eEvtAna/inc/CaloClusterHist_t.hh"
 #include "Mu2eEvtAna/inc/CRVHist_t.hh"
+#include "Mu2eEvtAna/inc/Tree_t.hh"
 
 using namespace mu2e;
 namespace Mu2eEvtAna {
@@ -96,10 +97,12 @@ namespace Mu2eEvtAna {
     virtual void BookTrackHist(TrackHist_t* Hist, const char* Folder);
     virtual void BookCaloClusterHist(CaloClusterHist_t* Hist, const char* Folder);
     virtual void BookCRVHist(CRVHist_t* Hist, const char* Folder);
+    virtual void BookTree(Tree_t* Tree, const char* Folder);
     virtual void FillEventHist(EventHist_t* Hist);
     virtual void FillTrackHist(TrackHist_t* Hist, Track_t* Track);
     virtual void FillCaloClusterHist(CaloClusterHist_t* Hist, CaloCluster_t* Cluster);
     virtual void FillCRVHist(CRVHist_t* Hist, CRVCluster_t* Stub);
+    virtual void FillTree(Tree_t* Tree, Track_t* Track, CaloCluster_t* Cluster, CRVCluster_t* Stub);
 
     virtual CutID TrackID(Track_t* track);
     static TString TrackIDBitName(const int bit) {
@@ -160,10 +163,12 @@ namespace Mu2eEvtAna {
     TDirectory*        trk_dirs_  [kMaxHists];
     TDirectory*        cls_dirs_  [kMaxHists];
     TDirectory*        crv_dirs_  [kMaxHists];
+    TDirectory*        trs_dirs_  [kMaxHists];
     EventHist_t*       evt_hists_ [kMaxHists];
     TrackHist_t*       trk_hists_ [kMaxHists];
     CaloClusterHist_t* cls_hists_ [kMaxHists];
     CRVHist_t*         crv_hists_ [kMaxHists];
+    Tree_t*            trs_hists_ [kMaxHists];
 
     TString name_; //name for output file
 
@@ -187,6 +192,7 @@ namespace Mu2eEvtAna {
     Long64_t        cache_size_   = 200000000U; //200MB cache by default
     Bool_t          load_baskets_ = true;
     Bool_t          use_xrootd_   = true;
+    Bool_t          fill_trees_   = true;
 
     Long64_t        tree_entries_ = 0;
 

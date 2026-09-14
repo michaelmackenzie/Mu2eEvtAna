@@ -76,12 +76,12 @@ namespace Mu2eEvtAna {
     hist_sets[ 14] = new hist_info_t("e+/-: positive"                   ,  true, false, false, false, false, false,  true, false);
     hist_sets[ 15] = new hist_info_t("e+/-: no weights"                 ,  true, false, false, false, false, false,  true, false);
     hist_sets[ 16] = new hist_info_t("e-: p > 95"                       ,  true, false, false, false, false, false,  true, false);
-    hist_sets[ 20] = new hist_info_t("e-: full window"                  ,  true,  true,  true,  true,  true,  true,  true,  true);
+    hist_sets[ 20] = new hist_info_t("e-: full window"                  ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 21] = new hist_info_t("e-: narrow window"                ,  true,  true,  true,  true, false, false,  true, false);
     hist_sets[ 22] = new hist_info_t("e-: full window, no weights"      ,  true,  true,  true,  true, false, false,  true, false);
     hist_sets[ 23] = new hist_info_t("e-: high error"                   ,  true,  true,  true,  true, false, false,  true, false);
-    hist_sets[ 24] = new hist_info_t("e-:  alt ID"                      ,  true,  true,  true,  true,  true,  true,  true,  true);
-    hist_sets[ 25] = new hist_info_t("e-: !alt ID"                      ,  true,  true,  true,  true,  true,  true,  true,  true);
+    hist_sets[ 24] = new hist_info_t("e-:  alt ID"                      ,  true,  true,  true,  true,  true,  true,  true, false);
+    hist_sets[ 25] = new hist_info_t("e-: !alt ID"                      ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 30] = new hist_info_t("e-: no CRV veto"                  ,  true, false, false, false,  true, false,  true, false);
     hist_sets[ 31] = new hist_info_t("e+-: no CRV veto or p cut"        ,  true, false, false, false,  true, false,  true, false);
     hist_sets[ 34] = new hist_info_t("e-: low dP(ST)"                   ,  true, false, false, false, false,  true,  true, false);
@@ -90,19 +90,19 @@ namespace Mu2eEvtAna {
     hist_sets[ 41] = new hist_info_t("e+: narrow window"                ,  true,  true,  true,  true, false, false,  true, false);
     hist_sets[ 42] = new hist_info_t("e+: broad window"                 ,  true,  true,  true,  true, false, false,  true, false);
     hist_sets[ 50] = new hist_info_t("e+: no CRV veto"                  ,  true, false, false, false,  true, false,  true, false);
-    hist_sets[ 60] = new hist_info_t("e-: Run 1A ID"                    ,  true,  true,  true,  true,  true,  true,  true,  true);
-    hist_sets[ 62] = new hist_info_t("e-: Run 1A ID + upstream veto"    ,  true,  true,  true,  true,  true,  true,  true,  true);
-    hist_sets[ 65] = new hist_info_t("e-: Run 1A ID, loose time"        ,  true,  true,  true,  true,  true,  true,  true,  true);
-    hist_sets[ 66] = new hist_info_t("e-: Run 1A ID, cut-and-count"     ,  true,  true,  true,  true,  true,  true,  true,  true);
+    hist_sets[ 60] = new hist_info_t("e-: Run 1A ID"                    ,  true,  true,  true,  true,  true,  true,  true, false);
+    hist_sets[ 62] = new hist_info_t("e-: Run 1A ID + upstream veto"    ,  true,  true,  true,  true,  true,  true,  true, false);
+    hist_sets[ 65] = new hist_info_t("e-: Run 1A ID, loose time"        ,  true,  true,  true,  true,  true,  true,  true, false);
+    hist_sets[ 66] = new hist_info_t("e-: Run 1A ID, cut-and-count"     ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 70] = new hist_info_t("e-: cut-flow ID"                  ,  true, false, false, false, false, false, false, false);
-    hist_sets[ 73] = new hist_info_t("e-: Optimized cut-set"            ,  true,  true,  true,  true,  true,  true,  true,  true);
-    hist_sets[ 74] = new hist_info_t("e-: Optimized cut-set"            ,  true,  true,  true,  true,  true,  true,  true,  true);
+    hist_sets[ 73] = new hist_info_t("e-: Optimized cut-set"            ,  true,  true,  true,  true,  true,  true,  true, false);
+    hist_sets[ 74] = new hist_info_t("e-: Optimized cut-set"            ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 75] = new hist_info_t("e-: Provided cut-set"             ,  true,  true,  true,  true,  true,  true,  true,  true);
-    hist_sets[ 76] = new hist_info_t("e-: Provided cut-set"             ,  true,  true,  true,  true,  true,  true,  true,  true);
-    hist_sets[ 77] = new hist_info_t("e-: ID, > 3 ST inters"            ,  true,  true,  true,  true,  true,  true,  true,  true);
-    hist_sets[ 78] = new hist_info_t("e-: ID, <= 3 ST inters"           ,  true,  true,  true,  true,  true,  true,  true,  true);
-    hist_sets[ 79] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true,  true);
-    hist_sets[ 80] = new hist_info_t("e-: 2D (t,p) selection"           ,  true,  true,  true,  true,  true,  true,  true,  true);
+    hist_sets[ 76] = new hist_info_t("e-: Provided cut-set"             ,  true,  true,  true,  true,  true,  true,  true, false);
+    hist_sets[ 77] = new hist_info_t("e-: ID, > 3 ST inters"            ,  true,  true,  true,  true,  true,  true,  true, false);
+    hist_sets[ 78] = new hist_info_t("e-: ID, <= 3 ST inters"           ,  true,  true,  true,  true,  true,  true,  true, false);
+    hist_sets[ 79] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true, false);
+    hist_sets[ 80] = new hist_info_t("e-: 2D (t,p) selection"           ,  true,  true,  true,  true,  true,  true,  true, false);
 
     for (int i=0; i<kMaxHists; i++) {
       const int index = i % 1000; // base index, ignoring control region offset
@@ -114,6 +114,7 @@ namespace Mu2eEvtAna {
       if(hist_sets[index]->_trk) trk_hists_[i] = new TrackHist_t;
       if(hist_sets[index]->_crv && ! is_cr) crv_hists_[i] = new CRVHist_t;
       if(hist_sets[index]->_sys) sys_hists_[i] = new SysHist_t;
+      if(fill_trees_ && hist_sets[index]->_trs) trs_hists_[i] = new Tree_t;
       // FIXME: Add missing histogram types
     }
   }
@@ -160,6 +161,7 @@ namespace Mu2eEvtAna {
     if(evt_hists_[index]) FillEventHist(evt_hists_[index]);
     if(trk_hists_[index]) FillTrackHist(trk_hists_[index], track_);
     // if(cls_hists_[index]) FillCaloClusterHist(cls_hists_[index], cluster_);
+    if(fill_trees_ && trs_hists_[index]) FillTree(trs_hists_[index], track_, nullptr, nullptr);
   }
 
   //------------------------------------------------------------------------------------
@@ -195,26 +197,26 @@ namespace Mu2eEvtAna {
     if(evaluate_mvas_) {
       track_ = &trk_par;
       InitTreeData();
-      ValidateVariable(tree_.fTrkQual_nactive, "TrkQual_nactive");
-      ValidateVariable(tree_.fTrkQual_activehitsfraction, "TrkQual_activehitsfraction");
-      ValidateVariable(tree_.fTrkQual_nullhitsfraction, "TrkQual_nullhitsfraction");
-      ValidateVariable(tree_.fTrkQual_activematsitesfraction, "TrkQual_activematsitesfraction");
-      ValidateVariable(tree_.fTrkQual_fitcons, "TrkQual_fitcons");
-      ValidateVariable(tree_.fTrkQual_momerr, "TrkQual_momerr");
-      ValidateVariable(tree_.fTrkQual_t0err, "TrkQual_t0err");
-      ValidateVariable(tree_.fTrkEP, "TrkEP");
-      ValidateVariable(tree_.fTrkDt, "TrkDt");
-      ValidateVariable(tree_.fTrkFitCon, "TrkFitCon");
-      ValidateVariable(tree_.fTrkLogFitCon, "TrkLogFitCon");
-      ValidateVariable(tree_.fTrkActiveRatio, "TrkActiveRatio");
-      ValidateVariable(tree_.fTrkNullRatio, "TrkNullRatio");
-      ValidateVariable(tree_.fTrkTZSlope, "TrkTZSlope");
-      ValidateVariable(tree_.fTrkTZSlopeSig, "TrkTZSlopeSig");
-      ValidateVariable(tree_.fTrkTZSlopeRatio, "TrkTZSlopeRatio");
-      ValidateVariable(tree_.fTrkD0, "TrkD0");
-      ValidateVariable(tree_.fTrkTanDip, "TrkTanDip");
-      ValidateVariable(tree_.fTrkCosTheta, "TrkCosTheta");
-      ValidateVariable(tree_.fTrkRMax, "TrkRMax");
+      ValidateVariable(tree_.trkqual_nactive, "TrkQual_nactive");
+      ValidateVariable(tree_.trkqual_activehitsfraction, "TrkQual_activehitsfraction");
+      ValidateVariable(tree_.trkqual_nullhitsfraction, "TrkQual_nullhitsfraction");
+      ValidateVariable(tree_.trkqual_activematsitesfraction, "TrkQual_activematsitesfraction");
+      ValidateVariable(tree_.trkqual_fitcons, "TrkQual_fitcons");
+      ValidateVariable(tree_.trkqual_momerr, "TrkQual_momerr");
+      ValidateVariable(tree_.trkqual_t0err, "TrkQual_t0err");
+      ValidateVariable(tree_.trk_ep, "TrkEP");
+      ValidateVariable(tree_.trk_dt, "TrkDt");
+      ValidateVariable(tree_.trk_fitcon, "TrkFitCon");
+      ValidateVariable(tree_.trk_logfitcon, "TrkLogFitCon");
+      ValidateVariable(tree_.trk_active_ratio, "TrkActiveRatio");
+      ValidateVariable(tree_.trk_null_ratio, "TrkNullRatio");
+      ValidateVariable(tree_.trk_tzslope, "TrkTZSlope");
+      ValidateVariable(tree_.trk_tzslope_sig, "TrkTZSlopeSig");
+      ValidateVariable(tree_.trk_tzslope_ratio, "TrkTZSlopeRatio");
+      ValidateVariable(tree_.trk_d0, "TrkD0");
+      ValidateVariable(tree_.trk_tandip, "TrkTanDip");
+      ValidateVariable(tree_.trk_cos, "TrkCosTheta");
+      ValidateVariable(tree_.trk_rmax, "TrkRMax");
       watch_->SetTime("MVAs");
       trk_par.trkqual_ = (trkqual_) ? trkqual_->EvaluateMVA("TrkQual") : -999.f;
       trk_par.pid_ = (pid_) ? pid_->EvaluateMVA("PID") : -999.f;
@@ -235,60 +237,60 @@ namespace Mu2eEvtAna {
     tree_.Reset();
 
     if(track_) {
-      tree_.fTrkP = track_->PFront();
-      tree_.fTrkT0 = track_->TFront();
-      tree_.fTrkD0 = track_->D0Front();
-      tree_.fTrkTanDip = track_->TanDipFront();
-      tree_.fTrkCosTheta = track_->CosThetaFront();
-      tree_.fTrkFitCon = track_->FitCon();
-      tree_.fTrkLogFitCon = (track_->FitCon() > 0.) ? log10(track_->FitCon()) : -100.f;
-      tree_.fTrkRMax = track_->RMaxFront();
-      tree_.fTrkCluster = track_->ECluster();
-      tree_.fTrkEP = track_->EPFront();
-      tree_.fTrkDt = track_->Dt();
-      tree_.fTrkActiveRatio = track_->NActive() * 1.f / track_->NHits();
-      tree_.fTrkNullRatio = track_->NNull() * 1.f / track_->NHits();
-      tree_.fTrkTZSlope = track_->TZSlope();
-      tree_.fTrkTZSlopeSig = track_->TZSlopeSig();
-      tree_.fTrkTZSlopeRatio = track_->TZSlopeRatio();
-      tree_.fTrkPExitDiff = track_->PFront() - track_->PBack();
-      tree_.fTrkQual = track_->TrkQual();
-      tree_.fTrkPID = track_->PID();
-      tree_.fTrkOnlyPID = track_->TrkPID();
-      tree_.fTrkCosmicID = track_->CosmicID();
-      tree_.fTrkCharge = track_->Charge();
-      tree_.fTrkMCDp = track_->MCDeltaPFront();
-      tree_.fTrkMCPDG = track_->MCPDG();
+      tree_.trk_p = track_->PFront();
+      tree_.trk_t0 = track_->TFront();
+      tree_.trk_d0 = track_->D0Front();
+      tree_.trk_tandip = track_->TanDipFront();
+      tree_.trk_cos = track_->CosThetaFront();
+      tree_.trk_fitcon = track_->FitCon();
+      tree_.trk_logfitcon = (track_->FitCon() > 0.) ? log10(track_->FitCon()) : -100.f;
+      tree_.trk_rmax = track_->RMaxFront();
+      tree_.trk_cluster = track_->ECluster();
+      tree_.trk_ep = track_->EPFront();
+      tree_.trk_dt = track_->Dt();
+      tree_.trk_active_ratio = track_->NActive() * 1.f / track_->NHits();
+      tree_.trk_null_ratio = track_->NNull() * 1.f / track_->NHits();
+      tree_.trk_tzslope = track_->TZSlope();
+      tree_.trk_tzslope_sig = track_->TZSlopeSig();
+      tree_.trk_tzslope_ratio = track_->TZSlopeRatio();
+      tree_.trk_pexit_diff = track_->PFront() - track_->PBack();
+      tree_.trk_qual = track_->TrkQual();
+      tree_.trk_pid = track_->PID();
+      tree_.trk_onlypid = track_->TrkPID();
+      tree_.trk_cosmicid = track_->CosmicID();
+      tree_.trk_charge = track_->Charge();
+      tree_.trk_mc_dp = track_->MCDeltaPFront();
+      tree_.trk_mc_pdg = track_->MCPDG();
 
       // For TrkQual
-      tree_.fTrkQual_nactive = track_->NActive();
-      tree_.fTrkQual_activehitsfraction = tree_.fTrkActiveRatio;
-      tree_.fTrkQual_nullhitsfraction = tree_.fTrkNullRatio;
-      tree_.fTrkQual_activematsitesfraction = track_->NMatActive() * 1.f / track_->NActive();
-      tree_.fTrkQual_fitcons = tree_.fTrkFitCon;
-      tree_.fTrkQual_momerr = track_->MomErrFront();
-      tree_.fTrkQual_t0err = track_->TErrFront();
+      tree_.trkqual_nactive = track_->NActive();
+      tree_.trkqual_activehitsfraction = tree_.trk_active_ratio;
+      tree_.trkqual_nullhitsfraction = tree_.trk_null_ratio;
+      tree_.trkqual_activematsitesfraction = track_->NMatActive() * 1.f / track_->NActive();
+      tree_.trkqual_fitcons = tree_.trk_fitcon;
+      tree_.trkqual_momerr = track_->MomErrFront();
+      tree_.trkqual_t0err = track_->TErrFront();
     }
 
     // if(crv_cluster_) {
-    //   tree_.fCRVZ = fTrkPar.fCRVStubPar->fZ;
-    //   tree_.fCRVDeltaT = fTrkPar.fCRVStubPar->fCorrTime - fTrack->fT0;
-    //   tree_.fCRVNPulses = fTrkPar.fCRVStubPar->fCluster->NPulses();
-    //   tree_.fCRVNPe = fTrkPar.fCRVStubPar->fCluster->NPe();
-    //   tree_.fCRVNPePP = fTrkPar.fCRVStubPar->fNPePP;
+    //   tree_.crv_z = fTrkPar.fCRVStubPar->fZ;
+    //   tree_.crv_deltat = fTrkPar.fCRVStubPar->fCorrTime - fTrack->fT0;
+    //   tree_.crv_npulses = fTrkPar.fCRVStubPar->fCluster->NPulses();
+    //   tree_.crv_npe = fTrkPar.fCRVStubPar->fCluster->NPe();
+    //   tree_.crv_npepp = fTrkPar.fCRVStubPar->fNPePP;
     // } else {
-    //   tree_.fCRVZ = 0.f;
-    //   tree_.fCRVDeltaT = 0.f;
-    //   tree_.fCRVNPulses = 0.f;
-    //   tree_.fCRVNPe = 0.f;
-    //   tree_.fCRVNPePP = 0.f;
+    //   tree_.crv_z = 0.f;
+    //   tree_.crv_deltat = 0.f;
+    //   tree_.crv_npulses = 0.f;
+    //   tree_.crv_npe = 0.f;
+    //   tree_.crv_npepp = 0.f;
     // }
 
-    tree_.fWeight = evt_.weight_;
+    tree_.weight = evt_.weight_;
 
     // // FIXME: For now just doing 50% splitting by ID
     // const int event = GetEvent()->fEventNumber;
-    // tree_.fTrain = (event % 2 == 0) ? 1.f : -1.f;
+    // tree_.train = (event % 2 == 0) ? 1.f : -1.f;
 
   }
 
@@ -757,6 +759,8 @@ namespace Mu2eEvtAna {
         if(track_->Charge() > 0 && id_no_crv_time == 0) {
           if(track_->PFront() > 80.f && track_->PFront() < 100.f) {
             FillAllHistograms(40 + set_offset);
+            // narrow momentum window
+            if(track_->PFront() > 90.f && track_->PFront() < 93.f) FillAllHistograms(41 + set_offset);
           }
           FillAllHistograms(42 + set_offset); // broad momentum window
         }

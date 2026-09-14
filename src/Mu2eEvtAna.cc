@@ -18,6 +18,7 @@ namespace Mu2eEvtAna {
       trk_hists_[ihist] = nullptr;
       cls_hists_[ihist] = nullptr;
       crv_hists_[ihist] = nullptr;
+      trs_hists_[ihist] = nullptr;
     }
 
     // create a stopwatch for processing time monitoring
@@ -250,7 +251,7 @@ namespace Mu2eEvtAna {
     Hist->fBestAlg       = new TH1F("bestAlg"     ,Form("%s: Best fit algorithm"                   ,Folder),   10,    0.,   10.);
     Hist->fAlgMask       = new TH1F("algMask"     ,Form("%s: Algorithm mask"                       ,Folder),   10,    0.,   10.);
     Hist->fSTBoundary    = new TH1F("st_boundary" ,Form("%s: Stopping target boundary"             ,Folder),   2,    0.,    2.);
-    Hist->fSTInters      = new TH1F("st_inters"   ,Form("%s: Stopping target intersections"        ,Folder),  10,    0.,   10.);
+    Hist->fSTInters      = new TH1F("st_inters"   ,Form("%s: Stopping target intersections"        ,Folder),  30,    0.,   30.);
     Hist->fIPAInters     = new TH1F("ipa_inters"  ,Form("%s: IPA intersections"                    ,Folder),  10,    0.,   10.);
     Hist->fOPAInters     = new TH1F("opa_inters"  ,Form("%s: OPA intersections"                    ,Folder),  10,    0.,   10.);
     Hist->fTrackID       = new TH1F("track_id"    ,Form("%s: Track ID bits"                        ,Folder),   33,    0.,   33.);
@@ -402,6 +403,44 @@ namespace Mu2eEvtAna {
   }
 
   //------------------------------------------------------------------------------------
+  // Initialize an output sparse tree
+  void Mu2eEvtAna::BookTree(Tree_t* Tree, const char* Folder) {
+    if(!Tree) {
+      throw std::runtime_error("Attempting to book tree in a null Tree_t\n");
+    }
+    Tree->tree = new TTree("tree", "Mu2eEvtAna sparse tree");
+    Tree->tree->Branch("run"               , &Tree->run                 );
+    Tree->tree->Branch("subrun"            , &Tree->subrun              );
+    Tree->tree->Branch("event"             , &Tree->event               );
+    Tree->tree->Branch("weight"            , &Tree->weight              );
+    Tree->tree->Branch("train"             , &Tree->train               );
+    Tree->tree->Branch("trk_p"             , &Tree->trk_p               );
+    Tree->tree->Branch("trk_t0"            , &Tree->trk_t0              );
+    Tree->tree->Branch("trk_d0"            , &Tree->trk_d0              );
+    Tree->tree->Branch("trk_tandip"        , &Tree->trk_tandip          );
+    Tree->tree->Branch("trk_cos"           , &Tree->trk_cos             );
+    Tree->tree->Branch("trk_cluster"       , &Tree->trk_cluster         );
+    Tree->tree->Branch("trk_ep"            , &Tree->trk_ep              );
+    Tree->tree->Branch("trk_dt"            , &Tree->trk_dt              );
+    Tree->tree->Branch("trk_rmax"          , &Tree->trk_rmax            );
+    Tree->tree->Branch("trk_active_ratio"  , &Tree->trk_active_ratio    );
+    Tree->tree->Branch("trk_null_ratio"    , &Tree->trk_null_ratio      );
+    Tree->tree->Branch("trk_fitcon"        , &Tree->trk_fitcon          );
+    Tree->tree->Branch("trk_logfitcon"     , &Tree->trk_logfitcon       );
+    Tree->tree->Branch("trk_tzslope"       , &Tree->trk_tzslope         );
+    Tree->tree->Branch("trk_tzslope_sig"   , &Tree->trk_tzslope_sig     );
+    Tree->tree->Branch("trk_tzslope_ratio" , &Tree->trk_tzslope_ratio   );
+    Tree->tree->Branch("trk_pexit_diff"    , &Tree->trk_pexit_diff      );
+    Tree->tree->Branch("trk_qual"          , &Tree->trk_qual            );
+    Tree->tree->Branch("trk_pid"           , &Tree->trk_pid             );
+    Tree->tree->Branch("trk_onlypid"       , &Tree->trk_onlypid         );
+    Tree->tree->Branch("trk_cosmicid"      , &Tree->trk_cosmicid        );
+    Tree->tree->Branch("trk_charge"        , &Tree->trk_charge          );
+    Tree->tree->Branch("trk_mc_dp"         , &Tree->trk_mc_dp           );
+    Tree->tree->Branch("trk_mc_pdg"        , &Tree->trk_mc_pdg          );
+  }
+
+  //------------------------------------------------------------------------------------
   // Initialize the histogram sets
   void Mu2eEvtAna::BookHistograms(TDirectory* dir) {
 
@@ -437,6 +476,14 @@ namespace Mu2eEvtAna {
         BookCRVHist(crv_hists_[ihist], folder);
         dir->cd();
         crv_dirs_[ihist] = subdir;
+      }
+      if(fill_trees_ && trs_hists_[ihist]) {
+        const char* folder = Form("trs_%i", ihist);
+        auto subdir = dir->mkdir(folder);
+        subdir->cd();
+        BookTree(trs_hists_[ihist], folder);
+        dir->cd();
+        trs_dirs_[ihist] = subdir;
       }
     }
 
@@ -723,6 +770,48 @@ namespace Mu2eEvtAna {
   }
 
   //------------------------------------------------------------------------------------
+  // Fill the sparse tree
+  void Mu2eEvtAna::FillTree(Tree_t* Tree, Track_t* Track, CaloCluster_t* Cluster, CRVCluster_t* Stub) {
+    if(!Tree || !Tree->tree) {
+      throw std::runtime_error(Form("Mu2eEvtAna::%s: Attempting to fill the tree in a null CRVHist_t\n", __func__));
+    }
+
+    Tree->run = evt_.run_;
+    Tree->subrun = evt_.subrun_;
+    Tree->event = evt_.event_;
+    Tree->weight = evt_.weight_;
+
+    if(Track) {
+      Tree->trk_p = Track->PFront();
+      Tree->trk_t0 = Track->TFront();
+      Tree->trk_d0 = Track->D0Front();
+      Tree->trk_tandip = Track->TanDipFront();
+      Tree->trk_cos = Track->CosThetaFront();
+      Tree->trk_fitcon = Track->FitCon();
+      Tree->trk_logfitcon = (Track->FitCon() > 0.) ? log10(Track->FitCon()) : -100.f;
+      Tree->trk_rmax = Track->RMaxFront();
+      Tree->trk_cluster = Track->ECluster();
+      Tree->trk_ep = Track->EPFront();
+      Tree->trk_dt = Track->Dt();
+      Tree->trk_active_ratio = Track->NActive() * 1.f / Track->NHits();
+      Tree->trk_null_ratio = Track->NNull() * 1.f / Track->NHits();
+      Tree->trk_tzslope = Track->TZSlope();
+      Tree->trk_tzslope_sig = Track->TZSlopeSig();
+      Tree->trk_tzslope_ratio = Track->TZSlopeRatio();
+      Tree->trk_pexit_diff = Track->PFront() - Track->PBack();
+      Tree->trk_qual = Track->TrkQual();
+      Tree->trk_pid = Track->PID();
+      Tree->trk_onlypid = Track->TrkPID();
+      Tree->trk_cosmicid = Track->CosmicID();
+      Tree->trk_charge = Track->Charge();
+      Tree->trk_mc_dp = Track->MCDeltaPFront();
+      Tree->trk_mc_pdg = Track->MCPDG();
+    }
+
+    Tree->tree->Fill();
+  }
+
+  //------------------------------------------------------------------------------------
   // Setup the output ntuple structure
   void Mu2eEvtAna::AddOutputBranches(TTree* t) {
 
@@ -779,6 +868,11 @@ namespace Mu2eEvtAna {
 
     // Retrieve global event info
     InitEvent(evt_);
+
+    // Reset the output trees
+    for(int i = 0; i < kMaxHists; ++i) {
+      if(trs_hists_[i]) trs_hists_[i]->Reset();
+    }
 
     // Initialize the sim particle info (if available)
     // FIXME: Currently need to do this within the track collection
