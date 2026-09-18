@@ -71,24 +71,19 @@ void SplitFileList(TString file_list, int n_parts, int part, TString output_file
 }
 
 // Forward declaration for ProcessThreaded
-int ProcessThreaded(AnalyzerType ana_type, TString dataset, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id);
+int ProcessThreaded(AnalyzerType ana_type, TString name_tag, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id);
 
-// Thread worker function - called via functions.C(ana_type, dataset, mode, max_entries, first_entry, thread_id)
-int functions(int ana_type, TString dataset, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id);
+// Thread worker function - called via functions.C(ana_type, name_tag, mode, max_entries, first_entry, thread_id)
+int functions(int ana_type, TString name_tag, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id);
 
 // Thread worker function implementation
-int functions(int ana_type, TString dataset, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id) {
-  return ProcessThreaded((AnalyzerType)ana_type, dataset, Mode, max_entries, first_entry, thread_id);
+int functions(int ana_type, TString name_tag, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id) {
+  return ProcessThreaded((AnalyzerType)ana_type, name_tag, Mode, max_entries, first_entry, thread_id);
 }
 
-int ProcessThreaded(AnalyzerType ana_type, TString dataset, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id) {
-  TString file_list = GetDatasetFileList(dataset);
-  if(file_list == "") {
-    cout << "Dataset " << dataset << " not found!" << endl;
-    return -1;
-  }
-
-  TString input_file = Form("temp/%s_thread_%i.files", dataset.Data(), thread_id);
+// Process one thread's share of the input, using the file list written by ProcessWithThreads
+int ProcessThreaded(AnalyzerType ana_type, TString name_tag, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id) {
+  TString input_file = Form("temp/%s_thread_%i.files", name_tag.Data(), thread_id);
 
   // File list was already split by ProcessWithThreads, just verify it exists
   if(gSystem->AccessPathName(input_file)) {
@@ -97,7 +92,7 @@ int ProcessThreaded(AnalyzerType ana_type, TString dataset, int Mode, Long64_t m
   }
 
   TString analyzer_name = GetAnalyzerName(ana_type);
-  TString ana_name = Form("%s.%s.m%i.thread_%i", analyzer_name.Data(), dataset.Data(), Mode, thread_id);
+  TString ana_name = Form("%s.%s.m%i.thread_%i", analyzer_name.Data(), name_tag.Data(), Mode, thread_id);
 
   Mu2eEvtAna::Mu2eEvtAna* ana = nullptr;
   switch(ana_type) {
@@ -132,13 +127,22 @@ int ProcessThreaded(AnalyzerType ana_type, TString dataset, int Mode, Long64_t m
 }
 
 // Generic multi-threaded processing function
-int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
-                       Long64_t max_entries, Long64_t first_entry, int n_threads) {
-  TString file_list = GetDatasetFileList(dataset);
+//   input   : a known dataset name, a single ntuple file (*.root), or a file list of ntuples
+//   name_tag: tag used to name the output files, defaults to the dataset name or the input file name
+int ProcessWithThreads(AnalyzerType ana_type, TString input, int Mode,
+                       Long64_t max_entries, Long64_t first_entry, int n_threads,
+                       TString name_tag = "") {
+  TString file_list = ResolveInput(input);
   if(file_list == "") {
-    cout << "Dataset " << dataset << " not found!" << endl;
+    cout << "Input " << input << " not found!" << endl;
     return -1;
   }
+
+  TString dataset = (name_tag != "") ? name_tag : DefaultNameTag(input);
+  const bool single_file = file_list.EndsWith(".root");
+  if(file_list != input) cout << "Processing dataset " << input << " (file list " << file_list << ")" << endl;
+  else                   cout << "Processing input file " << file_list << endl;
+  cout << "Output name tag: " << dataset << endl;
 
   TString analyzer_name = GetAnalyzerName(ana_type);
 
@@ -174,18 +178,23 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
     return status;
   }
 
-  // Count number of files in the input list and split before submitting threads
-  ifstream infile(file_list);
+  // Count number of files in the input and split before submitting threads
   int n_input_files = 0;
-  string line;
   vector<string> all_files;
-  while(getline(infile, line)) {
-    if(!line.empty()) {
-      all_files.push_back(line);
-      n_input_files++;
+  if(single_file) { // a single ntuple file, nothing to split
+    all_files.push_back(file_list.Data());
+    n_input_files = 1;
+  } else {
+    ifstream infile(file_list);
+    string line;
+    while(getline(infile, line)) {
+      if(!line.empty()) {
+        all_files.push_back(line);
+        n_input_files++;
+      }
     }
+    infile.close();
   }
-  infile.close();
 
   // Adjust n_threads if fewer input files than requested threads
   int actual_n_threads = n_threads;
@@ -291,16 +300,18 @@ int ProcessWithThreads(AnalyzerType ana_type, TString dataset, int Mode,
 }
 
 // Convenience wrapper functions for CINT
-int mu2e_ana(TString dataset, int Mode = 0, Long64_t max_entries = 1e6, Long64_t first_entry = 0, int n_threads = 1) {
-  return ProcessWithThreads(kMu2eAna, dataset, Mode, max_entries, first_entry, n_threads);
+// "input" can be a known dataset name, a single ntuple file, or a file list of ntuples,
+// and "name_tag" overrides the tag used to name the output files
+int mu2e_ana(TString input, int Mode = 0, Long64_t max_entries = 1e6, Long64_t first_entry = 0, int n_threads = 1, TString name_tag = "") {
+  return ProcessWithThreads(kMu2eAna, input, Mode, max_entries, first_entry, n_threads, name_tag);
 }
 
-int rmc_ana(TString dataset, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1) {
-  return ProcessWithThreads(kRMCAna, dataset, Mode, max_entries, first_entry, n_threads);
+int rmc_ana(TString input, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1, TString name_tag = "") {
+  return ProcessWithThreads(kRMCAna, input, Mode, max_entries, first_entry, n_threads, name_tag);
 }
 
-int cnv_ana(TString dataset, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1) {
-  return ProcessWithThreads(kConvAna, dataset, Mode, max_entries, first_entry, n_threads);
+int cnv_ana(TString input, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1, TString name_tag = "") {
+  return ProcessWithThreads(kConvAna, input, Mode, max_entries, first_entry, n_threads, name_tag);
 }
 
 #endif
