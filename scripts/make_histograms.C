@@ -11,7 +11,7 @@
    n_threads: Number of threads per process to split file lists (default 1)
  **/
 int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
-                    const char* function = "mu2e_ana", int n_threads = 1, Long64_t max_entries = 1e5) {
+                    const char* function = "cnv_ana", int n_threads = 1, Long64_t max_entries = 1e5) {
 
   if(processes > 3) {
     cout << "Requested " << processes << " parallel processes, but this exceeds the interactive maximum of about 2-3!\n";
