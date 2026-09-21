@@ -103,6 +103,7 @@ namespace Mu2eEvtAna {
     hist_sets[ 78] = new hist_info_t("e-: ID, <= 3 ST inters"           ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 79] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 80] = new hist_info_t("e-: 2D (t,p) selection"           ,  true,  true,  true,  true,  true,  true,  true, false);
+    hist_sets[ 81] = new hist_info_t("e-: Initial ID for optimization"  ,  true, false, false, false, false, false, false,  true);
 
     for (int i=0; i<kMaxHists; i++) {
       const int index = i % 1000; // base index, ignoring control region offset
@@ -256,7 +257,7 @@ namespace Mu2eEvtAna {
       tree_.trk_pexit_diff = track_->PFront() - track_->PBack();
       tree_.trk_qual = track_->TrkQual();
       tree_.trk_pid = track_->PID();
-      tree_.trk_onlypid = track_->TrkPID();
+      tree_.trk_trkonlypid = track_->TrkPID();
       tree_.trk_cosmicid = track_->CosmicID();
       tree_.trk_charge = track_->Charge();
       tree_.trk_mc_dp = track_->MCDeltaPFront();
@@ -672,6 +673,7 @@ namespace Mu2eEvtAna {
         prv_opt_id &= (trigger_.FiredAPR() || trigger_.FiredCPR()); if(prv_opt_id) dev_cut_flow_.Increment("trigger");
         prv_opt_id &= upstream_veto; if(prv_opt_id) dev_cut_flow_.Increment("upstream_reflection");
         prv_opt_id &= multi_trk; if(prv_opt_id) dev_cut_flow_.Increment("multi_trk");
+        if(prv_opt_id) FillAllHistograms(81); // For input to Natalie's code
         prv_opt_id &= track_->PID() > 0.54f && track_->ECluster() > 0.; if(prv_opt_id) dev_cut_flow_.Increment("PID");
         prv_opt_id &= track_->TanDipFront() > 0.575 && track_->TanDipFront() < 0.85; if(prv_opt_id) dev_cut_flow_.Increment("tan_dip");
         prv_opt_id &= track_->STBoundary() > 0; if(prv_opt_id) dev_cut_flow_.Increment("st_boundary");

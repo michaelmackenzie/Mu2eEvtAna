@@ -14,9 +14,9 @@ namespace Mu2eEvtAna {
   struct Tree_t {
 
     // Event info
-    int run;
-    int subrun;
-    int event;
+    int   run;
+    int   subrun;
+    int   event;
     float weight;
     float train;
 
@@ -30,20 +30,33 @@ namespace Mu2eEvtAna {
     float trk_ep;
     float trk_dt;
     float trk_rmax;
+    float trk_nactive;
     float trk_active_ratio;
     float trk_null_ratio;
+    float trk_active_mat_ratio;
     float trk_fitcon;
     float trk_logfitcon;
+    float trk_momerr;
+    float trk_t0err;
     float trk_tzslope;
     float trk_tzslope_sig;
     float trk_tzslope_ratio;
     float trk_pexit_diff;
     float trk_qual;
     float trk_pid;
-    float trk_onlypid;
+    float trk_trkonlypid;
+    float trk_altqual;
+    float trk_altpid;
     float trk_cosmicid;
     float trk_charge;
-    float trk_mc_dp;
+    float trk_min_crv_time;
+    int   trk_nst_down; // intersections
+    int   trk_nst_up;
+    int   trk_stboundary;
+    int   trk_nipa;
+    int   trk_opa;
+    int   trk_tsda;
+    float trk_mc_dp; // MC info
     float trk_mc_pdg;
 
     // CRV information
@@ -127,10 +140,14 @@ namespace Mu2eEvtAna {
       trk_ep = 0.f;
       trk_dt = 0.f;
       trk_rmax = 0.f;
+      trk_nactive = 0.f;
       trk_active_ratio = 0.f;
       trk_null_ratio = 0.f;
+      trk_active_mat_ratio = 0.f;
       trk_fitcon = 0.f;
       trk_logfitcon = 0.f;
+      trk_momerr = 0.f;
+      trk_t0err = 0.f;
       trk_tzslope = 0.f;
       trk_tzslope_sig = 0.f;
       trk_tzslope_ratio = 0.f;
