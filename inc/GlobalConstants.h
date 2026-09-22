@@ -16,6 +16,17 @@ namespace Mu2eEvtAna {
   // output branch names -- see rooutil::Event::TimeClusterCollectionNames()/LineSeedCollectionNames())
   enum {kMaxTimeClusters = 500, kMaxLineSeeds = 500, kMaxTCCollections = 10, kMaxLSCollections = 10};
 
+  // The nominal (target-origin electron) time cluster collection, i.e. CalTimeClusterFinder's
+  // output branch in from_mcs-Run1B.fcl
+  static constexpr const char* kNominalTimeClusters = "timeclusters";
+
+  // z (tracker coordinates, mm) defining the downstream end of the tracker for the time cluster
+  // hit counting observable TimeCluster_t::NHitsAboveZ(); the default the histograms are booked at
+  static constexpr float kTimeClusterHitZMin = 1300.f;
+  // Run1BAna set 74 vetoes a calo cluster whose matched nominal time cluster has at least this
+  // many hits above kTimeClusterHitZMin
+  static constexpr int kTCHitVetoNHits = 3;
+
   // Track selection info
   enum {kMaxTrackIDs = 20};
   // track selection bits

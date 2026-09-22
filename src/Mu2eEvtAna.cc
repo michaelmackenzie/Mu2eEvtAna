@@ -322,6 +322,14 @@ namespace Mu2eEvtAna {
     Hist->fECalo      = new TH1F("ecalo"     , Form("%s: E(calo) (MeV)"    , Folder), 100,    0.,  200.);
     Hist->fTCalo      = new TH1F("tcalo"     , Form("%s: T(calo) (ns)"     , Folder), 200,    0., 2000.);
     Hist->fHasCalo    = new TH1F("hascalo"   , Form("%s: Has calo cluster?", Folder),   2,    0.,    2.);
+    // Combo hit information: only filled if the job stored this collection's hit list
+    Hist->fHasHits     = new TH1F("hashits"    , Form("%s: Hit list stored?"  , Folder),   2,    0.,    2.);
+    Hist->fNComboHits  = new TH1F("ncombohits" , Form("%s: N(stored combo hits)", Folder),100,   0.,  200.);
+    Hist->fNHitsAboveZ = new TH1F("nhitsabovez", Form("%s: N(hits with z > %.0f mm)", Folder, kTimeClusterHitZMin), 50, 0., 50.);
+    Hist->fHitZ        = new TH1F("hitz"       , Form("%s: Hit z (mm)"        , Folder), 100,-2000., 2000.);
+    Hist->fHitR        = new TH1F("hitr"       , Form("%s: Hit r (mm)"        , Folder), 100,    0., 1000.);
+    Hist->fHitTime     = new TH1F("hittime"    , Form("%s: Hit time (ns)"     , Folder), 200,    0., 2000.);
+    Hist->fHitEDep     = new TH1F("hitedep"    , Form("%s: Hit E(dep) (MeV)"  , Folder), 100,    0.,    0.01);
   }
 
   //------------------------------------------------------------------------------------
@@ -332,6 +340,7 @@ namespace Mu2eEvtAna {
     Hist->fNHits          = new TH1F("nhits"         , Form("%s: N(combo hits)"      , Folder), 100,    0.,  200.);
     Hist->fNStrawHits     = new TH1F("nstrawhits"    , Form("%s: N(straw hits)"      , Folder), 100,    0.,  200.);
     Hist->fT0             = new TH1F("t0"            , Form("%s: T0 (ns)"            , Folder), 200,    0., 2000.);
+    Hist->fEDep           = new TH1F("edep"          , Form("%s: E(dep) (MeV)"       , Folder), 100,    0.,    0.01);
     Hist->fD0             = new TH1F("d0"            , Form("%s: d_{0} (mm)"         , Folder), 100,-1000., 1000.);
     Hist->fPhi0           = new TH1F("phi0"          , Form("%s: #phi_{0}"           , Folder), 100,   -4.,    4.);
     Hist->fZ0             = new TH1F("z0"            , Form("%s: z_{0} (mm)"         , Folder), 100,-5000., 5000.);
@@ -346,6 +355,14 @@ namespace Mu2eEvtAna {
     Hist->fMatchedTrackDt = new TH1F("matchedtrackdt", Form("%s: T0(seed) - T0(track) (ns)", Folder), 200, -200., 200.);
     Hist->fMatchedTrackDD0= new TH1F("matchedtrackdd0",Form("%s: d0(seed) - d0(track) (mm)", Folder), 200, -200., 200.);
     Hist->fMatchedTCDt    = new TH1F("matchedtcdt"   , Form("%s: T0(seed) - T0(time cluster) (ns)", Folder), 200, -200., 200.);
+    // Combo hit information: only filled if the job stored this collection's hit list
+    Hist->fHasHits        = new TH1F("hashits"       , Form("%s: Hit list stored?"   , Folder),   2,    0.,    2.);
+    Hist->fNComboHits     = new TH1F("ncombohits"    , Form("%s: N(stored combo hits)", Folder),100,    0.,  200.);
+    Hist->fNHitsAboveZ    = new TH1F("nhitsabovez"   , Form("%s: N(hits with z > %.0f mm)", Folder, kTimeClusterHitZMin), 50, 0., 50.);
+    Hist->fHitZ           = new TH1F("hitz"          , Form("%s: Hit z (mm)"         , Folder), 100,-2000., 2000.);
+    Hist->fHitR           = new TH1F("hitr"          , Form("%s: Hit r (mm)"         , Folder), 100,    0., 1000.);
+    Hist->fHitTime        = new TH1F("hittime"       , Form("%s: Hit time (ns)"      , Folder), 200,    0., 2000.);
+    Hist->fHitEDep        = new TH1F("hitedep"       , Form("%s: Hit E(dep) (MeV)"   , Folder), 100,    0.,    0.01);
   }
 
   //-----------------------------------------------------------------------------
@@ -731,6 +748,19 @@ namespace Mu2eEvtAna {
     Hist->fECalo     ->Fill(Cluster->ECalo());
     if(Cluster->HasCalo()) Hist->fTCalo->Fill(Cluster->TCalo());
     Hist->fHasCalo   ->Fill(Cluster->HasCalo());
+
+    // Hit-level information, only stored for some collections (timeclusters.fillHitsFor)
+    Hist->fHasHits   ->Fill(Cluster->HasHits());
+    if(Cluster->HasHits()) {
+      Hist->fNComboHits ->Fill(Cluster->NComboHits());
+      Hist->fNHitsAboveZ->Fill(Cluster->NHitsAboveZ());
+      for(const auto& hit : *(Cluster->hits_)) {
+        Hist->fHitZ   ->Fill(hit.pos.z());
+        Hist->fHitR   ->Fill(std::sqrt(hit.pos.x()*hit.pos.x() + hit.pos.y()*hit.pos.y()));
+        Hist->fHitTime->Fill(hit.time);
+        Hist->fHitEDep->Fill(hit.edep);
+      }
+    }
   }
 
   //------------------------------------------------------------------------------------
@@ -748,6 +778,7 @@ namespace Mu2eEvtAna {
     Hist->fNHits     ->Fill(Seed->NHits());
     Hist->fNStrawHits->Fill(Seed->NStrawHits());
     Hist->fT0        ->Fill(Seed->T0());
+    Hist->fEDep      ->Fill(Seed->EDep());
     Hist->fD0        ->Fill(Seed->D0());
     Hist->fPhi0      ->Fill(Seed->Phi0());
     Hist->fZ0        ->Fill(Seed->Z0());
@@ -759,6 +790,19 @@ namespace Mu2eEvtAna {
     Hist->fECalo     ->Fill(Seed->ECalo());
     if(Seed->HasCalo()) Hist->fTCalo->Fill(Seed->TCalo());
     Hist->fHasCalo   ->Fill(Seed->HasCalo());
+
+    // Hit-level information, only stored for some collections (lineseeds.fillHitsFor)
+    Hist->fHasHits   ->Fill(Seed->HasHits());
+    if(Seed->HasHits()) {
+      Hist->fNComboHits ->Fill(Seed->NComboHits());
+      Hist->fNHitsAboveZ->Fill(Seed->NHitsAboveZ());
+      for(const auto& hit : *(Seed->hits_)) {
+        Hist->fHitZ   ->Fill(hit.pos.z());
+        Hist->fHitR   ->Fill(std::sqrt(hit.pos.x()*hit.pos.x() + hit.pos.y()*hit.pos.y()));
+        Hist->fHitTime->Fill(hit.time);
+        Hist->fHitEDep->Fill(hit.edep);
+      }
+    }
   }
 
   //-----------------------------------------------------------------------------

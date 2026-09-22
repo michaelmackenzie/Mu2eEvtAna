@@ -11,10 +11,17 @@
 
 // EventNtuple includes
 #include "EventNtuple/inc/LineSeedInfo.hh"
+#include "EventNtuple/inc/ComboHitInfo.hh"
+
+// local includes
+#include "Mu2eEvtAna/inc/GlobalConstants.h"
 
 namespace Mu2eEvtAna {
   struct LineSeed_t {
     const mu2e::LineSeedInfo* seed_;
+    // The combo hits of this line seed, only available if the job stored this collection's hit
+    // list (EventNtupleMaker's lineseeds.fillHitsFor); null otherwise
+    const std::vector<mu2e::EventNtupleComboHitInfo>* hits_;
 
     //-------------------------------------------------
     // Accessors
@@ -23,6 +30,7 @@ namespace Mu2eEvtAna {
     int   NHits()      const { return (seed_) ? seed_->nhits      : -1    ; }
     int   NStrawHits() const { return (seed_) ? seed_->nStrawHits : -1    ; }
     float T0()         const { return (seed_) ? seed_->t0         :  0.f  ; }
+    float EDep()       const { return (seed_) ? seed_->edep       : -1.f  ; }
     float D0()         const { return (seed_) ? seed_->d0         : -1.e6 ; }
     float Phi0()       const { return (seed_) ? seed_->phi0       : -1.e6 ; }
     float Z0()         const { return (seed_) ? seed_->z0         : -1.e6 ; }
@@ -36,12 +44,27 @@ namespace Mu2eEvtAna {
     bool  HasCalo()    const { return ECalo() >= 0.f; }
 
     //-------------------------------------------------
+    // Combo hit accessors
+
+    bool   HasHits()    const { return hits_ != nullptr; }
+    int    NComboHits() const { return (hits_) ? int(hits_->size()) : -1; }
+
+    //-------------------------------------------------
     // Additional functions
 
     bool IsGood() const { return Status() > 0; }
 
+    // See TimeCluster_t::NHitsAboveZ()
+    int NHitsAboveZ(const float ZMin = kTimeClusterHitZMin) const {
+      if(!hits_) return -1;
+      int nhits(0);
+      for(const auto& hit : *hits_) if(hit.pos.z() > ZMin) ++nhits;
+      return nhits;
+    }
+
     void Reset() {
       seed_ = nullptr;
+      hits_ = nullptr;
     }
 
     LineSeed_t() { Reset(); }

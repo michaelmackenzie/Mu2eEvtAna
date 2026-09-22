@@ -22,6 +22,15 @@ namespace Mu2eEvtAna {
     TH1F* fECalo;
     TH1F* fTCalo;
     TH1F* fHasCalo;
+
+    // Combo hit information, only filled for collections whose hit lists were stored
+    TH1F* fHasHits;
+    TH1F* fNComboHits;
+    TH1F* fNHitsAboveZ; // N(hits with z > kTimeClusterHitZMin), the downstream-activity observable
+    TH1F* fHitZ;
+    TH1F* fHitR;
+    TH1F* fHitTime;
+    TH1F* fHitEDep;
   };
 
 }

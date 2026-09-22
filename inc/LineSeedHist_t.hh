@@ -16,6 +16,7 @@ namespace Mu2eEvtAna {
     TH1F* fNHits;
     TH1F* fNStrawHits;
     TH1F* fT0;
+    TH1F* fEDep;
     TH1F* fD0;
     TH1F* fPhi0;
     TH1F* fZ0;
@@ -27,6 +28,15 @@ namespace Mu2eEvtAna {
     TH1F* fECalo;
     TH1F* fTCalo;
     TH1F* fHasCalo;
+
+    // Combo hit information, only filled for collections whose hit lists were stored
+    TH1F* fHasHits;
+    TH1F* fNComboHits;
+    TH1F* fNHitsAboveZ;
+    TH1F* fHitZ;
+    TH1F* fHitR;
+    TH1F* fHitTime;
+    TH1F* fHitEDep;
 
     // Matching to a reconstructed track / time cluster (filled by Run1BAna)
     TH1F* fMatchedTrackDt;

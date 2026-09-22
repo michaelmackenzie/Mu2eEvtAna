@@ -67,6 +67,13 @@ namespace Mu2eEvtAna {
     std::vector<TString> tc_names_;
     std::vector<TString> ls_names_;
 
+    // Index into tc_names_ of the nominal (target-origin electron) time cluster collection,
+    // kNominalTimeClusters, or -1 if this ntuple does not have it. Set by InitializeInput().
+    int nominal_tc_ = -1;
+    // Whether that collection's combo hit lists were stored, i.e. whether the hit-based cuts can
+    // be evaluated at all (EventNtupleMaker's timeclusters.fillHitsFor). Set by InitializeInput().
+    bool nominal_tc_hits_ = false;
+
     // Per-collection data, indexed to match tc_names_/ls_names_
     std::vector<std::vector<TimeCluster_t>> time_clusters_; // [collection][cluster]
     std::vector<std::vector<LineSeed_t>>    line_seeds_;    // [collection][seed]

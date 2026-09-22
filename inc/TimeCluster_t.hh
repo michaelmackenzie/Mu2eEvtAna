@@ -11,10 +11,17 @@
 
 // EventNtuple includes
 #include "EventNtuple/inc/TimeClusterInfo.hh"
+#include "EventNtuple/inc/ComboHitInfo.hh"
+
+// local includes
+#include "Mu2eEvtAna/inc/GlobalConstants.h"
 
 namespace Mu2eEvtAna {
   struct TimeCluster_t {
     const mu2e::EventNtupleTimeClusterInfo* cluster_;
+    // The combo hits of this time cluster, only available if the job stored this collection's hit
+    // list (EventNtupleMaker's timeclusters.fillHitsFor); null otherwise
+    const std::vector<mu2e::EventNtupleComboHitInfo>* hits_;
 
     //-------------------------------------------------
     // Accessors
@@ -30,12 +37,31 @@ namespace Mu2eEvtAna {
     bool  HasCalo()    const { return ECalo() >= 0.f; }
 
     //-------------------------------------------------
+    // Combo hit accessors
+
+    bool   HasHits()    const { return hits_ != nullptr; }
+    int    NComboHits() const { return (hits_) ? int(hits_->size()) : -1; }
+
+    //-------------------------------------------------
     // Additional functions
 
     float R() const { return std::sqrt(X()*X() + Y()*Y()); }
 
+    // N(combo hits) of this cluster downstream of ZMin (tracker coordinates, mm). The downstream
+    // end of the tracker is the side facing the calorimeter, so this counts the hits of a cluster
+    // that reached it -- a handle on charged activity pointing at a calo cluster. Returns -1 if
+    // this collection's hit list was not stored, so "no hits stored" is distinguishable from
+    // "no hits above ZMin"; check HasHits() before cutting on it.
+    int NHitsAboveZ(const float ZMin = kTimeClusterHitZMin) const {
+      if(!hits_) return -1;
+      int nhits(0);
+      for(const auto& hit : *hits_) if(hit.pos.z() > ZMin) ++nhits;
+      return nhits;
+    }
+
     void Reset() {
       cluster_ = nullptr;
+      hits_    = nullptr;
     }
 
     TimeCluster_t() { Reset(); }

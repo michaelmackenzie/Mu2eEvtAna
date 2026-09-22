@@ -40,13 +40,33 @@ namespace Mu2eEvtAna {
     time_clusters_.assign(tc_names_.size(), std::vector<TimeCluster_t>());
     line_seeds_.assign(ls_names_.size(), std::vector<LineSeed_t>());
 
+    // Locate the nominal (target-origin electron) time cluster collection and check whether its
+    // combo hit lists were stored -- the hit-based cuts below are only evaluable if they were.
+    nominal_tc_ = -1;
+    for(size_t icoll = 0; icoll < tc_names_.size(); ++icoll) {
+      if(tc_names_[icoll] == kNominalTimeClusters) { nominal_tc_ = int(icoll); break; }
+    }
+    nominal_tc_hits_ = nominal_tc_ >= 0 && event_->HasTimeClusterHits(kNominalTimeClusters);
+
     if(verbose_ > -1) {
       printf("Run1BAna::%s: Found %zu time cluster collection(s):", __func__, tc_names_.size());
-      for(const auto& name : tc_names_) printf(" %s", name.Data());
+      for(const auto& name : tc_names_) printf(" %s%s", name.Data(),
+                                               (event_->HasTimeClusterHits(name.Data())) ? " (+hits)" : "");
       printf("\n");
       printf("Run1BAna::%s: Found %zu line seed collection(s):", __func__, ls_names_.size());
-      for(const auto& name : ls_names_) printf(" %s", name.Data());
+      for(const auto& name : ls_names_) printf(" %s%s", name.Data(),
+                                               (event_->HasLineSeedHits(name.Data())) ? " (+hits)" : "");
       printf("\n");
+    }
+
+    // Warn once, regardless of verbosity: without these the hit-based part of the set 74 veto is
+    // silently skipped, which changes what that set counts
+    if(nominal_tc_ < 0) {
+      printf("Run1BAna::%s: WARNING: no \"%s\" collection in this ntuple -- the N(time cluster hits with z > %.0f mm) veto is disabled\n",
+             __func__, kNominalTimeClusters, kTimeClusterHitZMin);
+    } else if(!nominal_tc_hits_) {
+      printf("Run1BAna::%s: WARNING: the \"%s\" hit lists were not stored (timeclusters.fillHitsFor) -- the N(time cluster hits with z > %.0f mm) veto is disabled\n",
+             __func__, kNominalTimeClusters, kTimeClusterHitZMin);
     }
     return 0;
   }
@@ -135,6 +155,7 @@ namespace Mu2eEvtAna {
       for(const auto& cluster : clusters) {
         TimeCluster_t tc;
         tc.cluster_ = cluster.timecluster;
+        tc.hits_    = cluster.hits; // null unless this collection's hit list was stored
         coll.emplace_back(tc);
       }
     }
@@ -150,6 +171,7 @@ namespace Mu2eEvtAna {
       for(const auto& seed : seeds) {
         LineSeed_t ls;
         ls.seed_ = seed.lineseed;
+        ls.hits_ = seed.hits; // null unless this collection's hit list was stored
         coll.emplace_back(ls);
       }
     }
@@ -205,6 +227,16 @@ namespace Mu2eEvtAna {
         for(auto& tc : time_clusters_[icoll]) {
           if(!tc.HasCalo()) continue;
           if(std::fabs(tc.ECalo() - E) < kCaloMatchEps && std::fabs(tc.TCalo() - T) < kCaloMatchEps) { cls.time_cluster_ = &tc; break; }
+        }
+      }
+
+      // Best matched time cluster from the nominal collection specifically -- the loop above takes
+      // whichever collection matches first, which need not be that one
+      cls.nom_time_cluster_ = nullptr;
+      if(nominal_tc_ >= 0) {
+        for(auto& tc : time_clusters_[nominal_tc_]) {
+          if(!tc.HasCalo()) continue;
+          if(std::fabs(tc.ECalo() - E) < kCaloMatchEps && std::fabs(tc.TCalo() - T) < kCaloMatchEps) { cls.nom_time_cluster_ = &tc; break; }
         }
       }
 
@@ -277,6 +309,18 @@ namespace Mu2eEvtAna {
     cut_flow_.ResetEvent();
     FillEventHist(evt_hists_[0]); // all events with well defined inputs
 
+    // Every time cluster / line seed of the event, from every collection. Only set 0 ("All
+    // events") is event-level; the selections above it are per-calo-cluster, so filling a
+    // per-event object into them would not mean the same thing.
+    // FIXME: the time cluster / line seed histogram sets booked for the other selections are
+    // still never filled -- they need a per-calo-cluster definition first.
+    for(size_t icoll = 0; icoll < tc_names_.size(); ++icoll) {
+      for(const auto& tc : time_clusters_[icoll]) FillTimeClusterHist(tcs_hists_[0], &tc);
+    }
+    for(size_t icoll = 0; icoll < ls_names_.size(); ++icoll) {
+      for(const auto& seed : line_seeds_[icoll]) FillLineSeedHist(lns_hists_[0], &seed);
+    }
+
     for(int icls = 0; icls < evt_.ncalo_clusters_; ++icls) {
       const auto cluster = &calo_clusters_[icls];
       cut_flow_.Increment("has_cluster");
@@ -319,6 +363,14 @@ namespace Mu2eEvtAna {
             if(!trk_veto) {
               FillCaloClusterHist(cls_hists_[73], cluster);
               trk_veto |= cluster->line_seed_ != nullptr;
+              // Downstream tracker activity pointing at this cluster: require the matched nominal
+              // (target-origin electron) time cluster to have fewer than kTCHitVetoNHits hits at
+              // the calorimeter end of the tracker. Skipped if that collection's hit lists were
+              // not stored, which InitializeInput() warns about.
+              const auto nom_tc = cluster->nom_time_cluster_;
+              if(nominal_tc_hits_ && nom_tc && nom_tc->HasHits()) {
+                trk_veto |= nom_tc->NHitsAboveZ(kTimeClusterHitZMin) >= kTCHitVetoNHits;
+              }
               if(!trk_veto) {
                 FillCaloClusterHist(cls_hists_[74], cluster);
               }

@@ -31,7 +31,12 @@ namespace Mu2eEvtAna {
     // analysis module, not by the base Mu2eEvtAna -- e.g. Run1BAna::MatchCaloClusters().
     Track_t*       line_        ; // best matched track (line fit)
     LineSeed_t*    line_seed_   ; // best matched line seed
-    TimeCluster_t* time_cluster_; // best matched time cluster
+    TimeCluster_t* time_cluster_; // best matched time cluster, from any collection
+    // Best matched time cluster from the nominal (target-origin electron) collection specifically.
+    // time_cluster_ above searches the collections in whatever order they were discovered, so it
+    // is not necessarily from the nominal one; a selection that depends on which finder produced
+    // the cluster wants this instead.
+    TimeCluster_t* nom_time_cluster_;
     CRVCluster_t*  crv_cluster_ ; // best matched CRV coincidence cluster
 
     // Derived hit-based quantities, cached by Init() so repeated accessor calls don't
@@ -253,6 +258,7 @@ namespace Mu2eEvtAna {
       line_ = nullptr;
       line_seed_ = nullptr;
       time_cluster_ = nullptr;
+      nom_time_cluster_ = nullptr;
       crv_cluster_ = nullptr;
 
       is_init_ = false;
