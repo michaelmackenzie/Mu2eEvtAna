@@ -328,8 +328,8 @@ int cnv_ana(TString input, int Mode = 0, Long64_t max_entries = -1, Long64_t fir
   return ProcessWithThreads(kConvAna, input, Mode, max_entries, first_entry, n_threads, name_tag);
 }
 
-int run1b_ana(TString dataset, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1) {
-  return ProcessWithThreads(kRun1BAna, dataset, Mode, max_entries, first_entry, n_threads);
+int run1b_ana(TString input, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1, TString name_tag = "") {
+  return ProcessWithThreads(kRun1BAna, input, Mode, max_entries, first_entry, n_threads, name_tag);
 }
 
 #endif
