@@ -14,175 +14,192 @@ namespace Mu2eEvtAna {
   struct Tree_t {
 
     // Event info
-    int fRun;
-    int fSubRun;
-    int fEvent;
-    float fWeight = 1.f;
-    float fTrain;
+    int   run;
+    int   subrun;
+    int   event;
+    float weight;
+    float train;
 
     // Track information
-    float fTrkP;
-    float fTrkT0;
-    float fTrkD0;
-    float fTrkTanDip;
-    float fTrkCosTheta;
-    float fTrkCluster;
-    float fTrkEP;
-    float fTrkDt;
-    float fTrkRMax;
-    float fTrkActiveRatio;
-    float fTrkNullRatio;
-    float fTrkFitCon;
-    float fTrkLogFitCon;
-    float fTrkTZSlope;
-    float fTrkTZSlopeSig;
-    float fTrkTZSlopeRatio;
-    float fTrkPExitDiff;
-    float fTrkQual;
-    float fTrkPID;
-    float fTrkOnlyPID;
-    float fTrkCosmicID;
-    float fTrkCharge;
-    float fTrkMCDp;
-    float fTrkMCPDG;
+    float trk_p;
+    float trk_t0;
+    float trk_d0;
+    float trk_tandip;
+    float trk_cos;
+    float trk_cluster;
+    float trk_ep;
+    float trk_dt;
+    float trk_rmax;
+    float trk_nactive;
+    float trk_active_ratio;
+    float trk_null_ratio;
+    float trk_active_mat_ratio;
+    float trk_fitcon;
+    float trk_logfitcon;
+    float trk_momerr;
+    float trk_t0err;
+    float trk_tzslope;
+    float trk_tzslope_sig;
+    float trk_tzslope_ratio;
+    float trk_pexit_diff;
+    float trk_qual;
+    float trk_pid;
+    float trk_trkonlypid;
+    float trk_altqual;
+    float trk_altpid;
+    float trk_cosmicid;
+    float trk_charge;
+    float trk_min_crv_time;
+    int   trk_nst_down; // intersections
+    int   trk_nst_up;
+    int   trk_stboundary;
+    int   trk_nipa;
+    int   trk_opa;
+    int   trk_tsda;
+    float trk_mc_dp; // MC info
+    float trk_mc_pdg;
 
     // CRV information
-    float fCRVZ;
-    float fCRVDeltaT;
-    float fCRVNPulses;
-    float fCRVNPe;
-    float fCRVNPePP;
+    float crv_z;
+    float crv_deltat;
+    float crv_npulses;
+    float crv_npe;
+    float crv_npepp;
 
     //----------------------------------------------------------
     // Track quality info
 
-    float fTrkQual_nactive;
-    float fTrkQual_activehitsfraction;
-    float fTrkQual_nullhitsfraction;
-    float fTrkQual_activematsitesfraction;
-    float fTrkQual_fitcons;
-    float fTrkQual_momerr;
-    float fTrkQual_t0err;
+    float trkqual_nactive;
+    float trkqual_activehitsfraction;
+    float trkqual_nullhitsfraction;
+    float trkqual_activematsitesfraction;
+    float trkqual_fitcons;
+    float trkqual_momerr;
+    float trkqual_t0err;
 
     //----------------------------------------------------------
     // Specific for TReflectionAna
 
     // Upstream track info
-    float fRefl_p_us;
-    float fRefl_pt_us;
-    float fRefl_cos_us;
-    float fRefl_d0_us;
-    float fRefl_r_us;
-    float fRefl_rmax_us;
-    float fRefl_rmin_us;
-    float fRefl_ep_us;
-    int fRefl_nhits_us;
-    int fRefl_q_us;
-    int fRefl_stboundary_us;
-    int fRefl_stinters_us;
-    int fRefl_triggered_us;
+    float refl_p_us;
+    float refl_pt_us;
+    float refl_cos_us;
+    float refl_d0_us;
+    float refl_r_us;
+    float refl_rmax_us;
+    float refl_rmin_us;
+    float refl_ep_us;
+    int refl_nhits_us;
+    int refl_q_us;
+    int refl_stboundary_us;
+    int refl_stinters_us;
+    int refl_triggered_us;
 
     // Downstream track info
-    float fRefl_p_ds;
-    float fRefl_pt_ds;
-    float fRefl_cos_ds;
-    float fRefl_d0_ds;
-    float fRefl_r_ds;
-    float fRefl_rmax_ds;
-    float fRefl_rmin_ds;
-    float fRefl_ep_ds;
-    int fRefl_nhits_ds;
-    int fRefl_q_ds;
-    int fRefl_stboundary_ds;
-    int fRefl_stinters_ds;
-    int fRefl_triggered_ds;
+    float refl_p_ds;
+    float refl_pt_ds;
+    float refl_cos_ds;
+    float refl_d0_ds;
+    float refl_r_ds;
+    float refl_rmax_ds;
+    float refl_rmin_ds;
+    float refl_ep_ds;
+    int refl_nhits_ds;
+    int refl_q_ds;
+    int refl_stboundary_ds;
+    int refl_stinters_ds;
+    int refl_triggered_ds;
 
     // Comparison info
-    float fRefl_dp;
-    float fRefl_dt0;
-    float fRefl_dtfront;
+    float refl_dp;
+    float refl_dt0;
+    float refl_dtfront;
 
     // Photon CNN info
-    std::vector<float> fCrystalE;
-    std::vector<float> fCrystalT;
+    std::vector<float> crystal_e;
+    std::vector<float> crystal_t;
 
     // TTree
-    TTree* fTree = nullptr;
+    TTree* tree = nullptr;
 
     Tree_t() { Reset(); }
 
     void Reset() {
 
-      fRun = 0;
-      fSubRun = 0;
-      fEvent = 0;
-      fWeight = 1.f;
-      fTrain = 0.f;
+      run = 0;
+      subrun = 0;
+      event = 0;
+      weight = 1.f;
+      train = 0.f;
 
-      fTrkP = 0.f;
-      fTrkT0 = 0.f;
-      fTrkD0 = 0.f;
-      fTrkTanDip = 0.f;
-      fTrkCluster = 0.f;
-      fTrkEP = 0.f;
-      fTrkDt = 0.f;
-      fTrkRMax = 0.f;
-      fTrkActiveRatio = 0.f;
-      fTrkNullRatio = 0.f;
-      fTrkFitCon = 0.f;
-      fTrkLogFitCon = 0.f;
-      fTrkTZSlope = 0.f;
-      fTrkTZSlopeSig = 0.f;
-      fTrkTZSlopeRatio = 0.f;
-      fTrkMCDp = 0.f;
-      fTrkMCPDG = 0.f;
+      trk_p = 0.f;
+      trk_t0 = 0.f;
+      trk_d0 = 0.f;
+      trk_tandip = 0.f;
+      trk_cluster = 0.f;
+      trk_ep = 0.f;
+      trk_dt = 0.f;
+      trk_rmax = 0.f;
+      trk_nactive = 0.f;
+      trk_active_ratio = 0.f;
+      trk_null_ratio = 0.f;
+      trk_active_mat_ratio = 0.f;
+      trk_fitcon = 0.f;
+      trk_logfitcon = 0.f;
+      trk_momerr = 0.f;
+      trk_t0err = 0.f;
+      trk_tzslope = 0.f;
+      trk_tzslope_sig = 0.f;
+      trk_tzslope_ratio = 0.f;
+      trk_mc_dp = 0.f;
+      trk_mc_pdg = 0.f;
 
-      fCRVZ = 0.f;
-      fCRVDeltaT = 0.f;
-      fCRVNPulses = 0.f;
-      fCRVNPe = 0.f;
-      fCRVNPePP = 0.f;
+      crv_z = 0.f;
+      crv_deltat = 0.f;
+      crv_npulses = 0.f;
+      crv_npe = 0.f;
+      crv_npepp = 0.f;
 
-      fTrkQual_nactive = 0.f;
-      fTrkQual_activehitsfraction = 0.f;
-      fTrkQual_nullhitsfraction = 0.f;
-      fTrkQual_activematsitesfraction = 0.f;
-      fTrkQual_fitcons = 0.f;
-      fTrkQual_momerr = 0.f;
-      fTrkQual_t0err = 0.f;
+      trkqual_nactive = 0.f;
+      trkqual_activehitsfraction = 0.f;
+      trkqual_nullhitsfraction = 0.f;
+      trkqual_activematsitesfraction = 0.f;
+      trkqual_fitcons = 0.f;
+      trkqual_momerr = 0.f;
+      trkqual_t0err = 0.f;
 
-      fRefl_p_us = 0.f;
-      fRefl_pt_us = 0.f;
-      fRefl_cos_us = 0.f;
-      fRefl_d0_us = 0.f;
-      fRefl_r_us = 0.f;
-      fRefl_rmax_us = 0.f;
-      fRefl_rmin_us = 0.f;
-      fRefl_ep_us = 0.f;
-      fRefl_nhits_us = 0;
-      fRefl_q_us = 0;
-      fRefl_stboundary_us = 0;
-      fRefl_stinters_us = 0;
-      fRefl_triggered_us = 0;
-      fRefl_p_ds = 0.f;
-      fRefl_pt_ds = 0.f;
-      fRefl_cos_ds = 0.f;
-      fRefl_d0_ds = 0.f;
-      fRefl_r_ds = 0.f;
-      fRefl_rmax_ds = 0.f;
-      fRefl_rmin_ds = 0.f;
-      fRefl_ep_ds = 0.f;
-      fRefl_nhits_ds = 0;
-      fRefl_q_ds = 0;
-      fRefl_stboundary_ds = 0;
-      fRefl_stinters_ds = 0;
-      fRefl_triggered_ds = 0;
-      fRefl_dp = 0.f;
-      fRefl_dt0 = 0.f;
-      fRefl_dtfront = 0.f;
+      refl_p_us = 0.f;
+      refl_pt_us = 0.f;
+      refl_cos_us = 0.f;
+      refl_d0_us = 0.f;
+      refl_r_us = 0.f;
+      refl_rmax_us = 0.f;
+      refl_rmin_us = 0.f;
+      refl_ep_us = 0.f;
+      refl_nhits_us = 0;
+      refl_q_us = 0;
+      refl_stboundary_us = 0;
+      refl_stinters_us = 0;
+      refl_triggered_us = 0;
+      refl_p_ds = 0.f;
+      refl_pt_ds = 0.f;
+      refl_cos_ds = 0.f;
+      refl_d0_ds = 0.f;
+      refl_r_ds = 0.f;
+      refl_rmax_ds = 0.f;
+      refl_rmin_ds = 0.f;
+      refl_ep_ds = 0.f;
+      refl_nhits_ds = 0;
+      refl_q_ds = 0;
+      refl_stboundary_ds = 0;
+      refl_stinters_ds = 0;
+      refl_triggered_ds = 0;
+      refl_dp = 0.f;
+      refl_dt0 = 0.f;
+      refl_dtfront = 0.f;
 
-      fCrystalE.clear();
-      fCrystalT.clear();
+      crystal_e.clear();
+      crystal_t.clear();
     }
   };
 } // namespace ConvAna

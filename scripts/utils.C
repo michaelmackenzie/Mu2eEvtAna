@@ -18,6 +18,50 @@ TString GetDatasetFileList(TString dataset_name) {
 }
 
 /**
+ * Check whether the given name corresponds to a known dataset
+ */
+bool IsKnownDataset(TString name) {
+  for(auto config : DATA::datasets()) {
+    if(config.name_ == name) return true;
+  }
+  return false;
+}
+
+/**
+ * Resolve an input specification into something Mu2eEvtAna::AddFile can read.
+ * The input can be:
+ *   - a known dataset name  --> the corresponding file list
+ *   - a single ntuple file  (*.root, local path or xrootd URL)
+ *   - a file list of ntuples (any other existing file)
+ * Returns "" if the input cannot be resolved.
+ */
+TString ResolveInput(TString input) {
+  if(input == "") return "";
+  TString file_list = GetDatasetFileList(input);
+  if(file_list != "") return file_list;
+  // not a dataset name, so treat it as a file path
+  if(input.BeginsWith("root://") || input.BeginsWith("http://") || input.BeginsWith("https://")) return input;
+  if(!gSystem->AccessPathName(input)) return input; // file exists locally
+  cout << "Input " << input << " is neither a known dataset nor an existing file!" << endl;
+  return "";
+}
+
+/**
+ * Default output name tag for a given input specification:
+ *   - the dataset name for a known dataset
+ *   - the file name without its directory or extension otherwise
+ */
+TString DefaultNameTag(TString input) {
+  if(IsKnownDataset(input)) return input;
+  TString tag = gSystem->BaseName(input.Data());
+  if(tag.EndsWith(".root" )) tag.Remove(tag.Length()-5);
+  if(tag.EndsWith(".files")) tag.Remove(tag.Length()-6);
+  tag.ReplaceAll("/", "_"); // just in case
+  tag.ReplaceAll(" ", "_");
+  return tag;
+}
+
+/**
  * Split a file list into N parts, writing each part to a separate file.
  * Returns a vector of output file paths.
  */

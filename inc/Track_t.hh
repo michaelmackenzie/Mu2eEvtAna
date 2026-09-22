@@ -88,9 +88,13 @@ namespace Mu2eEvtAna {
     float TZSlopeUnc() const { return (track_) ? tz_slope_unc_ :    -1.f; }
     bool  OPAInter  () const { return (track_ && track_->trk) ? track_->trk->opainter : false; }
     bool  TSDAInter () const { return (track_ && track_->trk) ? track_->trk->tsdainter : false; }
-    int   NSTInter  () const {
-      return (track_ && track_->trk) ? track_->trk->nstup + track_->trk->nstdown : 0;
+    int   NSTInterUp  () const {
+      return (track_ && track_->trk) ? track_->trk->nstup : 0;
     }
+    int   NSTInterDown  () const {
+      return (track_ && track_->trk) ? track_->trk->nstdown : 0;
+    }
+    int   NSTInter  () const { return NSTInterUp() + NSTInterDown(); }
     int   NIPAInter  () const {
       return (track_ && track_->trk) ? track_->trk->nipaup + track_->trk->nipadown : 0;
     }
@@ -479,7 +483,7 @@ namespace Mu2eEvtAna {
     float CDepth  () const { auto tch = TCH(); return (!tch) ? -1.e6 : tch->cdepth; }
     float EPFront () const {
       const float ecl(ECluster()), p(PFront());
-      return (p > 0.) ? ecl/p : 0.;
+      return (p > 0. && ecl > 0.) ? ecl/p : 0.;
     }
 
     //----------------------------------------------
