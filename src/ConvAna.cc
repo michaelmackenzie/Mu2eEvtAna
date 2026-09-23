@@ -13,44 +13,46 @@ namespace Mu2eEvtAna {
 
     // Initialize the MVA models
 
-    trkqual_ = new TMVA::Reader("!Color:!Silent");
-    MVATools::InitializeVariables(*trkqual_, "TrkQual", tree_, trkqual_version_);
-    try {
-      trkqual_->BookMVA("TrkQual", MVAFilePath() + "/Mu2eEvtAna/data/trkqual_MLP.weights.xml");
-    } catch(const std::runtime_error& e) {
-      std::cerr << "Error booking TrkQual! " << e.what() << std::endl;
-      delete trkqual_;
-      trkqual_ = nullptr;
-    }
+    if(evaluate_mvas_ > 0) {
+      trkqual_ = new TMVA::Reader("!Color:!Silent");
+      MVATools::InitializeVariables(*trkqual_, "TrkQual", tree_, trkqual_version_);
+      try {
+        trkqual_->BookMVA("TrkQual", MVAFilePath() + "/Mu2eEvtAna/data/trkqual_MLP.weights.xml");
+      } catch(const std::runtime_error& e) {
+        std::cerr << "Error booking TrkQual! " << e.what() << std::endl;
+        delete trkqual_;
+        trkqual_ = nullptr;
+      }
 
-    try {
-      pid_ = new TMVA::Reader("!Color:!Silent");
-      MVATools::InitializeVariables(*pid_, "PID", tree_, pid_version_);
-      pid_->BookMVA("PID", MVAFilePath() + "/Mu2eEvtAna/data/pid_MLP.weights.xml");
-    } catch(const std::runtime_error& e) {
-      std::cerr << "Error booking PID! " << e.what() << std::endl;
-      delete pid_;
-      pid_ = nullptr;
-    }
+      try {
+        pid_ = new TMVA::Reader("!Color:!Silent");
+        MVATools::InitializeVariables(*pid_, "PID", tree_, pid_version_);
+        pid_->BookMVA("PID", MVAFilePath() + "/Mu2eEvtAna/data/pid_MLP.weights.xml");
+      } catch(const std::runtime_error& e) {
+        std::cerr << "Error booking PID! " << e.what() << std::endl;
+        delete pid_;
+        pid_ = nullptr;
+      }
 
-    try {
-      trkpid_ = new TMVA::Reader("!Color:!Silent");
-      MVATools::InitializeVariables(*trkpid_, "TrkPID", tree_, trkpid_version_);
-      trkpid_->BookMVA("TrkPID", MVAFilePath() + "/Mu2eEvtAna/data/trkpid_MLP.weights.xml");
-    } catch(const std::runtime_error& e) {
-      std::cerr << "Error booking TrkPID! " << e.what() << std::endl;
-      delete trkpid_;
-      trkpid_ = nullptr;
-    }
+      try {
+        trkpid_ = new TMVA::Reader("!Color:!Silent");
+        MVATools::InitializeVariables(*trkpid_, "TrkPID", tree_, trkpid_version_);
+        trkpid_->BookMVA("TrkPID", MVAFilePath() + "/Mu2eEvtAna/data/trkpid_MLP.weights.xml");
+      } catch(const std::runtime_error& e) {
+        std::cerr << "Error booking TrkPID! " << e.what() << std::endl;
+        delete trkpid_;
+        trkpid_ = nullptr;
+      }
 
-    try {
-      cosmic_id_ = new TMVA::Reader("!Color:!Silent");
-      MVATools::InitializeVariables(*cosmic_id_, "CosmicID", tree_, cosmic_id_version_);
-      cosmic_id_->BookMVA("CosmicID", MVAFilePath() + "/Mu2eEvtAna/data/cosmicid_MLP.weights.xml");
-    } catch(const std::runtime_error& e) {
-      std::cerr << "Error booking CosmicID! " << e.what() << std::endl;
-      delete cosmic_id_;
-      cosmic_id_ = nullptr;
+      try {
+        cosmic_id_ = new TMVA::Reader("!Color:!Silent");
+        MVATools::InitializeVariables(*cosmic_id_, "CosmicID", tree_, cosmic_id_version_);
+        cosmic_id_->BookMVA("CosmicID", MVAFilePath() + "/Mu2eEvtAna/data/cosmicid_MLP.weights.xml");
+      } catch(const std::runtime_error& e) {
+        std::cerr << "Error booking CosmicID! " << e.what() << std::endl;
+        delete cosmic_id_;
+        cosmic_id_ = nullptr;
+      }
     }
   }
 
@@ -242,12 +244,14 @@ namespace Mu2eEvtAna {
       ValidateVariable(tree_.trk_tandip, "TrkTanDip");
       ValidateVariable(tree_.trk_cos, "TrkCosTheta");
       ValidateVariable(tree_.trk_rmax, "TrkRMax");
-      watch_->SetTime("MVAs");
-      trk_par.trkqual_ = (trkqual_) ? trkqual_->EvaluateMVA("TrkQual") : -999.f;
-      trk_par.pid_ = (pid_) ? pid_->EvaluateMVA("PID") : -999.f;
-      trk_par.trkpid_ = (trkpid_) ? trkpid_->EvaluateMVA("TrkPID") : -999.f;
-      trk_par.cosmic_id_ = (cosmic_id_) ? cosmic_id_->EvaluateMVA("CosmicID") : -999.f;
-      watch_->StopTime("MVAs");
+      if(evaluate_mvas_ > 0) {
+        watch_->SetTime("MVAs");
+        trk_par.trkqual_ = (trkqual_) ? trkqual_->EvaluateMVA("TrkQual") : -999.f;
+        trk_par.pid_ = (pid_) ? pid_->EvaluateMVA("PID") : -999.f;
+        trk_par.trkpid_ = (trkpid_) ? trkpid_->EvaluateMVA("TrkPID") : -999.f;
+        trk_par.cosmic_id_ = (cosmic_id_) ? cosmic_id_->EvaluateMVA("CosmicID") : -999.f;
+        watch_->StopTime("MVAs");
+      }
       // Reset the main ID with the new MVA scores
       trk_par.SetID(TrackID(&trk_par), 0);
     }

@@ -128,9 +128,9 @@ namespace Mu2eEvtAna {
     }
 
     virtual TString MVAFilePath() {
-      if(!gSystem) return ".";
+      if(!gSystem) return "."; // default to working dir
       TString muse_dir = gSystem->Getenv("MUSE_WORK_DIR");
-      if(muse_dir == "") return ".";
+      if(muse_dir == "") return "."; // default to working dir
       return muse_dir;
     }
 
