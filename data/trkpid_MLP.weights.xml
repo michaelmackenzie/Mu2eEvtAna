@@ -57,7 +57,7 @@
     <Class Name="Background" Index="1"/>
   </Classes>
   <Transformations NTransformations="1">
-    <Transform Name="Normalize">
+    <Transform UseOffsetOrNot="0" Name="Normalize">
       <Selection>
         <Input NInputs="4">
           <Input Type="Variable" Label="trktzsloperatio" Expression="trktzsloperatio"/>
