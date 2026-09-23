@@ -9,6 +9,9 @@
 // Global debug level
 int debug_level_ = 0;
 
+// Global flags
+bool use_xrootd_ = true;
+
 // Global analyzer pointers
 Mu2eEvtAna::Mu2eEvtAna* gMu2eAna = nullptr;
 Mu2eEvtAna::RMCAna* gRMCAna = nullptr;
@@ -118,6 +121,7 @@ int ProcessThreaded(AnalyzerType ana_type, TString name_tag, int Mode, Long64_t 
   ana->cache_size_ = 200000000U;
   ana->load_baskets_ = false;
   ana->report_rate_ = 5000;
+  ana->use_xrootd_ = use_xrootd_;
   ana->verbose_ = debug_level_;
 
   const int status = ana->Process(max_entries);
@@ -171,6 +175,7 @@ int ProcessWithThreads(AnalyzerType ana_type, TString input, int Mode,
     ana->cache_size_ = 200000000U;
     ana->load_baskets_ = false;
     ana->report_rate_ = 5000;
+    ana->use_xrootd_ = use_xrootd_;
     ana->verbose_ = debug_level_;
 
     const int status = ana->Process(max_entries);
