@@ -18,6 +18,7 @@
 #include "TChain.h"
 #include "TFile.h"
 #include "TDirectory.h"
+#include "TSystem.h"
 #include "TString.h"
 #include "TH1.h"
 #include "TH2.h"
@@ -124,6 +125,13 @@ namespace Mu2eEvtAna {
       case kMC: return "MC";
       }
       return Form("Unknown-%i", bit);
+    }
+
+    virtual TString MVAFilePath() {
+      if(!gSystem) return ".";
+      TString muse_dir = gSystem->Getenv("MUSE_WORK_DIR");
+      if(muse_dir == "") return ".";
+      return muse_dir;
     }
 
     virtual TString OutputFileName() { return "EvtAna." + name_ + ".root"; }
