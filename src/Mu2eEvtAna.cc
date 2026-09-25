@@ -439,7 +439,7 @@ namespace Mu2eEvtAna {
     Hist->fApproxTimeCaloToFront   = new TH1F("apprx_t_calo_front",Form("%s: time at Trk front from Calo center",Folder), 400,0,2000);
     Hist->fApproxTimeExtrapToFront = new TH1F("apprx_t_extrap_front",Form("%s: time at Trk front from extrapolation",Folder), 400,0,2000);
     Hist->fBarsOneEnd              = new TH1F("barsoneend" ,Form("%s: one ended bars"  ,Folder),  20,    0,  20);
-    Hist->fCrvPropdT               = new TH1F("crvpropdt  ",Form("%s: dT between CorrPropTime and StartTime",Folder),200, -50, 50);
+    Hist->fCrvPropdT               = new TH1F("crvpropdt"  ,Form("%s: dT between CorrPropTime and StartTime",Folder),200, -50, 50);
     Hist->fNSectors                = new TH1F("nsectors"   ,Form("%s: Number of sectors in a CRV Cluster",Folder),20, 0, 20);
     Hist->fNDiffLSectors           = new TH1F("ndifflsectors",Form("%s: Number of sectors in a CRV Cluster with different lengths",Folder),20, 0, 20);
     Hist->fBarsTwoEnd              = new TH1F("barstwoend" ,Form("%s: two ended bars"  ,Folder),  20,    0,  20);

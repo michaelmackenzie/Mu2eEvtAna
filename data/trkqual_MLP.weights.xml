@@ -60,7 +60,7 @@
     <Class Name="Background" Index="1"/>
   </Classes>
   <Transformations NTransformations="1">
-    <Transform Name="Normalize">
+    <Transform UseOffsetOrNot="0" Name="Normalize">
       <Selection>
         <Input NInputs="7">
           <Input Type="Variable" Label="nactive" Expression="nactive"/>

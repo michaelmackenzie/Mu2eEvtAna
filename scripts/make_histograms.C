@@ -41,10 +41,12 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
     gSystem->Exec("[ ! -d output ] && mkdir output");
   }
   // Check the token is available
-  TString token_str = gSystem->GetFromPipe("timeout 10 getToken; if [ $? -ne 0 ]; then echo Failed; else echo Passed; fi");
-  if(!token_str.Contains("Passed")) {
-    cout << "Failed to get token!\n";
-    return 1;
+  if(use_xrootd_) {
+    TString token_str = gSystem->GetFromPipe("timeout 10 getToken; if [ $? -ne 0 ]; then echo Failed; else echo Passed; fi");
+    if(!token_str.Contains("Passed")) {
+      cout << "Failed to get token!\n";
+      return 1;
+    }
   }
 
   if(file_input) { // a single ntuple file or a file list, process it directly

@@ -13,21 +13,47 @@ namespace Mu2eEvtAna {
 
     // Initialize the MVA models
 
-    trkqual_ = new TMVA::Reader("!Color:!Silent");
-    MVATools::InitializeVariables(*trkqual_, "TrkQual", tree_, trkqual_version_);
-    trkqual_->BookMVA("TrkQual", "Mu2eEvtAna/data/trkqual_MLP.weights.xml");
+    if(evaluate_mvas_ > 0) {
+      trkqual_ = new TMVA::Reader("!Color:!Silent");
+      MVATools::InitializeVariables(*trkqual_, "TrkQual", tree_, trkqual_version_);
+      try {
+        trkqual_->BookMVA("TrkQual", MVAFilePath() + "/Mu2eEvtAna/data/trkqual_MLP.weights.xml");
+      } catch(const std::runtime_error& e) {
+        std::cerr << "Error booking TrkQual! " << e.what() << std::endl;
+        delete trkqual_;
+        trkqual_ = nullptr;
+      }
 
-    pid_ = new TMVA::Reader("!Color:!Silent");
-    MVATools::InitializeVariables(*pid_, "PID", tree_, pid_version_);
-    pid_->BookMVA("PID", "Mu2eEvtAna/data/pid_MLP.weights.xml");
+      try {
+        pid_ = new TMVA::Reader("!Color:!Silent");
+        MVATools::InitializeVariables(*pid_, "PID", tree_, pid_version_);
+        pid_->BookMVA("PID", MVAFilePath() + "/Mu2eEvtAna/data/pid_MLP.weights.xml");
+      } catch(const std::runtime_error& e) {
+        std::cerr << "Error booking PID! " << e.what() << std::endl;
+        delete pid_;
+        pid_ = nullptr;
+      }
 
-    trkpid_ = new TMVA::Reader("!Color:!Silent");
-    MVATools::InitializeVariables(*trkpid_, "TrkPID", tree_, trkpid_version_);
-    trkpid_->BookMVA("TrkPID", "Mu2eEvtAna/data/trkpid_MLP.weights.xml");
+      try {
+        trkpid_ = new TMVA::Reader("!Color:!Silent");
+        MVATools::InitializeVariables(*trkpid_, "TrkPID", tree_, trkpid_version_);
+        trkpid_->BookMVA("TrkPID", MVAFilePath() + "/Mu2eEvtAna/data/trkpid_MLP.weights.xml");
+      } catch(const std::runtime_error& e) {
+        std::cerr << "Error booking TrkPID! " << e.what() << std::endl;
+        delete trkpid_;
+        trkpid_ = nullptr;
+      }
 
-    cosmic_id_ = new TMVA::Reader("!Color:!Silent");
-    MVATools::InitializeVariables(*cosmic_id_, "CosmicID", tree_, cosmic_id_version_);
-    cosmic_id_->BookMVA("CosmicID", "Mu2eEvtAna/data/cosmicid_MLP.weights.xml");
+      try {
+        cosmic_id_ = new TMVA::Reader("!Color:!Silent");
+        MVATools::InitializeVariables(*cosmic_id_, "CosmicID", tree_, cosmic_id_version_);
+        cosmic_id_->BookMVA("CosmicID", MVAFilePath() + "/Mu2eEvtAna/data/cosmicid_MLP.weights.xml");
+      } catch(const std::runtime_error& e) {
+        std::cerr << "Error booking CosmicID! " << e.what() << std::endl;
+        delete cosmic_id_;
+        cosmic_id_ = nullptr;
+      }
+    }
   }
 
 
@@ -218,12 +244,14 @@ namespace Mu2eEvtAna {
       ValidateVariable(tree_.trk_tandip, "TrkTanDip");
       ValidateVariable(tree_.trk_cos, "TrkCosTheta");
       ValidateVariable(tree_.trk_rmax, "TrkRMax");
-      watch_->SetTime("MVAs");
-      trk_par.trkqual_ = (trkqual_) ? trkqual_->EvaluateMVA("TrkQual") : -999.f;
-      trk_par.pid_ = (pid_) ? pid_->EvaluateMVA("PID") : -999.f;
-      trk_par.trkpid_ = (trkpid_) ? trkpid_->EvaluateMVA("TrkPID") : -999.f;
-      trk_par.cosmic_id_ = (cosmic_id_) ? cosmic_id_->EvaluateMVA("CosmicID") : -999.f;
-      watch_->StopTime("MVAs");
+      if(evaluate_mvas_ > 0) {
+        watch_->SetTime("MVAs");
+        trk_par.trkqual_ = (trkqual_) ? trkqual_->EvaluateMVA("TrkQual") : -999.f;
+        trk_par.pid_ = (pid_) ? pid_->EvaluateMVA("PID") : -999.f;
+        trk_par.trkpid_ = (trkpid_) ? trkpid_->EvaluateMVA("TrkPID") : -999.f;
+        trk_par.cosmic_id_ = (cosmic_id_) ? cosmic_id_->EvaluateMVA("CosmicID") : -999.f;
+        watch_->StopTime("MVAs");
+      }
       // Reset the main ID with the new MVA scores
       trk_par.SetID(TrackID(&trk_par), 0);
     }
@@ -675,23 +703,28 @@ namespace Mu2eEvtAna {
         prv_opt_id &= multi_trk; if(prv_opt_id) dev_cut_flow_.Increment("multi_trk");
         if(prv_opt_id) FillAllHistograms(81); // For input to Natalie's code
         prv_opt_id &= track_->PID() > 0.54f && track_->ECluster() > 0.; if(prv_opt_id) dev_cut_flow_.Increment("PID");
-        prv_opt_id &= track_->TanDipFront() > 0.575 && track_->TanDipFront() < 0.85; if(prv_opt_id) dev_cut_flow_.Increment("tan_dip");
+        prv_opt_id &= track_->TanDipFront() > 0.575f && track_->TanDipFront() < 0.85f; if(prv_opt_id) dev_cut_flow_.Increment("tan_dip");
         prv_opt_id &= track_->STBoundary() > 0; if(prv_opt_id) dev_cut_flow_.Increment("st_boundary");
         prv_opt_id &= track_->NSTInter() > 0; if(prv_opt_id) dev_cut_flow_.Increment("st_inter");
         prv_opt_id &= track_->OPAInter() == 0; if(prv_opt_id) dev_cut_flow_.Increment("opa_inter");
         prv_opt_id &= track_->TSDAInter() == 0; if(prv_opt_id) dev_cut_flow_.Increment("tsda_inter");
-        prv_opt_id &= track_->TrkQual() > 0.155; if(prv_opt_id) dev_cut_flow_.Increment("trkqual");
+        prv_opt_id &= track_->TrkQual() > 0.155f; if(prv_opt_id) dev_cut_flow_.Increment("trkqual");
         prv_opt_id &= track_->NActive() >= 20; if(prv_opt_id) dev_cut_flow_.Increment("nactive");
-        prv_opt_id &= track_->TErrMiddle() < 0.85; if(prv_opt_id) dev_cut_flow_.Increment("t0_err");
+        prv_opt_id &= track_->TErrMiddle() < 0.85f; if(prv_opt_id) dev_cut_flow_.Increment("t0_err");
         if(!Run1AID.CheckBit(kCRV)) {
           if(prv_opt_id) dev_cut_flow_.Increment("crv_veto");
-          prv_opt_id &= track_->PFront() > 100. && track_->PFront() < 110.;  if(prv_opt_id) dev_cut_flow_.Increment("momentum");
-          prv_opt_id &= track_->TFront() > 475. && track_->TFront() < 1650.; if(prv_opt_id) dev_cut_flow_.Increment("t_475");
-          if(prv_opt_id && track_->TFront() > 540.) {
+          prv_opt_id &= track_->PFront() > 100.f && track_->PFront() < 110.f;  if(prv_opt_id) dev_cut_flow_.Increment("momentum");
+          prv_opt_id &= track_->TFront() > 475.f && track_->TFront() < 1650.f; if(prv_opt_id) dev_cut_flow_.Increment("t_475");
+          if(prv_opt_id && track_->TFront() > 540.f) {
             dev_cut_flow_.Increment("t_540"); // don't actually apply this here
-            if(prv_opt_id && track_->TFront() > 640) {
+            if(prv_opt_id && track_->TFront() > 640.f) {
               dev_cut_flow_.Increment("t_640"); // don't actually apply this here
-              if(track_->PFront() > 103.34 && track_->PFront() < 104.74) dev_cut_flow_.Increment("sr_momentum");
+              if(track_->PFront() > 103.34f && track_->PFront() < 104.74f) {
+                dev_cut_flow_.Increment("sr_momentum");
+                if(verbose_ > 1) printf("CE: %4i %6i %6i : p = %f t = %f\n",
+                                        evt_.run_, evt_.subrun_, evt_.event_,
+                                        track_->PFront(), track_->TFront());
+              }
             }
           }
         }

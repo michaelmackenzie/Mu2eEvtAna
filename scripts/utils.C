@@ -11,7 +11,12 @@
 TString GetDatasetFileList(TString dataset_name) {
   for(auto config : DATA::datasets()) {
     if(config.name_ == dataset_name) {
-      return Form("Mu2eEvtAna/file_lists/%s.files", config.full_name_.Data());
+      TString dir = ".";
+      if(gSystem) {
+        TString muse_dir = gSystem->Getenv("MUSE_WORK_DIR");
+        if(muse_dir != "") dir = muse_dir;
+      }
+      return Form("%s/Mu2eEvtAna/file_lists/%s.files", dir.Data(), config.full_name_.Data());
     }
   }
   return "";
