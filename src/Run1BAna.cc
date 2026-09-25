@@ -378,7 +378,7 @@ namespace Mu2eEvtAna {
       const float min_time   =  500.f;
       const float max_time   = 1650.f;
       const bool  base_id    = (!mc_veto &&
-                                energy > max_energy && energy < min_energy
+                                energy > min_energy && energy < max_energy
                                 && time > min_time && time < max_time);
       const bool  pu_veto    = (ncr > 1 && ncr < 6 &&
                                 e1_r > 0.6f && e2_r > 0.8f &&
@@ -440,8 +440,10 @@ namespace Mu2eEvtAna {
       //------------------------------------------------
 
       if(base_id && pu_veto && pu_r_veto && e_tc) {
-        const int nhits = e_tc->NHits();
-        bool ce_id = nhits > 10 && nhits < 40;
+        const int tc_nhits = e_tc->NHits();
+        bool ce_id = tc_nhits > 10 && tc_nhits < 40;
+        ce_id &= e_line && e_line->NActive() > 0;
+        ce_id &= std::fabs(e_line->CosThetaFront()) > 0.985;
         if(ce_id) {
           FillCaloClusterHist(cls_hists_[80], cluster);
           FillTimeClusterHist(tcs_hists_[80], e_tc);
