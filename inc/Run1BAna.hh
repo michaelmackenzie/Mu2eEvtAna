@@ -63,6 +63,30 @@ namespace Mu2eEvtAna {
     // only after every track has been through InitTrack().
     void MatchCaloClusters();
 
+
+    void PrintClusterInfo(const char* title, const CaloCluster_t* cluster) {
+      if(!cluster) return;
+      printf("  %s: %4i:%8i:%8i E = %6.2f T = %6.1f E(MC) = %6.2f PDG = %4i SimEDep = %6.2f SimID = %3i\n",
+             title, evt_.run_, evt_.subrun_, evt_.event_,
+             cluster->Energy(), cluster->Time(), cluster->MCEDep(),
+             cluster->MCPDG(), cluster->MCSimEDep(), cluster->MCSimID());
+      for(size_t ihit = 0; ihit < cluster->Hits().size(); ++ihit) {
+        const auto mc = cluster->HitMC(ihit); // not hit.mc, see CaloCluster_t::hit_mc_
+        if(!mc) continue;
+        size_t nsim = mc->simParticleIds.size();
+        for(size_t index = 0; index < nsim; ++index) {
+          printf("    Sim hit: ID = %3i E = %6.2f T = %7.2f main-rel = %2i main-rem = %2i\n",
+                 mc->simParticleIds[index],
+                 mc->eDeps[index],
+                 mc->tDeps[index],
+                 mc->simRelRels[index],
+                 mc->simRelRems[index]
+                 );
+        }
+      }
+
+    }
+
     // Discovered collection names (from the input ntuple; may differ file to file)
     std::vector<TString> tc_names_;
     std::vector<TString> ls_names_;

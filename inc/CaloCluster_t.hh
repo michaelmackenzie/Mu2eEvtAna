@@ -5,6 +5,9 @@
 #ifndef MU2EEVTANA_CALOLUSTER_T_HH
 #define MU2EEVTANA_CALOLUSTER_T_HH
 
+// C++ includes
+#include <vector>
+
 // ROOT includes
 #include "Rtypes.h"
 
@@ -50,6 +53,14 @@ namespace Mu2eEvtAna {
     float e9_             ; // energy of 3x3 around the main hit
     float e25_            ; // energy of 5x5 around the main hit
     float second_moment_  ; // hit position second moment, weighted by hit energy
+
+    // TEMPORARY WORKAROUND (remove once EventNtuple/RooUtil calo hit MC linking is fixed):
+    // calohitsmc only holds clustered hits, in cluster order, but its caloHitIdx_ is filled with
+    // its own position, so rooutil's CaloHit::mc pairs reco hit i with MC hit i (wrong crystal
+    // for ~98% of clustered hits). Instead, match each reco hit to one of caloclustersmc.hits_
+    // (indices into calohitsmc) by crystal ID. hit_mc_[i] is the MC for Hits()[i], or nullptr.
+    // Use HitMC(index), never Hit(index).mc.
+    std::vector<const mu2e::CaloHitInfoMC*> hit_mc_;
 
     // crystal size
     constexpr static float crystal_dx_ = 34.; // crystal width
@@ -103,30 +114,30 @@ namespace Mu2eEvtAna {
       const float y = pos.y();
       return std::sqrt(x*x+y*y);
     }
+    // MC info for a hit (nullptr if none). See the hit_mc_ workaround note above.
+    const mu2e::CaloHitInfoMC* HitMC(size_t index) const {
+      if(!ValidHit(index) || index >= hit_mc_.size()) return nullptr;
+      return hit_mc_[index];
+    }
     float HitMCEDep(size_t index) const {
-      if(!ValidHit(index)) return 0.f;
-      const auto& hit = Hit(index);
-      if(!hit.mc) return 0.f;
-      return hit.mc->eDep;
+      const auto mc = HitMC(index);
+      if(!mc) return 0.f;
+      return mc->eDep;
     }
     const std::vector<int>& HitMCSimIDs(size_t index) const {
       static const std::vector<int> vec;
-      if(!ValidHit(index)) return vec;
-      const auto& hit = Hit(index);
-      if(!hit.mc) {
-        return vec;
-      }
-      return hit.mc->simParticleIds;
+      const auto mc = HitMC(index);
+      if(!mc) return vec;
+      return mc->simParticleIds;
     }
     float HitSimEDep(size_t index, int sim_id) const {
-      if(!ValidHit(index)) return 0.f;
-      const auto& hit = Hit(index);
-      if(!hit.mc) return 0.f;
-      const auto& ids = hit.mc->simParticleIds;
+      const auto mc = HitMC(index);
+      if(!mc) return 0.f;
+      const auto& ids = mc->simParticleIds;
       const size_t nsims = ids.size();
       float edep = 0.f;
       for(size_t sim_index = 0; sim_index < nsims; ++sim_index) {
-        if(sim_id == ids[sim_index]) edep += hit.mc->eDeps[sim_index];
+        if(sim_id == ids[sim_index]) edep += mc->eDeps[sim_index];
       }
       return edep;
     }
@@ -337,6 +348,7 @@ namespace Mu2eEvtAna {
       time_cluster_ = nullptr;
       nom_time_cluster_ = nullptr;
       crv_cluster_ = nullptr;
+      hit_mc_.clear();
 
       is_init_ = false;
       tmean_[0] = tmean_[1] = 0.f;
@@ -351,12 +363,15 @@ namespace Mu2eEvtAna {
 
     // Set the underlying cluster pointers and cache the derived hit-based quantities above
     // (TMean, TVar, MaxHitR, MaxHitExtent) so later accessor calls are O(1).
-    void Init(const rooutil::CaloCluster* cluster) {
+    // calohitsmc is the event's calohitsmc branch, needed for the temporary hit MC matching.
+    void Init(const rooutil::CaloCluster* cluster,
+              const std::vector<mu2e::CaloHitInfoMC>* calohitsmc = nullptr) {
       Reset();
       if(!cluster) return;
       cluster_ = cluster->calocluster;
       cluster_mc_ = cluster->caloclustermc;
       cc_ = cluster;
+      MatchHitMC(calohitsmc);
 
       tmean_[0] = CalcTMean(false);
       tmean_[1] = CalcTMean(true);
@@ -369,6 +384,29 @@ namespace Mu2eEvtAna {
       e25_ = CalcENeighbors(2.5*crystal_dx_);
       second_moment_ = CalcSecondMoment();
       is_init_ = true;
+    }
+
+    // TEMPORARY WORKAROUND: fill hit_mc_ by matching each reco hit to the cluster's MC hits
+    // (caloclustersmc.hits_, indices into calohitsmc) by crystal ID. Remove, along with hit_mc_,
+    // once rooutil's CaloHit::mc linking is fixed.
+    void MatchHitMC(const std::vector<mu2e::CaloHitInfoMC>* calohitsmc) {
+      hit_mc_.clear();
+      if(!cc_) return;
+      const size_t nhits = Hits().size();
+      hit_mc_.resize(nhits, nullptr);
+      if(!cluster_mc_ || !calohitsmc) return;
+      for(size_t ihit = 0; ihit < nhits; ++ihit) {
+        const auto reco = Hit(ihit).reco;
+        if(!reco) continue;
+        for(const int mc_idx : cluster_mc_->hits_) {
+          if(mc_idx < 0 || mc_idx >= static_cast<int>(calohitsmc->size())) continue;
+          const auto& mc = calohitsmc->at(mc_idx);
+          if(mc.crystalID_ == reco->crystalId_) {
+            hit_mc_[ihit] = &mc;
+            break;
+          }
+        }
+      }
     }
 
     CaloCluster_t() { Reset(); }

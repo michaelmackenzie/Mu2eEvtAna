@@ -1256,7 +1256,8 @@ namespace Mu2eEvtAna {
   //------------------------------------------------------------------------------------
   // Initialize Calo cluster information
   void Mu2eEvtAna::InitCaloCluster(const rooutil::CaloCluster* cluster, CaloCluster_t& cls_par) {
-    cls_par.Init(cluster);
+    // TEMPORARY: pass calohitsmc so the cluster can match hit MC by crystal ID (see CaloCluster_t::hit_mc_)
+    cls_par.Init(cluster, event_->calohitsmc);
   }
 
   //------------------------------------------------------------------------------------
@@ -1433,6 +1434,7 @@ namespace Mu2eEvtAna {
       ntuple_->GetEntry(entry);
       if(ntuple_->GetTree() != tree_) { // new input tree
         tree_ = ntuple_->GetTree();
+        if(!tree_ || !ntuple_->GetCurrentFile()) throw std::runtime_error("The next tree or file is undefined!");
         if(verbose_ > -1) printf("Mu2eEvtAna::%s: Opened input file: %s\n", __func__, ntuple_->GetCurrentFile()->GetName());
         if(load_baskets_) {
           watch_->SetTime("LoadBaskets");

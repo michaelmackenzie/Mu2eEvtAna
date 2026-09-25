@@ -362,26 +362,9 @@ namespace Mu2eEvtAna {
       }
 
       // Print interesting pileup events
-      if(is_pu && energy > 70.f) {
-        printf("  PU Event: %4i:%8i:%8i E = %6.2f T = %6.1f E(MC) = %6.2f PDG = %4i SimEDep = %6.2f SimID = %3i\n",
-               evt_.run_, evt_.subrun_, evt_.event_,
-               energy, time, cluster->MCEDep(), sim_pdg, sim_edep, cluster->MCSimID());
-        for(const auto& hit : cluster->Hits()) {
-          if(!hit.mc) continue;
-          size_t nsim = hit.mc->simParticleIds.size();
-          for(size_t index = 0; index < nsim; ++index) {
-            printf("    Sim hit: ID = %3i E = %6.2f T = %7.2f main-rel = %2i main-rem = %2i\n",
-                   hit.mc->simParticleIds[index],
-                   hit.mc->eDeps[index],
-                   hit.mc->tDeps[index],
-                   hit.mc->simRelRels[index],
-                   hit.mc->simRelRems[index]
-                   );
-          }
-        }
-      }
+      // if(!mc_veto && is_pu && energy > 70.f) PrintClusterInfo("PU Event", cluster);
 
-      if(!mc_veto && energy > 60.f && energy < 120.f ) {
+      if(!mc_veto && energy > 60.f && energy < 120.f && time > 500. && time < 1650.) {
         const auto nom_tc = cluster->nom_time_cluster_;
         FillCaloClusterHist(cls_hists_[70], cluster);
         FillTimeClusterHist(tcs_hists_[70], nom_tc);
@@ -406,6 +389,7 @@ namespace Mu2eEvtAna {
                 trk_veto |= nom_tc->NHitsAboveZ(1300.) >= 3;
               }
               if(!trk_veto) {
+                if(is_pu && energy > 70.f) PrintClusterInfo("[Accepted RMC: PU]", cluster);
                 FillCaloClusterHist(cls_hists_[74], cluster);
                 FillTimeClusterHist(tcs_hists_[74], nom_tc);
               }
