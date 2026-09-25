@@ -49,9 +49,9 @@ namespace DATA {
     datasets.emplace_back(false, "csms0b1s51r0204", "nts.mu2e.CosmicCRYAllMix1BB-KL.Run1Baw_best_v1_5.root"        ,   2351533,     2.29e4); // cosmic N(gen) is livetime
     datasets.emplace_back(false, "dio00b1s51r0204", "dig.mu2e.DIOMix1BB.Run1Ban_best_v1_4-000.art"                 ,        1.,         1.);
     datasets.emplace_back(false, "fele0b1s51r0204", "nts.mu2e.FlateMinusMix1BB-KL.Run1Baw_best_v1_5.root"          ,    704053, 1998000000);
-    datasets.emplace_back(false, "pgamcb1s51r0204", "nts.mu2e.PolyFlatGammaCaloMix1BB-KL.Run1Baw_best_v1_5.root"   ,   5249814,  100000000);
+    datasets.emplace_back(false, "pgamcb1s51r0204", "nts.mu2e.PolyFlatGammaCaloMix1BB-KL.Run1B-010.root"   ,   5249814,  100000000);
     datasets.emplace_back(false, "neut0b1s51r0204", "nts.mu2e.MuCapNeutronTailCaloMix1BB-KL.Run1Baw_best_v1_5.root",    154086,  125000000);
-    datasets.emplace_back(false, "prot0b1s51r0204", "nts.mu2e.MuCapProtonTailCaloMix1BB-KL.Run1Baw_best_v1_5.root" ,    158688,  100000000);
+    datasets.emplace_back(false, "prot0b1s51r0204", "nts.mu2e.MuCapProtonTailCaloMix1BB-KL.Run1B-010.root"         ,    158688,  100000000);
     datasets.emplace_back(false, "rpce0b1s51r0204", "nts.mu2e.RPCExternalMix1BB-KL.Run1Baw_best_v1_5.root"         ,    643155, 4999841344);
 
     return datasets;

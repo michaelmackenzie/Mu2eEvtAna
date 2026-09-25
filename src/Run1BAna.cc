@@ -121,6 +121,9 @@ namespace Mu2eEvtAna {
     hist_sets[  0] = new hist_info_t("All events"                      ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[  1] = new hist_info_t("E > 50 MeV"                      ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[  2] = new hist_info_t("E > 70 MeV"                      ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 40] = new hist_info_t("base_proton"                     ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 43] = new hist_info_t("proton_edep"                     ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 44] = new hist_info_t("proton_id"                       ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 70] = new hist_info_t("60 < E < 120 MeV"                ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 71] = new hist_info_t("rmc_base"                        ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 72] = new hist_info_t("rmc_r_cut"                       ,  true,  true,  true,  true,  true,  true, false, false);
@@ -363,6 +366,9 @@ namespace Mu2eEvtAna {
       const auto e_tc           = cluster->electron_time_cluster_;
       const auto e_line_seed    = cluster->electron_line_seed_;
       const auto e_line         = cluster->electron_line_;
+      const auto p_tc           = cluster->proton_time_cluster_;
+      const auto p_line_seed    = cluster->proton_line_seed_;
+      const auto p_line         = cluster->proton_line_;
 
       const int sim_pdg = cluster->MCPDG();
       const float sim_edep = cluster->MCSimEDep();
@@ -439,10 +445,10 @@ namespace Mu2eEvtAna {
       // Electron selection
       //------------------------------------------------
 
-      if(base_id && pu_veto && pu_r_veto && e_tc) {
+      if(base_id && pu_veto && pu_r_veto && e_tc && e_line) {
         const int tc_nhits = e_tc->NHits();
         bool ce_id = tc_nhits > 10 && tc_nhits < 40;
-        ce_id &= e_line && e_line->NActive() > 0;
+        ce_id &= e_line->NActive() > 0;
         ce_id &= std::fabs(e_line->CosThetaFront()) > 0.985;
         if(ce_id) {
           FillCaloClusterHist(cls_hists_[80], cluster);
@@ -456,8 +462,33 @@ namespace Mu2eEvtAna {
       // Proton selection
       //------------------------------------------------
 
+      if(base_id && p_tc && p_line) {
+        FillCaloClusterHist(cls_hists_[40], cluster);
+        FillTimeClusterHist(tcs_hists_[40], p_tc);
+        FillLineSeedHist   (lns_hists_[40], p_line_seed);
+        FillTrackHist      (trk_hists_[40], p_line);
+        if(p_tc->AvgEDep() > 0.0028) { // FIXME: Use line hits
+          FillCaloClusterHist(cls_hists_[43], cluster);
+          FillTimeClusterHist(tcs_hists_[43], p_tc);
+          FillLineSeedHist   (lns_hists_[43], p_line_seed);
+          FillTrackHist      (trk_hists_[43], p_line);
+          if(disk == 0
+             && ncr < 4
+             && std::fabs(p_line->CosThetaFront()) > 0.985) {
+            FillCaloClusterHist(cls_hists_[44], cluster);
+            FillTimeClusterHist(tcs_hists_[44], p_tc);
+            FillLineSeedHist   (lns_hists_[44], p_line_seed);
+            FillTrackHist      (trk_hists_[44], p_line);
+          }
+        }
+      }
+
       //------------------------------------------------
       // Neutron selection
+      //------------------------------------------------
+
+      //------------------------------------------------
+      // RPC selection
       //------------------------------------------------
 
     } // end of cluster loop

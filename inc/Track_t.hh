@@ -237,7 +237,7 @@ namespace Mu2eEvtAna {
       const mu2e::TrkSegInfo* found = nullptr;
       for(const auto& seg : *(track_->trksegs)) {
         if(seg.sid == surface) {
-          if(!found || found->time > seg.time) found = &seg;
+          if(!found || found->time > seg.time) {found = &seg; break;}
         }
       }
       return found;
