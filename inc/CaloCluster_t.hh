@@ -103,6 +103,33 @@ namespace Mu2eEvtAna {
       const float y = pos.y();
       return std::sqrt(x*x+y*y);
     }
+    float HitMCEDep(size_t index) const {
+      if(!ValidHit(index)) return 0.f;
+      const auto& hit = Hit(index);
+      if(!hit.mc) return 0.f;
+      return hit.mc->eDep;
+    }
+    const std::vector<int>& HitMCSimIDs(size_t index) const {
+      static const std::vector<int> vec;
+      if(!ValidHit(index)) return vec;
+      const auto& hit = Hit(index);
+      if(!hit.mc) {
+        return vec;
+      }
+      return hit.mc->simParticleIds;
+    }
+    float HitSimEDep(size_t index, int sim_id) const {
+      if(!ValidHit(index)) return 0.f;
+      const auto& hit = Hit(index);
+      if(!hit.mc) return 0.f;
+      const auto& ids = hit.mc->simParticleIds;
+      const size_t nsims = ids.size();
+      float edep = 0.f;
+      for(size_t sim_index = 0; sim_index < nsims; ++sim_index) {
+        if(sim_id == ids[sim_index]) edep += hit.mc->eDeps[sim_index];
+      }
+      return edep;
+    }
 
     //-------------------------------------------------
     // Additional functions
@@ -249,6 +276,56 @@ namespace Mu2eEvtAna {
       }
       const float moment = (sx2-sx*sx/sw + sy2-sy*sy/sw)/sw;
       return moment;
+    }
+
+    const mu2e::SimInfo* MCSim() const {
+      if(!cluster_mc_) return nullptr;
+      if(!cc_) return nullptr;
+      const auto& sims = cc_->GetMCParticles();
+      if(sims.empty()) return 0;
+      const size_t nsims = sims.size();
+      if(cluster_mc_->simRelRels.size() != nsims) return nullptr;
+      for(size_t index = 0; index < nsims; ++index) {
+        if(!sims.at(index).mcsim) continue;
+        if(cluster_mc_->simRelRels.at(index) == 0) {
+          return sims.at(index).mcsim;
+        }
+      }
+      return nullptr;
+    }
+
+    int MCPDG() const {
+      const auto sim = MCSim();
+      if(!sim) return 0;
+      return sim->pdg;
+    }
+    int MCSimID() const {
+      const auto sim = MCSim();
+      if(!sim) return -1;
+      return sim->id;
+    }
+    float MCEDep() const {
+      if(!cluster_mc_) return 0.f;
+      return cluster_mc_->etot;
+    }
+    float MCTime() const {
+      if(!cluster_mc_) return 0.f;
+      return cluster_mc_->tavg;
+    }
+
+    float MCSimEDep() const {
+      if(!cluster_mc_) return 0.f;
+      return cluster_mc_->eprimary;
+      // const size_t nhits = Hits().size();
+      // if(nhits == 0) return 0.f;
+      // const auto sim = MCSim();
+      // if(!sim) return 0.f;
+      // const int sim_id = sim->id;
+      // float edep = 0.f;
+      // for(size_t ihit = 0; ihit < nhits; ++ihit) {
+      //   edep += HitSimEDep(ihit, sim_id);
+      // }
+      // return edep;
     }
 
     void Reset() {

@@ -319,13 +319,14 @@ namespace Mu2eEvtAna {
     Hist->fY          = new TH1F("y"         , Form("%s: y (mm)"           , Folder), 100,-1000., 1000.);
     Hist->fZ          = new TH1F("z"         , Form("%s: z (mm)"           , Folder), 100,-5000., 5000.);
     Hist->fR          = new TH1F("r"         , Form("%s: r (mm)"           , Folder), 100,    0., 1000.);
+    Hist->fAvgEDep    = new TH1F("avgedep"   , Form("%s: Average hit E(dep)",Folder), 100,    0., 0.005);
     Hist->fECalo      = new TH1F("ecalo"     , Form("%s: E(calo) (MeV)"    , Folder), 100,    0.,  200.);
     Hist->fTCalo      = new TH1F("tcalo"     , Form("%s: T(calo) (ns)"     , Folder), 200,    0., 2000.);
     Hist->fHasCalo    = new TH1F("hascalo"   , Form("%s: Has calo cluster?", Folder),   2,    0.,    2.);
     // Combo hit information: only filled if the job stored this collection's hit list
     Hist->fHasHits     = new TH1F("hashits"    , Form("%s: Hit list stored?"  , Folder),   2,    0.,    2.);
     Hist->fNComboHits  = new TH1F("ncombohits" , Form("%s: N(stored combo hits)", Folder),100,   0.,  200.);
-    Hist->fNHitsAboveZ = new TH1F("nhitsabovez", Form("%s: N(hits with z > %.0f mm)", Folder, kTimeClusterHitZMin), 50, 0., 50.);
+    Hist->fNHitsAboveZ = new TH1F("nhitsabovez", Form("%s: N(hits above z threshold)", Folder), 50, 0., 50.);
     Hist->fHitZ        = new TH1F("hitz"       , Form("%s: Hit z (mm)"        , Folder), 100,-2000., 2000.);
     Hist->fHitR        = new TH1F("hitr"       , Form("%s: Hit r (mm)"        , Folder), 100,    0., 1000.);
     Hist->fHitTime     = new TH1F("hittime"    , Form("%s: Hit time (ns)"     , Folder), 200,    0., 2000.);
@@ -358,7 +359,6 @@ namespace Mu2eEvtAna {
     // Combo hit information: only filled if the job stored this collection's hit list
     Hist->fHasHits        = new TH1F("hashits"       , Form("%s: Hit list stored?"   , Folder),   2,    0.,    2.);
     Hist->fNComboHits     = new TH1F("ncombohits"    , Form("%s: N(stored combo hits)", Folder),100,    0.,  200.);
-    Hist->fNHitsAboveZ    = new TH1F("nhitsabovez"   , Form("%s: N(hits with z > %.0f mm)", Folder, kTimeClusterHitZMin), 50, 0., 50.);
     Hist->fHitZ           = new TH1F("hitz"          , Form("%s: Hit z (mm)"         , Folder), 100,-2000., 2000.);
     Hist->fHitR           = new TH1F("hitr"          , Form("%s: Hit r (mm)"         , Folder), 100,    0., 1000.);
     Hist->fHitTime        = new TH1F("hittime"       , Form("%s: Hit time (ns)"      , Folder), 200,    0., 2000.);
@@ -745,6 +745,7 @@ namespace Mu2eEvtAna {
     Hist->fY         ->Fill(Cluster->Y());
     Hist->fZ         ->Fill(Cluster->Z());
     Hist->fR         ->Fill(Cluster->R());
+    Hist->fAvgEDep   ->Fill(Cluster->AvgEDep());
     Hist->fECalo     ->Fill(Cluster->ECalo());
     if(Cluster->HasCalo()) Hist->fTCalo->Fill(Cluster->TCalo());
     Hist->fHasCalo   ->Fill(Cluster->HasCalo());
@@ -795,7 +796,6 @@ namespace Mu2eEvtAna {
     Hist->fHasHits   ->Fill(Seed->HasHits());
     if(Seed->HasHits()) {
       Hist->fNComboHits ->Fill(Seed->NComboHits());
-      Hist->fNHitsAboveZ->Fill(Seed->NHitsAboveZ());
       for(const auto& hit : *(Seed->hits_)) {
         Hist->fHitZ   ->Fill(hit.pos.z());
         Hist->fHitR   ->Fill(std::sqrt(hit.pos.x()*hit.pos.x() + hit.pos.y()*hit.pos.y()));
@@ -852,17 +852,17 @@ namespace Mu2eEvtAna {
     // Hist->fCoreEnergyFrac->Fill(core_energy / energy, Weight);
 
     // // MC info
-    // const float mc_edep = Cluster->fMCEDep;
-    // const float mc_time = Cluster->fMCTime;
+    const float mc_edep = Cluster->MCEDep();
+    const float mc_time = Cluster->MCTime();
     // const auto sim = Par->fSim;
     // const float gen_energy = (sim) ? sim->fStartMom.E() : 0.;
-    // Hist->fMCSimEDep->Fill(Cluster->fMCSimEDep, Weight);
+    Hist->fMCSimEDep->Fill(Cluster->MCSimEDep(), Weight);
     // Hist->fMCSimMomIn->Fill(Cluster->fMCSimMomIn, Weight);
-    // Hist->fMCSimPdg->Fill(Cluster->fMCSimPDG, Weight);
+    Hist->fMCSimPdg->Fill(Cluster->MCPDG(), Weight);
     // Hist->fMCSimPdgName->Fill(NameFromPDG(Cluster->fMCSimPDG).Data(), Weight);
     // Hist->fMCSimEStart->Fill(gen_energy, Weight);
-    // Hist->fMCEDep->Fill(mc_edep, Weight);
-    // Hist->fMCTime->Fill(mc_time, Weight);
+    Hist->fMCEDep->Fill(mc_edep, Weight);
+    Hist->fMCTime->Fill(mc_time, Weight);
     // Hist->fMC_dE->Fill(energy - mc_edep, Weight);
     // Hist->fMC_dt->Fill(time - mc_time, Weight);
     // Hist->fMC_dGenE->Fill(energy - gen_energy, Weight);

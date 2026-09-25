@@ -42,7 +42,8 @@ namespace DATA {
 
     // Run 1B datasets
     // datasets.emplace_back(true , "mnbs0b1s51r0204", "dig.mu2e.NoPrimaryMix1BB.Run1Ban_best_v1_4-000.art"       ,  99995000,   99995000); // unbiased pileup
-    datasets.emplace_back(false, "mnbs1b1s51r0204", "nts.mu2e.NoPrimaryMix1BB-KL.Run1Baw_best_v1_5-001.root"       , 344196254, 5000000000); // biased to high energy clusters
+    datasets.emplace_back(false, "mnbs1b1s51r0204", "nts.mu2e.NoPrimaryMix1BB-KL.Run1B-011.root"                   , 344196254, 5000000000); // biased to high energy clusters
+    datasets.emplace_back(false, "cele0b0s51r0204", "nts.mu2e.CeEndpoint-KL.Run1B-010.root"                        ,   1184477, 1900000000);
     datasets.emplace_back(false, "cele0b1s51r0204", "nts.mu2e.CeEndpointMix1BB-KL.Run1Baw_best_v1_5.root"          ,   1326786, 1999000000);
     datasets.emplace_back(false, "fgam0b1s51r0204", "nts.mu2e.FlatGammaMix1BB-KL.Run1Baw_best_v1_5.root"           ,   1039674, 1999000000);
     datasets.emplace_back(false, "csms0b1s51r0204", "nts.mu2e.CosmicCRYAllMix1BB-KL.Run1Baw_best_v1_5.root"        ,   2351533,     2.29e4); // cosmic N(gen) is livetime

@@ -32,7 +32,6 @@ namespace Mu2eEvtAna {
     // Combo hit information, only filled for collections whose hit lists were stored
     TH1F* fHasHits;
     TH1F* fNComboHits;
-    TH1F* fNHitsAboveZ;
     TH1F* fHitZ;
     TH1F* fHitR;
     TH1F* fHitTime;

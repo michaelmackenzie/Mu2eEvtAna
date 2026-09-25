@@ -62,11 +62,11 @@ namespace Mu2eEvtAna {
     // Warn once, regardless of verbosity: without these the hit-based part of the set 74 veto is
     // silently skipped, which changes what that set counts
     if(nominal_tc_ < 0) {
-      printf("Run1BAna::%s: WARNING: no \"%s\" collection in this ntuple -- the N(time cluster hits with z > %.0f mm) veto is disabled\n",
-             __func__, kNominalTimeClusters, kTimeClusterHitZMin);
+      printf("Run1BAna::%s: WARNING: no \"%s\" collection in this ntuple\n",
+             __func__, kNominalTimeClusters);
     } else if(!nominal_tc_hits_) {
-      printf("Run1BAna::%s: WARNING: the \"%s\" hit lists were not stored (timeclusters.fillHitsFor) -- the N(time cluster hits with z > %.0f mm) veto is disabled\n",
-             __func__, kNominalTimeClusters, kTimeClusterHitZMin);
+      printf("Run1BAna::%s: WARNING: the \"%s\" hit lists were not stored (timeclusters.fillHitsFor)\n",
+             __func__, kNominalTimeClusters);
     }
     return 0;
   }
@@ -307,6 +307,11 @@ namespace Mu2eEvtAna {
   // Main event-by-event processing
   bool Run1BAna::ProcessEvent() {
     cut_flow_.ResetEvent();
+
+    // Identify the sample type
+    const bool is_pu = name_.Contains("mnbs");
+
+
     FillEventHist(evt_hists_[0]); // all events with well defined inputs
 
     // Every time cluster / line seed of the event, from every collection. Only set 0 ("All
@@ -327,6 +332,7 @@ namespace Mu2eEvtAna {
 
       // Common variables
       const float energy        = cluster->Energy();
+      const float time          = cluster->Time();
       const int   ncr           = cluster->NCrystals();
       const float e1_r          = cluster->E1() / energy;
       const float e2_r          = cluster->E2() / energy;
@@ -347,8 +353,38 @@ namespace Mu2eEvtAna {
       }
 
       // photon selection
-      if(energy > 60.f && energy < 120.f ) {
+      const int sim_pdg = cluster->MCPDG();
+      const float sim_edep = cluster->MCSimEDep();
+      bool mc_veto = false;
+      if(is_pu) {
+        // skip high energy tail RMC/protons/neutrons
+        mc_veto |= (sim_pdg == 22 || sim_pdg == 2212 || sim_pdg == 2112) && sim_edep > 60.f;
+      }
+
+      // Print interesting pileup events
+      if(is_pu && energy > 70.f) {
+        printf("  PU Event: %4i:%8i:%8i E = %6.2f T = %6.1f E(MC) = %6.2f PDG = %4i SimEDep = %6.2f SimID = %3i\n",
+               evt_.run_, evt_.subrun_, evt_.event_,
+               energy, time, cluster->MCEDep(), sim_pdg, sim_edep, cluster->MCSimID());
+        for(const auto& hit : cluster->Hits()) {
+          if(!hit.mc) continue;
+          size_t nsim = hit.mc->simParticleIds.size();
+          for(size_t index = 0; index < nsim; ++index) {
+            printf("    Sim hit: ID = %3i E = %6.2f T = %7.2f main-rel = %2i main-rem = %2i\n",
+                   hit.mc->simParticleIds[index],
+                   hit.mc->eDeps[index],
+                   hit.mc->tDeps[index],
+                   hit.mc->simRelRels[index],
+                   hit.mc->simRelRems[index]
+                   );
+          }
+        }
+      }
+
+      if(!mc_veto && energy > 60.f && energy < 120.f ) {
+        const auto nom_tc = cluster->nom_time_cluster_;
         FillCaloClusterHist(cls_hists_[70], cluster);
+        FillTimeClusterHist(tcs_hists_[70], nom_tc);
         if(ncr > 1 && ncr < 6 &&
            e1_r > 0.6f && e2_r > 0.8f &&
            tvar < 1.f &&
@@ -356,23 +392,22 @@ namespace Mu2eEvtAna {
            disk == 0
            ) {
           FillCaloClusterHist(cls_hists_[71], cluster);
+          FillTimeClusterHist(tcs_hists_[71], nom_tc);
           if(r > 500.f && r < 580.f) {
             FillCaloClusterHist(cls_hists_[72], cluster);
+            FillTimeClusterHist(tcs_hists_[72], nom_tc);
             bool trk_veto = false;
             trk_veto |= cluster->line_ != nullptr;
             if(!trk_veto) {
               FillCaloClusterHist(cls_hists_[73], cluster);
+              FillTimeClusterHist(tcs_hists_[73], nom_tc);
               trk_veto |= cluster->line_seed_ != nullptr;
-              // Downstream tracker activity pointing at this cluster: require the matched nominal
-              // (target-origin electron) time cluster to have fewer than kTCHitVetoNHits hits at
-              // the calorimeter end of the tracker. Skipped if that collection's hit lists were
-              // not stored, which InitializeInput() warns about.
-              const auto nom_tc = cluster->nom_time_cluster_;
               if(nominal_tc_hits_ && nom_tc && nom_tc->HasHits()) {
-                trk_veto |= nom_tc->NHitsAboveZ(kTimeClusterHitZMin) >= kTCHitVetoNHits;
+                trk_veto |= nom_tc->NHitsAboveZ(1300.) >= 3;
               }
               if(!trk_veto) {
                 FillCaloClusterHist(cls_hists_[74], cluster);
+                FillTimeClusterHist(tcs_hists_[74], nom_tc);
               }
             }
           }

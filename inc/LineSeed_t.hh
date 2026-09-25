@@ -55,7 +55,7 @@ namespace Mu2eEvtAna {
     bool IsGood() const { return Status() > 0; }
 
     // See TimeCluster_t::NHitsAboveZ()
-    int NHitsAboveZ(const float ZMin = kTimeClusterHitZMin) const {
+    int NHitsAboveZ(const float ZMin = 1300.) const {
       if(!hits_) return -1;
       int nhits(0);
       for(const auto& hit : *hits_) if(hit.pos.z() > ZMin) ++nhits;

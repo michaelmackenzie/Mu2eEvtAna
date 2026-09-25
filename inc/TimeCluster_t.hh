@@ -32,6 +32,7 @@ namespace Mu2eEvtAna {
     float X()          const { return (cluster_) ? cluster_->pos.x()    :  0.f ; }
     float Y()          const { return (cluster_) ? cluster_->pos.y()    :  0.f ; }
     float Z()          const { return (cluster_) ? cluster_->pos.z()    :  0.f ; }
+    float AvgEDep()    const { return (cluster_) ? cluster_->edep       : -1.f ; }
     float ECalo()      const { return (cluster_) ? cluster_->ecalo      : -1.f ; }
     float TCalo()      const { return (cluster_) ? cluster_->tcalo      :  0.f ; }
     bool  HasCalo()    const { return ECalo() >= 0.f; }
@@ -52,7 +53,7 @@ namespace Mu2eEvtAna {
     // that reached it -- a handle on charged activity pointing at a calo cluster. Returns -1 if
     // this collection's hit list was not stored, so "no hits stored" is distinguishable from
     // "no hits above ZMin"; check HasHits() before cutting on it.
-    int NHitsAboveZ(const float ZMin = kTimeClusterHitZMin) const {
+    int NHitsAboveZ(const float ZMin = 1300.) const {
       if(!hits_) return -1;
       int nhits(0);
       for(const auto& hit : *hits_) if(hit.pos.z() > ZMin) ++nhits;
