@@ -16,9 +16,17 @@ namespace Mu2eEvtAna {
   // output branch names -- see rooutil::Event::TimeClusterCollectionNames()/LineSeedCollectionNames())
   enum {kMaxTimeClusters = 500, kMaxLineSeeds = 500, kMaxTCCollections = 10, kMaxLSCollections = 10};
 
-  // The nominal (target-origin electron) time cluster collection, i.e. CalTimeClusterFinder's
-  // output branch in from_mcs-Run1B.fcl
-  static constexpr const char* kNominalTimeClusters = "timeclusters";
+  // Run1B reco species: each has its own time cluster finder -> line finder -> KinematicLine fit
+  // chain (Production/JobConfig/recoMC/NoFieldRun1B.fcl), stored under the output branch names
+  // below (EventNtuple/fcl/from_mcs-Run1B.fcl). The tracks of all three are merged into the one
+  // trk branch (MergeKKLines), so they're told apart by fit hypothesis.
+  //   electron: CalTimeClusterFinder       -> LineFinder       -> KKLine       (e-)
+  //   proton  : ProtonCalTimeClusterFinder -> ProtonLineFinder -> ProtonKKLine (p)
+  //   cosmic  : TZClusterFinder            -> CosmicLineFinder -> CosmicKKLine (mu)
+  enum {kElectron = 0, kProton = 1, kCosmic = 2, kNSpecies = 3};
+  static constexpr const char* kSpeciesTimeClusters[kNSpecies] = {"timeclusters", "protontimeclusters", "tztimeclusters"};
+  static constexpr const char* kSpeciesLineSeeds   [kNSpecies] = {"lineseeds"   , "protonlineseeds"   , "cosmiclineseeds"};
+  static constexpr int         kSpeciesFitPDG      [kNSpecies] = {11            , 2212                , 13};
 
   // Track selection info
   enum {kMaxTrackIDs = 20};

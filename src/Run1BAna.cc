@@ -40,13 +40,20 @@ namespace Mu2eEvtAna {
     time_clusters_.assign(tc_names_.size(), std::vector<TimeCluster_t>());
     line_seeds_.assign(ls_names_.size(), std::vector<LineSeed_t>());
 
-    // Locate the nominal (target-origin electron) time cluster collection and check whether its
-    // combo hit lists were stored -- the hit-based cuts below are only evaluable if they were.
-    nominal_tc_ = -1;
-    for(size_t icoll = 0; icoll < tc_names_.size(); ++icoll) {
-      if(tc_names_[icoll] == kNominalTimeClusters) { nominal_tc_ = int(icoll); break; }
+    // Locate each species' time cluster / line seed collection, and check whether the electron
+    // time cluster combo hit lists were stored -- the hit-based cuts below are only evaluable if
+    // they were.
+    for(int isp = 0; isp < kNSpecies; ++isp) {
+      species_tc_[isp] = -1;
+      species_ls_[isp] = -1;
+      for(size_t icoll = 0; icoll < tc_names_.size(); ++icoll) {
+        if(tc_names_[icoll] == kSpeciesTimeClusters[isp]) { species_tc_[isp] = int(icoll); break; }
+      }
+      for(size_t icoll = 0; icoll < ls_names_.size(); ++icoll) {
+        if(ls_names_[icoll] == kSpeciesLineSeeds[isp]) { species_ls_[isp] = int(icoll); break; }
+      }
     }
-    nominal_tc_hits_ = nominal_tc_ >= 0 && event_->HasTimeClusterHits(kNominalTimeClusters);
+    electron_tc_hits_ = species_tc_[kElectron] >= 0 && event_->HasTimeClusterHits(kSpeciesTimeClusters[kElectron]);
 
     if(verbose_ > -1) {
       printf("Run1BAna::%s: Found %zu time cluster collection(s):", __func__, tc_names_.size());
@@ -59,14 +66,18 @@ namespace Mu2eEvtAna {
       printf("\n");
     }
 
-    // Warn once, regardless of verbosity: without these the hit-based part of the set 74 veto is
+    // Warn once, regardless of verbosity: a missing collection leaves that species' matches
+    // nullptr, and without the electron hit lists the hit-based part of the set 74 veto is
     // silently skipped, which changes what that set counts
-    if(nominal_tc_ < 0) {
-      printf("Run1BAna::%s: WARNING: no \"%s\" collection in this ntuple\n",
-             __func__, kNominalTimeClusters);
-    } else if(!nominal_tc_hits_) {
+    for(int isp = 0; isp < kNSpecies; ++isp) {
+      if(species_tc_[isp] < 0)
+        printf("Run1BAna::%s: WARNING: no \"%s\" collection in this ntuple\n", __func__, kSpeciesTimeClusters[isp]);
+      if(species_ls_[isp] < 0)
+        printf("Run1BAna::%s: WARNING: no \"%s\" collection in this ntuple\n", __func__, kSpeciesLineSeeds[isp]);
+    }
+    if(species_tc_[kElectron] >= 0 && !electron_tc_hits_) {
       printf("Run1BAna::%s: WARNING: the \"%s\" hit lists were not stored (timeclusters.fillHitsFor)\n",
-             __func__, kNominalTimeClusters);
+             __func__, kSpeciesTimeClusters[kElectron]);
     }
     return 0;
   }
@@ -115,6 +126,7 @@ namespace Mu2eEvtAna {
     hist_sets[ 72] = new hist_info_t("rmc_r_cut"                       ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 73] = new hist_info_t("rmc_line_cut"                    ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 74] = new hist_info_t("rmc_seed_cut"                    ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 80] = new hist_info_t("ce_id"                           ,  true,  true,  true,  true,  true,  true, false, false);
 
     for (int i=0; i<kMaxHists; i++) {
       const int index = i % 1000; // base index, ignoring control region offset
@@ -183,7 +195,10 @@ namespace Mu2eEvtAna {
   }
 
   //------------------------------------------------------------------------------------
-  // Populate each calo cluster's best-matched line/line seed/time cluster/CRV cluster.
+  // Populate each calo cluster's best-matched electron/proton/cosmic line, line seed, and time
+  // cluster, and its CRV cluster. Each species' line seed / time cluster is searched for only in
+  // that species' collection (species_ls_/species_tc_), and its line only among the tracks fit
+  // with that species' hypothesis (kSpeciesFitPDG); a missing collection leaves the match nullptr.
   //
   // A line, line seed, or time cluster that has an associated calo cluster stores a copy of that
   // cluster's own energy/time (LineSeedInfo::ecalo/tcalo, EventNtupleTimeClusterInfo::ecalo/tcalo,
@@ -202,43 +217,45 @@ namespace Mu2eEvtAna {
       const float E(cls.Energy());
       const float T(cls.Time());
 
-      // Best matched line (track)
-      cls.line_ = nullptr;
-      for(int itrk = 0; itrk < evt_.ntracks_ && !cls.line_; ++itrk) {
-        Track_t* trk = &tracks_[itrk];
-        if(!trk->IsGood()) continue;
-        const auto* tch = trk->TCH();
-        if(!tch) continue;
-        if(std::fabs(tch->edep - E) < kCaloMatchEps && std::fabs(tch->ctime - T) < kCaloMatchEps) cls.line_ = trk;
-      }
+      Track_t*       lines        [kNSpecies] = {nullptr, nullptr, nullptr};
+      LineSeed_t*    line_seeds   [kNSpecies] = {nullptr, nullptr, nullptr};
+      TimeCluster_t* time_clusters[kNSpecies] = {nullptr, nullptr, nullptr};
+      for(int isp = 0; isp < kNSpecies; ++isp) {
+        // Best matched line (track) with this species' fit hypothesis
+        for(int itrk = 0; itrk < evt_.ntracks_ && !lines[isp]; ++itrk) {
+          Track_t* trk = &tracks_[itrk];
+          if(!trk->IsGood()) continue;
+          if(std::abs(trk->FitPDG()) != kSpeciesFitPDG[isp]) continue;
+          const auto* tch = trk->TCH();
+          if(!tch) continue;
+          if(std::fabs(tch->edep - E) < kCaloMatchEps && std::fabs(tch->ctime - T) < kCaloMatchEps) lines[isp] = trk;
+        }
 
-      // Best matched line seed (any collection)
-      cls.line_seed_ = nullptr;
-      for(size_t icoll = 0; icoll < ls_names_.size() && !cls.line_seed_; ++icoll) {
-        for(auto& seed : line_seeds_[icoll]) {
-          if(!seed.HasCalo()) continue;
-          if(std::fabs(seed.ECalo() - E) < kCaloMatchEps && std::fabs(seed.TCalo() - T) < kCaloMatchEps) { cls.line_seed_ = &seed; break; }
+        // Best matched line seed from this species' collection
+        if(species_ls_[isp] >= 0) {
+          for(auto& seed : line_seeds_[species_ls_[isp]]) {
+            if(!seed.HasCalo()) continue;
+            if(std::fabs(seed.ECalo() - E) < kCaloMatchEps && std::fabs(seed.TCalo() - T) < kCaloMatchEps) { line_seeds[isp] = &seed; break; }
+          }
+        }
+
+        // Best matched time cluster from this species' collection
+        if(species_tc_[isp] >= 0) {
+          for(auto& tc : time_clusters_[species_tc_[isp]]) {
+            if(!tc.HasCalo()) continue;
+            if(std::fabs(tc.ECalo() - E) < kCaloMatchEps && std::fabs(tc.TCalo() - T) < kCaloMatchEps) { time_clusters[isp] = &tc; break; }
+          }
         }
       }
-
-      // Best matched time cluster (any collection)
-      cls.time_cluster_ = nullptr;
-      for(size_t icoll = 0; icoll < tc_names_.size() && !cls.time_cluster_; ++icoll) {
-        for(auto& tc : time_clusters_[icoll]) {
-          if(!tc.HasCalo()) continue;
-          if(std::fabs(tc.ECalo() - E) < kCaloMatchEps && std::fabs(tc.TCalo() - T) < kCaloMatchEps) { cls.time_cluster_ = &tc; break; }
-        }
-      }
-
-      // Best matched time cluster from the nominal collection specifically -- the loop above takes
-      // whichever collection matches first, which need not be that one
-      cls.nom_time_cluster_ = nullptr;
-      if(nominal_tc_ >= 0) {
-        for(auto& tc : time_clusters_[nominal_tc_]) {
-          if(!tc.HasCalo()) continue;
-          if(std::fabs(tc.ECalo() - E) < kCaloMatchEps && std::fabs(tc.TCalo() - T) < kCaloMatchEps) { cls.nom_time_cluster_ = &tc; break; }
-        }
-      }
+      cls.electron_line_         = lines        [kElectron];
+      cls.proton_line_           = lines        [kProton  ];
+      cls.cosmic_line_           = lines        [kCosmic  ];
+      cls.electron_line_seed_    = line_seeds   [kElectron];
+      cls.proton_line_seed_      = line_seeds   [kProton  ];
+      cls.cosmic_line_seed_      = line_seeds   [kCosmic  ];
+      cls.electron_time_cluster_ = time_clusters[kElectron];
+      cls.proton_time_cluster_   = time_clusters[kProton  ];
+      cls.cosmic_time_cluster_   = time_clusters[kCosmic  ];
 
       // Best matched CRV cluster: no direct calo association recorded on either side, so search
       // by extrapolated time instead (same style as the track-to-CRV match in InitTrack()).
@@ -330,7 +347,10 @@ namespace Mu2eEvtAna {
       const auto cluster = &calo_clusters_[icls];
       cut_flow_.Increment("has_cluster");
 
+      //------------------------------------------------
       // Common variables
+      //------------------------------------------------
+
       const float energy        = cluster->Energy();
       const float time          = cluster->Time();
       const int   ncr           = cluster->NCrystals();
@@ -340,7 +360,36 @@ namespace Mu2eEvtAna {
       const float second_moment = cluster->SecondMoment();
       const int   disk          = cluster->DiskID();
       const float r             = cluster->R();
+      const auto e_tc           = cluster->electron_time_cluster_;
+      const auto e_line_seed    = cluster->electron_line_seed_;
+      const auto e_line         = cluster->electron_line_;
 
+      const int sim_pdg = cluster->MCPDG();
+      const float sim_edep = cluster->MCSimEDep();
+      bool mc_veto = false;
+      if(is_pu) {
+        // skip high energy tail RMC/protons/neutrons
+        mc_veto |= (sim_pdg == 22 || sim_pdg == 2212 || sim_pdg == 2112) && sim_edep > 60.f;
+      }
+
+      // Base selection cuts
+      const float min_energy =   60.f;
+      const float max_energy =  120.f;
+      const float min_time   =  500.f;
+      const float max_time   = 1650.f;
+      const bool  base_id    = (!mc_veto &&
+                                energy > max_energy && energy < min_energy
+                                && time > min_time && time < max_time);
+      const bool  pu_veto    = (ncr > 1 && ncr < 6 &&
+                                e1_r > 0.6f && e2_r > 0.8f &&
+                                tvar < 1.f &&
+                                second_moment < 1.e3 &&
+                                disk == 0);
+      const bool  pu_r_veto  = r > 500.f && r < 580.f;
+
+      //------------------------------------------------
+      // Basic selections
+      //------------------------------------------------
 
       FillCaloClusterHist(cls_hists_[0], cluster);
       if(energy > 50.) FillCaloClusterHist(cls_hists_[1], cluster);
@@ -351,52 +400,64 @@ namespace Mu2eEvtAna {
           cut_flow_.Increment("e_70");
         }
       }
-
-      // photon selection
-      const int sim_pdg = cluster->MCPDG();
-      const float sim_edep = cluster->MCSimEDep();
-      bool mc_veto = false;
-      if(is_pu) {
-        // skip high energy tail RMC/protons/neutrons
-        mc_veto |= (sim_pdg == 22 || sim_pdg == 2212 || sim_pdg == 2112) && sim_edep > 60.f;
-      }
-
-      // Print interesting pileup events
-      // if(!mc_veto && is_pu && energy > 70.f) PrintClusterInfo("PU Event", cluster);
-
-      if(!mc_veto && energy > 60.f && energy < 120.f && time > 500. && time < 1650.) {
-        const auto nom_tc = cluster->nom_time_cluster_;
+      if(base_id) {
         FillCaloClusterHist(cls_hists_[70], cluster);
-        FillTimeClusterHist(tcs_hists_[70], nom_tc);
-        if(ncr > 1 && ncr < 6 &&
-           e1_r > 0.6f && e2_r > 0.8f &&
-           tvar < 1.f &&
-           second_moment < 1.e3 &&
-           disk == 0
-           ) {
+        FillTimeClusterHist(tcs_hists_[70], e_tc);
+        if(pu_veto) {
           FillCaloClusterHist(cls_hists_[71], cluster);
-          FillTimeClusterHist(tcs_hists_[71], nom_tc);
-          if(r > 500.f && r < 580.f) {
+          FillTimeClusterHist(tcs_hists_[71], e_tc);
+          if(pu_r_veto) {
             FillCaloClusterHist(cls_hists_[72], cluster);
-            FillTimeClusterHist(tcs_hists_[72], nom_tc);
-            bool trk_veto = false;
-            trk_veto |= cluster->line_ != nullptr;
-            if(!trk_veto) {
-              FillCaloClusterHist(cls_hists_[73], cluster);
-              FillTimeClusterHist(tcs_hists_[73], nom_tc);
-              trk_veto |= cluster->line_seed_ != nullptr;
-              if(nominal_tc_hits_ && nom_tc && nom_tc->HasHits()) {
-                trk_veto |= nom_tc->NHitsAboveZ(1300.) >= 3;
-              }
-              if(!trk_veto) {
-                if(is_pu && energy > 70.f) PrintClusterInfo("[Accepted RMC: PU]", cluster);
-                FillCaloClusterHist(cls_hists_[74], cluster);
-                FillTimeClusterHist(tcs_hists_[74], nom_tc);
-              }
-            }
+            FillTimeClusterHist(tcs_hists_[72], e_tc);
           }
         }
       }
+
+      //------------------------------------------------
+      // Photon selection
+      //------------------------------------------------
+
+      if(base_id && pu_veto && pu_r_veto) {
+        bool trk_veto = false;
+        trk_veto |= e_line != nullptr;
+        if(!trk_veto) {
+          FillCaloClusterHist(cls_hists_[73], cluster);
+          FillTimeClusterHist(tcs_hists_[73], e_tc);
+          trk_veto |= e_line_seed != nullptr;
+          if(electron_tc_hits_ && e_tc && e_tc->HasHits()) {
+            trk_veto |= e_tc->NHitsAboveZ(1300.) >= 3;
+          }
+          if(!trk_veto) {
+            if(is_pu && energy > 70.f) PrintClusterInfo("[Accepted RMC: PU]", cluster);
+            FillCaloClusterHist(cls_hists_[74], cluster);
+            FillTimeClusterHist(tcs_hists_[74], e_tc);
+          }
+        }
+      }
+
+      //------------------------------------------------
+      // Electron selection
+      //------------------------------------------------
+
+      if(base_id && pu_veto && pu_r_veto && e_tc) {
+        const int nhits = e_tc->NHits();
+        bool ce_id = nhits > 10 && nhits < 40;
+        if(ce_id) {
+          FillCaloClusterHist(cls_hists_[80], cluster);
+          FillTimeClusterHist(tcs_hists_[80], e_tc);
+          FillLineSeedHist   (lns_hists_[80], e_line_seed);
+          FillTrackHist      (trk_hists_[80], e_line);
+        }
+      }
+
+      //------------------------------------------------
+      // Proton selection
+      //------------------------------------------------
+
+      //------------------------------------------------
+      // Neutron selection
+      //------------------------------------------------
+
     } // end of cluster loop
 
     return false; // default to not writing output trees, matching the base class

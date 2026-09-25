@@ -56,8 +56,8 @@ namespace Mu2eEvtAna {
     int BestLineSeed(const Track_t* track, int icoll) const;
     int BestTimeCluster(const LineSeed_t* seed, int icoll) const;
 
-    // Populate each calo_clusters_[icls]'s best-matched line/line seed/time cluster/CRV cluster
-    // (CaloCluster_t::line_/line_seed_/time_cluster_/crv_cluster_). Must run after tracks_,
+    // Populate each calo_clusters_[icls]'s best-matched electron/proton/cosmic line, line seed,
+    // and time cluster, and its CRV cluster (CaloCluster_t::electron_line_ etc.). Must run after tracks_,
     // crv_clusters_, time_clusters_, and line_seeds_ are all populated for the event -- i.e. at
     // the end of InitializeEvent(), the same way the base class' upstream-track matching runs
     // only after every track has been through InitTrack().
@@ -91,12 +91,15 @@ namespace Mu2eEvtAna {
     std::vector<TString> tc_names_;
     std::vector<TString> ls_names_;
 
-    // Index into tc_names_ of the nominal (target-origin electron) time cluster collection,
-    // kNominalTimeClusters, or -1 if this ntuple does not have it. Set by InitializeInput().
-    int nominal_tc_ = -1;
-    // Whether that collection's combo hit lists were stored, i.e. whether the hit-based cuts can
-    // be evaluated at all (EventNtupleMaker's timeclusters.fillHitsFor). Set by InitializeInput().
-    bool nominal_tc_hits_ = false;
+    // Index into tc_names_/ls_names_ of each species' collection (kSpeciesTimeClusters/
+    // kSpeciesLineSeeds, indexed by kElectron/kProton/kCosmic), or -1 if this ntuple does not
+    // have it. Set by InitializeInput().
+    int species_tc_[kNSpecies] = {-1, -1, -1};
+    int species_ls_[kNSpecies] = {-1, -1, -1};
+    // Whether the electron time cluster collection's combo hit lists were stored, i.e. whether the
+    // hit-based cuts can be evaluated at all (EventNtupleMaker's timeclusters.fillHitsFor). Set
+    // by InitializeInput().
+    bool electron_tc_hits_ = false;
 
     // Per-collection data, indexed to match tc_names_/ls_names_
     std::vector<std::vector<TimeCluster_t>> time_clusters_; // [collection][cluster]

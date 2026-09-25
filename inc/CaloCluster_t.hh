@@ -32,15 +32,19 @@ namespace Mu2eEvtAna {
 
     // Best-matched objects for this cluster (nullptr if none/not searched for). Populated by an
     // analysis module, not by the base Mu2eEvtAna -- e.g. Run1BAna::MatchCaloClusters().
-    Track_t*       line_        ; // best matched track (line fit)
-    LineSeed_t*    line_seed_   ; // best matched line seed
-    TimeCluster_t* time_cluster_; // best matched time cluster, from any collection
-    // Best matched time cluster from the nominal (target-origin electron) collection specifically.
-    // time_cluster_ above searches the collections in whatever order they were discovered, so it
-    // is not necessarily from the nominal one; a selection that depends on which finder produced
-    // the cluster wants this instead.
-    TimeCluster_t* nom_time_cluster_;
-    CRVCluster_t*  crv_cluster_ ; // best matched CRV coincidence cluster
+    // The line/line seed/time cluster matches are kept per reco species (electron, proton, cosmic
+    // -- see kSpeciesTimeClusters etc. in GlobalConstants.h), each nullptr if that species'
+    // collection is missing from the ntuple or has no match.
+    Track_t*       electron_line_        ; // best matched electron-hypothesis track (line fit)
+    Track_t*       proton_line_          ; // best matched proton-hypothesis track
+    Track_t*       cosmic_line_          ; // best matched muon-hypothesis (cosmic) track
+    LineSeed_t*    electron_line_seed_   ; // best matched line seed from lineseeds
+    LineSeed_t*    proton_line_seed_     ; // ... from protonlineseeds
+    LineSeed_t*    cosmic_line_seed_     ; // ... from cosmiclineseeds
+    TimeCluster_t* electron_time_cluster_; // best matched time cluster from timeclusters
+    TimeCluster_t* proton_time_cluster_  ; // ... from protontimeclusters
+    TimeCluster_t* cosmic_time_cluster_  ; // ... from tztimeclusters
+    CRVCluster_t*  crv_cluster_          ; // best matched CRV coincidence cluster
 
     // Derived hit-based quantities, cached by Init() so repeated accessor calls don't
     // re-walk the hit collection. Indexed by usewt for the (un)weighted variants.
@@ -343,10 +347,9 @@ namespace Mu2eEvtAna {
       cluster_ = nullptr;
       cluster_mc_ = nullptr;
       cc_ = nullptr;
-      line_ = nullptr;
-      line_seed_ = nullptr;
-      time_cluster_ = nullptr;
-      nom_time_cluster_ = nullptr;
+      electron_line_ = proton_line_ = cosmic_line_ = nullptr;
+      electron_line_seed_ = proton_line_seed_ = cosmic_line_seed_ = nullptr;
+      electron_time_cluster_ = proton_time_cluster_ = cosmic_time_cluster_ = nullptr;
       crv_cluster_ = nullptr;
       hit_mc_.clear();
 
