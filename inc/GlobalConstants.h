@@ -23,7 +23,7 @@ namespace Mu2eEvtAna {
   };
 
   // Set offsets
-  enum { kCRVVetoOffset = 1000, kTimeCutOffset = 2000 }; // control region offsets
+  enum { kCRVVetoOffset = 1000, kTimeCutOffset = 2000, kChargeOffset = 4000 }; // control region offsets
 
   // Particle data
   static double ParticleMass(const int pdg) {

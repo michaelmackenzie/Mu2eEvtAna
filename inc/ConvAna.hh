@@ -47,10 +47,12 @@ namespace Mu2eEvtAna {
     bool Run1ACutFlow();
     bool StandardCutFlow();
 
-    void ValidateVariable(float var, const char* name) {
+    bool ValidateVariable(float var, const char* name) {
       if(!std::isfinite(var)) {
         printf(">>> Event %5i/%5i/%6i: Variable %s is non-finite = %f\n", evt_.run_, evt_.subrun_, evt_.event_, name, var);
+        return false;
       }
+      return true;
     }
 
     TString OutputFileName() { return "ConvAna." + name_ + ".root"; }

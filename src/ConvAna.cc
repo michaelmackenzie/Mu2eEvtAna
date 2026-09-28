@@ -224,32 +224,33 @@ namespace Mu2eEvtAna {
     if(evaluate_mvas_) {
       track_ = &trk_par;
       InitTreeData();
-      ValidateVariable(tree_.trkqual_nactive, "TrkQual_nactive");
-      ValidateVariable(tree_.trkqual_activehitsfraction, "TrkQual_activehitsfraction");
-      ValidateVariable(tree_.trkqual_nullhitsfraction, "TrkQual_nullhitsfraction");
-      ValidateVariable(tree_.trkqual_activematsitesfraction, "TrkQual_activematsitesfraction");
-      ValidateVariable(tree_.trkqual_fitcons, "TrkQual_fitcons");
-      ValidateVariable(tree_.trkqual_momerr, "TrkQual_momerr");
-      ValidateVariable(tree_.trkqual_t0err, "TrkQual_t0err");
-      ValidateVariable(tree_.trk_ep, "TrkEP");
-      ValidateVariable(tree_.trk_dt, "TrkDt");
-      ValidateVariable(tree_.trk_fitcon, "TrkFitCon");
-      ValidateVariable(tree_.trk_logfitcon, "TrkLogFitCon");
-      ValidateVariable(tree_.trk_active_ratio, "TrkActiveRatio");
-      ValidateVariable(tree_.trk_null_ratio, "TrkNullRatio");
-      ValidateVariable(tree_.trk_tzslope, "TrkTZSlope");
-      ValidateVariable(tree_.trk_tzslope_sig, "TrkTZSlopeSig");
-      ValidateVariable(tree_.trk_tzslope_ratio, "TrkTZSlopeRatio");
-      ValidateVariable(tree_.trk_d0, "TrkD0");
-      ValidateVariable(tree_.trk_tandip, "TrkTanDip");
-      ValidateVariable(tree_.trk_cos, "TrkCosTheta");
-      ValidateVariable(tree_.trk_rmax, "TrkRMax");
+      bool good_trkqual(true), good_pid(true), good_trkpid(true), good_cosmic(true);
+      good_trkqual &= ValidateVariable(tree_.trkqual_nactive, "TrkQual_nactive");
+      good_trkqual &= ValidateVariable(tree_.trkqual_activehitsfraction, "TrkQual_activehitsfraction");
+      good_trkqual &= ValidateVariable(tree_.trkqual_nullhitsfraction, "TrkQual_nullhitsfraction");
+      good_trkqual &= ValidateVariable(tree_.trkqual_activematsitesfraction, "TrkQual_activematsitesfraction");
+      good_trkqual &= ValidateVariable(tree_.trkqual_fitcons, "TrkQual_fitcons");
+      good_trkqual &= ValidateVariable(tree_.trkqual_momerr, "TrkQual_momerr");
+      good_trkqual &= ValidateVariable(tree_.trkqual_t0err, "TrkQual_t0err");
+      good_pid     &= ValidateVariable(tree_.trk_ep, "TrkEP");
+      good_pid     &= ValidateVariable(tree_.trk_dt, "TrkDt");
+      good_trkpid  &= ValidateVariable(tree_.trk_fitcon, "TrkFitCon");
+      good_trkpid  &= ValidateVariable(tree_.trk_logfitcon, "TrkLogFitCon");
+      good_trkpid  &= ValidateVariable(tree_.trk_active_ratio, "TrkActiveRatio");
+      good_trkpid  &= ValidateVariable(tree_.trk_null_ratio, "TrkNullRatio");
+      good_trkpid  &= ValidateVariable(tree_.trk_tzslope, "TrkTZSlope");
+      good_trkpid  &= ValidateVariable(tree_.trk_tzslope_sig, "TrkTZSlopeSig");
+      good_trkpid  &= ValidateVariable(tree_.trk_tzslope_ratio, "TrkTZSlopeRatio");
+      good_cosmic  &= ValidateVariable(tree_.trk_d0, "TrkD0");
+      good_cosmic  &= ValidateVariable(tree_.trk_tandip, "TrkTanDip");
+      good_cosmic  &= ValidateVariable(tree_.trk_cos, "TrkCosTheta");
+      good_cosmic  &= ValidateVariable(tree_.trk_rmax, "TrkRMax");
       if(evaluate_mvas_ > 0) {
         watch_->SetTime("MVAs");
-        trk_par.trkqual_ = (trkqual_) ? trkqual_->EvaluateMVA("TrkQual") : -999.f;
-        trk_par.pid_ = (pid_) ? pid_->EvaluateMVA("PID") : -999.f;
-        trk_par.trkpid_ = (trkpid_) ? trkpid_->EvaluateMVA("TrkPID") : -999.f;
-        trk_par.cosmic_id_ = (cosmic_id_) ? cosmic_id_->EvaluateMVA("CosmicID") : -999.f;
+        trk_par.trkqual_   = (good_trkqual && trkqual_  ) ? trkqual_  ->EvaluateMVA("TrkQual")  : -999.f;
+        trk_par.pid_       = (good_pid     && pid_      ) ? pid_      ->EvaluateMVA("PID")      : -999.f;
+        trk_par.trkpid_    = (good_trkpid  && trkpid_   ) ? trkpid_   ->EvaluateMVA("TrkPID")   : -999.f;
+        trk_par.cosmic_id_ = (good_cosmic  && cosmic_id_) ? cosmic_id_->EvaluateMVA("CosmicID") : -999.f;
         watch_->StopTime("MVAs");
       }
       // Reset the main ID with the new MVA scores
@@ -764,20 +765,20 @@ namespace Mu2eEvtAna {
         }
 
 
-        bool test_id = true; // As of 2026-08-29 from Natalie
+        bool test_id = true; // As of 2026-09-28 from Natalie
         test_id &= track_->Charge() < 0;
         test_id &= (trigger_.FiredAPR() || trigger_.FiredCPR());
         test_id &= upstream_veto;
         test_id &= multi_trk;
         test_id &= track_->NSTInter() > 0;
         test_id &= track_->OPAInter() == 0;
-        test_id &= track_->D0Front() < 82.1943365;
-        test_id &= track_->D0Front() > -74.479075;
-        test_id &= track_->PID() > 0.60835038 && track_->ECluster() > 0.;
-        test_id &= track_->TanDipFront() > 0.520177267 && track_->TanDipFront() < 0.8539424;
-        test_id &= track_->TrkQual() > 0.1718097;
-        test_id &= track_->NActive() >= 21;
-        test_id &= track_->TErrMiddle() < 0.7900952;
+        test_id &= track_->D0Front() <  91.211543177;
+        test_id &= track_->D0Front() > -36.29673596;
+        test_id &= track_->PID() > 0.5058837697 && track_->ECluster() > 0.;
+        test_id &= track_->TanDipFront() > 0.4938016 && track_->TanDipFront() < 0.862519827;
+        test_id &= track_->TrkQual() > 0.17542357;
+        test_id &= track_->NActive() >= 20;
+        test_id &= track_->TErrMiddle() < 0.89444511;
         test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
         test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
         if(test_id) {
