@@ -16,12 +16,14 @@ bool use_xrootd_ = true;
 Mu2eEvtAna::Mu2eEvtAna* gMu2eAna = nullptr;
 Mu2eEvtAna::RMCAna* gRMCAna = nullptr;
 Mu2eEvtAna::ConvAna* gConvAna = nullptr;
+Mu2eEvtAna::BNVAna* gBNVAna = nullptr;
 
 // Analyzer type identifiers
 enum AnalyzerType {
   kMu2eAna = 0,
   kRMCAna = 1,
-  kConvAna = 2
+  kConvAna = 2,
+  kBNVAna = 3
 };
 
 // Get analyzer name as string
@@ -30,6 +32,7 @@ inline TString GetAnalyzerName(AnalyzerType ana_type) {
     case kMu2eAna: return "mu2e_ana";
     case kRMCAna: return "rmc_ana";
     case kConvAna: return "cnv_ana";
+    case kBNVAna: return "bnv_ana";
     default: return "unknown";
   }
 }
@@ -114,6 +117,11 @@ int ProcessThreaded(AnalyzerType ana_type, TString name_tag, int Mode, Long64_t 
       gConvAna = new Mu2eEvtAna::ConvAna(0);
       ana = gConvAna;
       break;
+    case kBNVAna:
+      if(gBNVAna) delete gBNVAna;
+      gBNVAna = new Mu2eEvtAna::BNVAna(0);
+      ana = gBNVAna;
+      break;
   }
 
   ana->AddFile(input_file, max_entries, first_entry);
@@ -167,6 +175,11 @@ int ProcessWithThreads(AnalyzerType ana_type, TString input, int Mode,
         if(gConvAna) delete gConvAna;
         gConvAna = new Mu2eEvtAna::ConvAna(0);
         ana = gConvAna;
+        break;
+      case kBNVAna:
+        if(gBNVAna) delete gBNVAna;
+        gBNVAna = new Mu2eEvtAna::BNVAna(0);
+        ana = gBNVAna;
         break;
     }
 
@@ -238,6 +251,7 @@ int ProcessWithThreads(AnalyzerType ana_type, TString input, int Mode,
   case kMu2eAna: header = "EvtAna"; break;
   case kRMCAna: header = "RMCAna"; break;
   case kConvAna: header = "ConvAna"; break;
+  case kBNVAna: header = "BNVAna"; break;
   }
   TString merged_output = Form("%s.%s.%s.m%i.root", header.Data(), analyzer_name.Data(), dataset.Data(), Mode);
 
@@ -317,6 +331,10 @@ int rmc_ana(TString input, int Mode = 0, Long64_t max_entries = -1, Long64_t fir
 
 int cnv_ana(TString input, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1, TString name_tag = "") {
   return ProcessWithThreads(kConvAna, input, Mode, max_entries, first_entry, n_threads, name_tag);
+}
+
+int bnv_ana(TString input, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1, TString name_tag = "") {
+  return ProcessWithThreads(kBNVAna, input, Mode, max_entries, first_entry, n_threads, name_tag);
 }
 
 #endif

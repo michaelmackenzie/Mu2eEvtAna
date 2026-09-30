@@ -34,6 +34,7 @@ namespace Mu2eEvtAna {
     void BookHistograms(TDirectory* dir);
     bool ProcessEvent();
     void InitializeEvent();
+    void SetEventWeight(); // apply per-event sample weights (antiproton reweighting)
     void InitTrack(const rooutil::Track* track, Track_t& trk_par);
 
     int InitializeInput();

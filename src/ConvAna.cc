@@ -129,16 +129,6 @@ namespace Mu2eEvtAna {
     hist_sets[ 79] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 80] = new hist_info_t("e-: 2D (t,p) selection"           ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 81] = new hist_info_t("e-: Initial ID for optimization"  ,  true, false, false, false, false, false, false,  true);
-    // Baryon number violating muon capture into light dark states (BNVAna): e+- above the DIO endpoint
-    // BNV ID: standard track ID without the momentum window or the in-time multi-track veto (reflection veto kept)
-    hist_sets[200] = new hist_info_t("BNV: e+-, p > 100, no ID"         ,  true, false,  true, false, false, false, false, false);
-    hist_sets[201] = new hist_info_t("BNV: e+-, BNV ID, p > 105"        ,  true, false,  true, false,  true, false, false, false);
-    hist_sets[202] = new hist_info_t("BNV: e-, BNV ID, p > 105"         ,  true, false,  true, false, false, false, false, false);
-    hist_sets[203] = new hist_info_t("BNV: e+, BNV ID, p > 105"         ,  true, false,  true, false, false, false, false, false);
-    hist_sets[204] = new hist_info_t("BNV: e+-, BNV ID no tan(dip)"     ,  true, false,  true, false, false, false, false, false);
-    hist_sets[205] = new hist_info_t("BNV: e+-, BNV ID, p > 140"        ,  true, false,  true, false, false, false, false, false);
-    hist_sets[206] = new hist_info_t("BNV: e+-, BNV ID + trigger"       ,  true, false,  true, false, false, false, false, false);
-    hist_sets[207] = new hist_info_t("BNV: in-time e+e- track pair"     ,  true, false,  true, false, false, false, false, false);
 
     for (int i=0; i<kMaxHists; i++) {
       const int index = i % 1000; // base index, ignoring control region offset
@@ -527,10 +517,10 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Main event-by-event processing
-  bool ConvAna::ProcessEvent() {
-    ValidateTracks();
-
-    // Determine the event weight
+  //------------------------------------------------------------------------------------
+  // Apply per-event sample weights
+  void ConvAna::SetEventWeight() {
+    // Antiproton reweighting
     for(int isimp = 0; isimp < evt_.nsimps_; ++isimp) {
       auto& simp = simps_[isimp];
       if(simp.pdg_ == -2212 && simp.start_code_ == mu2e::ProcessCode::mu2eAntiproton) { // antiproton sim
@@ -547,7 +537,14 @@ namespace Mu2eEvtAna {
                                 );
       }
     }
+  }
 
+  //------------------------------------------------------------------------------------
+  // Main event-by-event processing
+  bool ConvAna::ProcessEvent() {
+    ValidateTracks();
+
+    SetEventWeight();
 
     // const float nominal_weight = evt_.weight_;
 
@@ -829,42 +826,6 @@ namespace Mu2eEvtAna {
             if(track_->PFront() > 90.f && track_->PFront() < 93.f) FillAllHistograms(41 + pos_set_offset);
           }
           FillAllHistograms(42 + pos_set_offset); // broad momentum window
-        }
-
-        //------------------------------------
-        // BNV selections: e+- above the DIO endpoint, charge-blind (sets 200-207)
-        //------------------------------------
-
-        const float p_trk = track_->PFront();
-        if(p_trk > 100.f) FillAllHistograms(200);
-
-        // BNV ID: the standard ID without its momentum window (kP) or its in-time multi-track veto (kUpstream,
-        // which would reject reconstructed signal e+e- pairs); the upstream reflection veto is applied separately
-        const int bnv_ignore = (1 << kP) | (1 << kUpstream);
-        const bool bnv_id      = upstream_veto && ID_n.ID(~bnv_ignore) == 0;
-        const bool bnv_id_tdip = upstream_veto && ID_n.ID(~(bnv_ignore | (1 << kTDip))) == 0; // also no tan(dip) window
-        if(p_trk > 105.f) {
-          if(bnv_id) {
-            FillAllHistograms(201);
-            FillAllHistograms((track_->Charge() < 0) ? 202 : 203);
-            if(p_trk > 140.f) FillAllHistograms(205); // above the RPC endpoint
-            if(event_id == 0) FillAllHistograms(206); // an online helix trigger fired
-          }
-          if(bnv_id_tdip) FillAllHistograms(204);
-        }
-
-        // In-time e+e- pair: fill once per pair, from the positron
-        if(track_->Charge() > 0) {
-          for(int i = 0; i < evt_.ntracks_; ++i) {
-            if(i == itrk) continue;
-            const auto alt_trk = &tracks_[i];
-            if(!alt_trk->IsGood() || std::abs(alt_trk->FitPDG()) != 11 || alt_trk->PZFront() <= 0.f) continue;
-            if(alt_trk->Charge() >= 0 || alt_trk->PFront() <= 0.f) continue;
-            if(std::fabs(track_->TFront() - alt_trk->TFront()) < 25.f) {
-              FillAllHistograms(207);
-              break;
-            }
-          }
         }
 
       } // end De selection

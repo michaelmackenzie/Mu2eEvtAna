@@ -58,6 +58,7 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
     if(     strcmp(function, "mu2e_ana") == 0) return mu2e_ana(dataset, mode, max_entries, 0, n_threads, tag);
     else if(strcmp(function, "rmc_ana")  == 0) return rmc_ana (dataset, mode, max_entries, 0, n_threads, tag);
     else if(strcmp(function, "cnv_ana")  == 0) return cnv_ana (dataset, mode, max_entries, 0, n_threads, tag);
+    else if(strcmp(function, "bnv_ana")  == 0) return bnv_ana (dataset, mode, max_entries, 0, n_threads, tag);
     return gInterpreter->ProcessLine(Form("%s(\"%s\", %i, %lld, 0, %i, \"%s\");",
                                           function, dataset.Data(), mode, max_entries, n_threads, tag.Data()));
   }
@@ -82,6 +83,7 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
         if(     strcmp(function, "mu2e_ana") == 0) mu2e_ana(config.name_, mode, max_entries, 0, n_threads, out_tag);
         else if(strcmp(function, "rmc_ana")  == 0) rmc_ana (config.name_, mode, max_entries, 0, n_threads, out_tag);
         else if(strcmp(function, "cnv_ana")  == 0) cnv_ana (config.name_, mode, max_entries, 0, n_threads, out_tag);
+        else if(strcmp(function, "bnv_ana")  == 0) bnv_ana (config.name_, mode, max_entries, 0, n_threads, out_tag);
       } else {
         gInterpreter->ProcessLine(Form("%s(\"%s\", %i, %lld, 0, 1, \"%s\");",
                                        function, config.name_.Data(), mode, max_entries, out_tag.Data()));

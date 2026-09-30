@@ -606,7 +606,7 @@ namespace Mu2eEvtAna {
     Hist->fIPAInters->Fill(Track->NIPAInter(), Weight);
     // Hist->fBestAlg->Fill(Track->BestAlg(), Weight);
     // Hist->fAlgMask->Fill(Track->AlgMask(), Weight);
-    const auto ID = Track->ID(0);
+    const auto ID = Track->ID(hist_track_id_);
     if(ID == 0) {
       Hist->fTrackID   ->Fill("Passed", Weight);
       Hist->fExlTrackID->Fill("Passed", Weight);

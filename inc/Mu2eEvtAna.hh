@@ -201,6 +201,7 @@ namespace Mu2eEvtAna {
     Bool_t          load_baskets_ = true;
     Bool_t          use_xrootd_   = true;
     Bool_t          fill_trees_   = true;
+    Int_t           hist_track_id_ = 0; // Track_t ID index shown in the track ID bit histograms
 
     Long64_t        tree_entries_ = 0;
 
