@@ -205,6 +205,7 @@ namespace Mu2eEvtAna {
     }
     Hist->fP[0]          = new TH1F("p"           ,Form("%s: Track momentum"                       ,Folder),  300,    0.,  150.);
     Hist->fP[1]          = new TH1F("p_2"         ,Form("%s: Track momentum"                       ,Folder),  600,   80.,  110.);
+    Hist->fPWide         = new TH1F("p_wide"      ,Form("%s: Track momentum"                       ,Folder),  300,    0.,  300.);
     Hist->fObs           = new TH1F("obs"         ,Form("%s: Track momentum"                       ,Folder),  300,   80.,  110.); // fit histogram
     Hist->fPt            = new TH1F("pt"          ,Form("%s: track transverse momentum"            ,Folder),  300,    0.,  300.);
     Hist->fPCorr         = new TH1F("p_corr"      ,Form("%s: corrected track momentum"             ,Folder),  600,   80.,  110.);
@@ -230,6 +231,7 @@ namespace Mu2eEvtAna {
     Hist->fFitCons[1]    = new TH1F("fitCons_log" ,Form("%s: track log10(p(chi2,ndof))"            ,Folder),  200,   -6.,    0.);
     Hist->fFitMomErr     = new TH1F("fitMomErr"   ,Form("%s: track momentum uncertainty"           ,Folder),  200,    0.,    5.);
     Hist->fTanDip        = new TH1F("tanDip"      ,Form("%s: track tanDip"                         ,Folder),  200,    0.,    2.);
+    Hist->fTanDipWide    = new TH1F("tanDip_wide" ,Form("%s: track tanDip"                         ,Folder),  300,    0.,    6.);
     Hist->fCosTheta      = new TH1F("cosTheta"    ,Form("%s: track cos(#theta)"                    ,Folder),  200,   -1.,    1.);
     Hist->fRadius        = new TH1F("radius"      ,Form("%s: track radius"                         ,Folder), 1000,    0., 1000.);
     Hist->fRMax          = new TH1F("rMax"        ,Form("%s: track rMax"                           ,Folder), 2000,    0., 2000.);
@@ -562,6 +564,7 @@ namespace Mu2eEvtAna {
     const float Weight(evt_.weight_);
     Hist->fP[0] ->Fill(Track->PFront(), Weight);
     Hist->fP[1] ->Fill(Track->PFront(), Weight);
+    Hist->fPWide->Fill(Track->PFront(), Weight);
     Hist->fObs->Fill(Track->Obs(), Weight);
     Hist->fPt->Fill(Track->PTFront(), Weight);
     Hist->fPCenter[0]->Fill(Track->PMiddle()*Track->Charge(), Weight);
@@ -580,6 +583,7 @@ namespace Mu2eEvtAna {
     Hist->fFitCons[1]->Fill(std::log10(std::max(1.e-10f, Track->FitCon())), Weight);
     Hist->fFitMomErr->Fill(Track->MomErrFront(), Weight);
     Hist->fTanDip->Fill(Track->TanDipFront(), Weight);
+    Hist->fTanDipWide->Fill(Track->TanDipFront(), Weight);
     Hist->fCosTheta->Fill(Track->CosThetaFront(), Weight);
     Hist->fRadius->Fill(Track->RadiusFront(), Weight);
     Hist->fRMax->Fill(Track->RMaxFront(), Weight);
