@@ -204,8 +204,8 @@ namespace Mu2eEvtAna {
             const double shift = (is_up) ? 0.5 : -0.5; // rough gauge for a shift in the power-law
             const double nominal = (x < 1.) ? (2.       + 1.)*(2.       + 2.)/kmax*x*std::pow(1.-x, 2      ) : 0.;
             const double shifted = (x < 1.) ? (2.+shift + 1.)*(2.+shift + 2.)/kmax*x*std::pow(1.-x, 2+shift) : 0.;
-            const double cdf_nom = phase_space_cdf(57., kmax, 2.);
-            const double cdf_sys = phase_space_cdf(57., kmax, 2.+shift);
+            const double cdf_nom = phase_space_cdf(97., kmax, 2.); // normalize in the high tail region
+            const double cdf_sys = phase_space_cdf(97., kmax, 2.+shift);
             w *= (nominal > 0. && cdf_nom > 0. && cdf_sys > 0.) ? (shifted/cdf_sys) / (nominal / cdf_nom) : 0.;
           }
         }
