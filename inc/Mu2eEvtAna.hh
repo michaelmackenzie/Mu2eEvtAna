@@ -105,7 +105,7 @@ namespace Mu2eEvtAna {
     virtual void FillCRVHist(CRVHist_t* Hist, CRVCluster_t* Stub);
     virtual void FillTree(Tree_t* Tree, Track_t* Track, CaloCluster_t* Cluster, CRVCluster_t* Stub);
 
-    virtual CutID TrackID(Track_t* track);
+    virtual void SetTrackIDs(Track_t* track);
     static TString TrackIDBitName(const int bit) {
       switch(bit) {
       case kP: return "P";

@@ -17,8 +17,8 @@ namespace DATA {
   vector<Dataset_t> datasets() {
     vector<Dataset_t> datasets;
 
-    const bool ele = false; // datasets for electron analysis
-    const bool pos = true ; // datasets for positron analysis
+    const bool ele = true ; // datasets for electron analysis
+    const bool pos = false; // datasets for positron analysis
 
     datasets.emplace_back(false,  "cele1b0s5r0100", "nts.mu2e.CeMLeadingLogOnSpill-reco-ntuple.MDC2025-002.root"     , 4009075,   10000000);
     datasets.emplace_back(false,  "cry4ab0s5r0100", "nts.mu2e.CosmicSignalOnSpill-reco-ntuple.MDC2025-002.root"      , 4120241,    4437500. /*livetime*/);
