@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <map>
 
 // Global debug level
 int debug_level_ = 0;
@@ -12,32 +13,87 @@ int debug_level_ = 0;
 // Global flags
 bool use_xrootd_ = true;
 
-// Global analyzer pointers
-Mu2eEvtAna::Mu2eEvtAna* gMu2eAna = nullptr;
-Mu2eEvtAna::RMCAna* gRMCAna = nullptr;
-Mu2eEvtAna::ConvAna* gConvAna = nullptr;
-Mu2eEvtAna::BNVAna* gBNVAna = nullptr;
-
-// Analyzer type identifiers
-enum AnalyzerType {
-  kMu2eAna = 0,
-  kRMCAna = 1,
-  kConvAna = 2,
-  kBNVAna = 3
+//------------------------------------------------------------------------------------
+// Analyzer registry: analyzer function name (e.g. "cnv_ana") --> analyzer class and the libraries it needs.
+// The built-in Mu2eEvtAna analyzers are registered by default; analyzers in other packages register with
+//   RegisterAnalyzer("bnv_ana", "Mu2eEvtAna::BNVAna", "$MUSE_BUILD_DIR/BNVAna/lib/libbnvana.so");
+// The class must derive from Mu2eEvtAna::Mu2eEvtAna and have a constructor taking the verbosity.
+struct AnalyzerInfo_t {
+  TString class_name_; // analyzer class, including the namespace
+  TString libraries_ ; // ':'-separated libraries to load before creating the analyzer (may use environment variables)
 };
 
-// Get analyzer name as string
-inline TString GetAnalyzerName(AnalyzerType ana_type) {
-  switch(ana_type) {
-    case kMu2eAna: return "mu2e_ana";
-    case kRMCAna: return "rmc_ana";
-    case kConvAna: return "cnv_ana";
-    case kBNVAna: return "bnv_ana";
-    default: return "unknown";
-  }
+std::map<TString, AnalyzerInfo_t>& AnalyzerRegistry() {
+  static std::map<TString, AnalyzerInfo_t> registry = {
+    {"mu2e_ana", {"Mu2eEvtAna::Mu2eEvtAna", ""}},
+    {"rmc_ana" , {"Mu2eEvtAna::RMCAna"    , ""}},
+    {"cnv_ana" , {"Mu2eEvtAna::ConvAna"   , ""}},
+  };
+  return registry;
 }
 
-// Split a file list into parts - called via functions.C(ana_type, dataset, mode, max_entries, first_entry, thread_id)
+void RegisterAnalyzer(TString ana_func, TString class_name, TString libraries = "") {
+  AnalyzerRegistry()[ana_func] = AnalyzerInfo_t{class_name, libraries};
+}
+
+bool IsRegisteredAnalyzer(TString ana_func) {
+  return AnalyzerRegistry().count(ana_func) > 0;
+}
+
+// Load the libraries an analyzer needs
+bool LoadAnalyzerLibraries(TString libraries) {
+  if(libraries == "") return true;
+  TObjArray* libs = libraries.Tokenize(":");
+  bool status = true;
+  for(int i = 0; i < libs->GetEntries(); ++i) {
+    TString lib = ((TObjString*) libs->At(i))->GetString();
+    gSystem->ExpandPathName(lib);
+    if(gSystem->Load(lib) < 0) {
+      cout << "ERROR: Failed to load library " << lib << endl;
+      status = false;
+    }
+  }
+  delete libs;
+  return status;
+}
+
+// Create an analyzer by class name (only one analyzer instance is kept per process)
+Mu2eEvtAna::Mu2eEvtAna* gAnalyzer = nullptr;
+Mu2eEvtAna::Mu2eEvtAna* CreateAnalyzer(TString class_name, TString libraries) {
+  if(!LoadAnalyzerLibraries(libraries)) return nullptr;
+  if(gAnalyzer) {
+    delete gAnalyzer;
+    gAnalyzer = nullptr;
+  }
+  gAnalyzer = (Mu2eEvtAna::Mu2eEvtAna*) gROOT->ProcessLine(Form("new %s(0);", class_name.Data()));
+  if(!gAnalyzer) cout << "ERROR: Failed to create analyzer " << class_name << endl;
+  return gAnalyzer;
+}
+
+// Output file prefix of an analyzer (e.g. "ConvAna" for ConvAna.<name>.root)
+TString AnalyzerOutputPrefix(Mu2eEvtAna::Mu2eEvtAna* ana) {
+  const TString probe = "__name__";
+  const TString name = ana->name_;
+  ana->SetName(probe);
+  TString prefix = ana->OutputFileName();
+  ana->SetName(name);
+  const int index = prefix.Index("." + probe);
+  return (index > 0) ? TString(prefix(0, index)) : TString("EvtAna");
+}
+
+// Configure and run an analyzer on an input file list
+int RunAnalyzer(Mu2eEvtAna::Mu2eEvtAna* ana, TString input, TString ana_name, Long64_t max_entries, Long64_t first_entry) {
+  ana->AddFile(input, max_entries, first_entry);
+  ana->SetName(ana_name);
+  ana->cache_size_ = 200000000U;
+  ana->load_baskets_ = false;
+  ana->report_rate_ = 5000;
+  ana->use_xrootd_ = use_xrootd_;
+  ana->verbose_ = debug_level_;
+  return ana->Process(max_entries);
+}
+
+// Split a file list into parts
 void SplitFileList(TString file_list, int n_parts, int part, TString output_file) {
   ifstream infile(file_list);
   if(!infile.is_open()) {
@@ -76,19 +132,11 @@ void SplitFileList(TString file_list, int n_parts, int part, TString output_file
   outfile.close();
 }
 
-// Forward declaration for ProcessThreaded
-int ProcessThreaded(AnalyzerType ana_type, TString name_tag, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id);
-
-// Thread worker function - called via functions.C(ana_type, name_tag, mode, max_entries, first_entry, thread_id)
-int functions(int ana_type, TString name_tag, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id);
-
-// Thread worker function implementation
-int functions(int ana_type, TString name_tag, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id) {
-  return ProcessThreaded((AnalyzerType)ana_type, name_tag, Mode, max_entries, first_entry, thread_id);
-}
-
-// Process one thread's share of the input, using the file list written by ProcessWithThreads
-int ProcessThreaded(AnalyzerType ana_type, TString name_tag, int Mode, Long64_t max_entries, Long64_t first_entry, int thread_id) {
+// Process one thread's share of the input, using the file list written by ProcessWithThreads.
+// Called in a child process via functions.C(ana_func, class_name, libraries, name_tag, mode, max_entries, first_entry, thread_id, xrootd)
+int functions(TString ana_func, TString class_name, TString libraries, TString name_tag, int Mode,
+              Long64_t max_entries, Long64_t first_entry, int thread_id, bool xrootd = true) {
+  use_xrootd_ = xrootd;
   TString input_file = Form("temp/%s_thread_%i.files", name_tag.Data(), thread_id);
 
   // File list was already split by ProcessWithThreads, just verify it exists
@@ -97,53 +145,26 @@ int ProcessThreaded(AnalyzerType ana_type, TString name_tag, int Mode, Long64_t 
     return -1;
   }
 
-  TString analyzer_name = GetAnalyzerName(ana_type);
-  TString ana_name = Form("%s.%s.m%i.thread_%i", analyzer_name.Data(), name_tag.Data(), Mode, thread_id);
-
-  Mu2eEvtAna::Mu2eEvtAna* ana = nullptr;
-  switch(ana_type) {
-    case kMu2eAna:
-      if(gMu2eAna) delete gMu2eAna;
-      gMu2eAna = new Mu2eEvtAna::Mu2eEvtAna(0);
-      ana = gMu2eAna;
-      break;
-    case kRMCAna:
-      if(gRMCAna) delete gRMCAna;
-      gRMCAna = new Mu2eEvtAna::RMCAna(0);
-      ana = gRMCAna;
-      break;
-    case kConvAna:
-      if(gConvAna) delete gConvAna;
-      gConvAna = new Mu2eEvtAna::ConvAna(0);
-      ana = gConvAna;
-      break;
-    case kBNVAna:
-      if(gBNVAna) delete gBNVAna;
-      gBNVAna = new Mu2eEvtAna::BNVAna(0);
-      ana = gBNVAna;
-      break;
-  }
-
-  ana->AddFile(input_file, max_entries, first_entry);
-  ana->SetName(ana_name);
-  ana->cache_size_ = 200000000U;
-  ana->load_baskets_ = false;
-  ana->report_rate_ = 5000;
-  ana->use_xrootd_ = use_xrootd_;
-  ana->verbose_ = debug_level_;
-
-  const int status = ana->Process(max_entries);
+  auto ana = CreateAnalyzer(class_name, libraries);
+  if(!ana) return -1;
+  const int status = RunAnalyzer(ana, input_file, Form("%s.%s.m%i.thread_%i", ana_func.Data(), name_tag.Data(), Mode, thread_id),
+                                 max_entries, first_entry);
   cout << "Thread " << thread_id << " status = " << status << endl;
-
   return status;
 }
 
 // Generic multi-threaded processing function
 //   input   : a known dataset name, a single ntuple file (*.root), or a file list of ntuples
 //   name_tag: tag used to name the output files, defaults to the dataset name or the input file name
-int ProcessWithThreads(AnalyzerType ana_type, TString input, int Mode,
+int ProcessWithThreads(TString ana_func, TString input, int Mode,
                        Long64_t max_entries, Long64_t first_entry, int n_threads,
                        TString name_tag = "") {
+  if(!IsRegisteredAnalyzer(ana_func)) {
+    cout << "Analyzer " << ana_func << " is not registered (see RegisterAnalyzer)!" << endl;
+    return -1;
+  }
+  const AnalyzerInfo_t info = AnalyzerRegistry()[ana_func];
+
   TString file_list = ResolveInput(input);
   if(file_list == "") {
     cout << "Input " << input << " not found!" << endl;
@@ -156,42 +177,12 @@ int ProcessWithThreads(AnalyzerType ana_type, TString input, int Mode,
   else                   cout << "Processing input file " << file_list << endl;
   cout << "Output name tag: " << dataset << endl;
 
-  TString analyzer_name = GetAnalyzerName(ana_type);
+  const TString analyzer_name = ana_func;
 
   if(n_threads <= 1) {
-    Mu2eEvtAna::Mu2eEvtAna* ana = nullptr;
-    switch(ana_type) {
-      case kMu2eAna:
-        if(gMu2eAna) delete gMu2eAna;
-        gMu2eAna = new Mu2eEvtAna::Mu2eEvtAna(0);
-        ana = gMu2eAna;
-        break;
-      case kRMCAna:
-        if(gRMCAna) delete gRMCAna;
-        gRMCAna = new Mu2eEvtAna::RMCAna(0);
-        ana = gRMCAna;
-        break;
-      case kConvAna:
-        if(gConvAna) delete gConvAna;
-        gConvAna = new Mu2eEvtAna::ConvAna(0);
-        ana = gConvAna;
-        break;
-      case kBNVAna:
-        if(gBNVAna) delete gBNVAna;
-        gBNVAna = new Mu2eEvtAna::BNVAna(0);
-        ana = gBNVAna;
-        break;
-    }
-
-    ana->AddFile(file_list, max_entries, first_entry);
-    ana->SetName(Form("%s.%s.m%i", analyzer_name.Data(), dataset.Data(), Mode));
-    ana->cache_size_ = 200000000U;
-    ana->load_baskets_ = false;
-    ana->report_rate_ = 5000;
-    ana->use_xrootd_ = use_xrootd_;
-    ana->verbose_ = debug_level_;
-
-    const int status = ana->Process(max_entries);
+    auto ana = CreateAnalyzer(info.class_name_, info.libraries_);
+    if(!ana) return -1;
+    const int status = RunAnalyzer(ana, file_list, Form("%s.%s.m%i", analyzer_name.Data(), dataset.Data(), Mode), max_entries, first_entry);
     cout << "Status code = " << status << endl;
     return status;
   }
@@ -246,13 +237,12 @@ int ProcessWithThreads(AnalyzerType ana_type, TString input, int Mode,
 
   cout << "Processing " << dataset << " with " << actual_n_threads << " threads" << endl;
 
-  TString header = "EvtAna";
-  switch(ana_type) {
-  case kMu2eAna: header = "EvtAna"; break;
-  case kRMCAna: header = "RMCAna"; break;
-  case kConvAna: header = "ConvAna"; break;
-  case kBNVAna: header = "BNVAna"; break;
-  }
+  // Output file prefix from the analyzer (e.g. ConvAna.<name>.root)
+  auto prefix_ana = CreateAnalyzer(info.class_name_, info.libraries_);
+  if(!prefix_ana) return -1;
+  const TString header = AnalyzerOutputPrefix(prefix_ana);
+  delete gAnalyzer;
+  gAnalyzer = nullptr;
   TString merged_output = Form("%s.%s.%s.m%i.root", header.Data(), analyzer_name.Data(), dataset.Data(), Mode);
 
 
@@ -265,8 +255,9 @@ int ProcessWithThreads(AnalyzerType ana_type, TString input, int Mode,
   std::vector<int> pids;
 
   for(int t = 0; t < actual_n_threads; ++t) {
-    TString cmd = Form("(root.exe -q -b \"${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/functions.C(%i, \\\"%s\\\", %i, %lli, %lli, %i)\" >| log/out_%s_thread_%i.log 2>&1) & echo $!",
-                       ana_type, dataset.Data(), Mode, max_entries, first_entry, t, dataset.Data(), t);
+    TString cmd = Form("(root.exe -q -b \"${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/functions.C(\\\"%s\\\", \\\"%s\\\", \\\"%s\\\", \\\"%s\\\", %i, %lli, %lli, %i, %i)\" >| log/out_%s_thread_%i.log 2>&1) & echo $!",
+                       ana_func.Data(), info.class_name_.Data(), info.libraries_.Data(), dataset.Data(), Mode, max_entries, first_entry, t,
+                       (int) use_xrootd_, dataset.Data(), t);
     cout << "Submitting thread " << t << ": " << cmd << endl;
     TString pid_str = gSystem->GetFromPipe(cmd.Data());
     int pid = pid_str.Atoi();
@@ -322,19 +313,15 @@ int ProcessWithThreads(AnalyzerType ana_type, TString input, int Mode,
 // "input" can be a known dataset name, a single ntuple file, or a file list of ntuples,
 // and "name_tag" overrides the tag used to name the output files
 int mu2e_ana(TString input, int Mode = 0, Long64_t max_entries = 1e6, Long64_t first_entry = 0, int n_threads = 1, TString name_tag = "") {
-  return ProcessWithThreads(kMu2eAna, input, Mode, max_entries, first_entry, n_threads, name_tag);
+  return ProcessWithThreads("mu2e_ana", input, Mode, max_entries, first_entry, n_threads, name_tag);
 }
 
 int rmc_ana(TString input, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1, TString name_tag = "") {
-  return ProcessWithThreads(kRMCAna, input, Mode, max_entries, first_entry, n_threads, name_tag);
+  return ProcessWithThreads("rmc_ana", input, Mode, max_entries, first_entry, n_threads, name_tag);
 }
 
 int cnv_ana(TString input, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1, TString name_tag = "") {
-  return ProcessWithThreads(kConvAna, input, Mode, max_entries, first_entry, n_threads, name_tag);
-}
-
-int bnv_ana(TString input, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1, TString name_tag = "") {
-  return ProcessWithThreads(kBNVAna, input, Mode, max_entries, first_entry, n_threads, name_tag);
+  return ProcessWithThreads("cnv_ana", input, Mode, max_entries, first_entry, n_threads, name_tag);
 }
 
 #endif

@@ -122,6 +122,8 @@ namespace Mu2eEvtAna {
       case kFitHyp: return "Fit hyp.";
       case kCosmicID: return "Cosmic ID";
       case kCRV: return "CRV";
+      case kCosTheta: return "cos(#theta)";
+      case kTZSlope: return "TZ slope";
       case kMC: return "MC";
       }
       return Form("Unknown-%i", bit);

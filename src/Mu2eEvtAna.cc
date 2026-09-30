@@ -452,6 +452,7 @@ namespace Mu2eEvtAna {
     Tree->tree->Branch("trk_ntsda"              , &Tree->trk_tsda                );
     Tree->tree->Branch("trk_mc_dp"              , &Tree->trk_mc_dp               );
     Tree->tree->Branch("trk_mc_pdg"             , &Tree->trk_mc_pdg              );
+    Tree->tree->Branch("trk_id"                 , &Tree->trk_id                  );
   }
 
   //------------------------------------------------------------------------------------
@@ -834,6 +835,7 @@ namespace Mu2eEvtAna {
       Tree->trk_tsda = Track->TSDAInter();
       Tree->trk_mc_dp = Track->MCDeltaPFront();
       Tree->trk_mc_pdg = Track->MCPDG();
+      Tree->trk_id = Track->ID(hist_track_id_).ID(0xffffffff);
 
       // For CRV deadtime estimate in Run 1A optimization (simple dt window)
       float min_crv_time = -9999.f;

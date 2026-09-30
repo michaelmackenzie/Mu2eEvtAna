@@ -17,9 +17,9 @@ namespace Mu2eEvtAna {
   // track selection bits
   enum {
     kP = 0, kRMax = 1, kTrkQual = 2, kT0 = 3, kFitCon = 4,
-    kClusterE = 5, kD0 = 6, kTDip = 7, kT0Loose = 8,
-    kUpstream = 10, kPID = 11, kFitHyp = 12, kCosmicID = 13,
-    kCRV = 15, kMC = 20
+    kClusterE = 5, kD0 = 6, kTDip = 7, kT0Loose = 8, kCosTheta = 9,
+    kUpstream = 10, kPID = 11, kFitHyp = 12, kCosmicID = 13, kTZSlope = 14,
+    kCRV = 15, kMC = 20 // note: CutID::Passes() and ID() default to masking bits 0-15
   };
 
   // Set offsets
