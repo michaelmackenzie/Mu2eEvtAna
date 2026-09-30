@@ -151,10 +151,8 @@ namespace Mu2eEvtAna {
     if(!Hist) {
       throw std::runtime_error("Attempting to book histograms in a null SysHist_t\n");
     }
-    for(int isys = 0; isys < kMaxSystematics; ++isys) {
-      // check if the systematic is defined
-      TString name = systematics_.GetName(isys);
-      if(name == "") continue;
+    for(const int isys : systematics_.Defined()) {
+      const TString name = systematics_.GetName(isys);
       Hist->fObs[isys] = new TH1F(Form("obs_%i", isys),Form("%s: Systematic %s",Folder, name.Data()), 300, 80., 110.); //FIXME: This should inherit from the nominal observable binning
       // For debug investigations
       if(fill_verbose_sys_) {
@@ -182,11 +180,55 @@ namespace Mu2eEvtAna {
   }
 
   //------------------------------------------------------------------------------------
+  // Fill the systematic histograms
+  void ConvAna::FillSystematicHist(SysHist_t* Hist) {
+    if(!Hist) {
+      throw std::runtime_error(Form("ConvAna::%s: Attempting to fill histograms in a null SysHist_t\n", __func__));
+    }
+    if(!track_) return;
+    const float obs_o(track_->PFront()), w_o(evt_.weight_);
+    for(const int isys : systematics_.Defined()) {
+      float obs(obs_o), w(w_o);
+      const bool is_up = systematics_.IsUp(isys);
+      switch(systematics_.GetType(isys)) {
+      case Systematics::kRMCPower:
+        if(dataset_ == kRMCE0 || dataset_ == kRMCI0) {
+          const float energy = evt_.rmc_energy_;
+          if(energy <= 0.) {
+            printf("ConvAna::%s: %4i %6i %6i : No RMC energy!\n", __func__,
+                   evt_.run_, evt_.subrun_, evt_.event_);
+
+          } else {
+            constexpr float kmax = 101.866;
+            const double x = energy / kmax;
+            const double shift = (is_up) ? 0.5 : -0.5; // rough gauge for a shift in the power-law
+            const double nominal = (x < 1.) ? (2.       + 1.)*(2.       + 2.)/kmax*x*std::pow(1.-x, 2      ) : 0.;
+            const double shifted = (x < 1.) ? (2.+shift + 1.)*(2.+shift + 2.)/kmax*x*std::pow(1.-x, 2+shift) : 0.;
+            const double cdf_nom = phase_space_cdf(57., kmax, 2.);
+            const double cdf_sys = phase_space_cdf(57., kmax, 2.+shift);
+            w *= (nominal > 0. && cdf_nom > 0. && cdf_sys > 0.) ? (shifted/cdf_sys) / (nominal / cdf_nom) : 0.;
+          }
+        }
+        break;
+      default: break;
+      }
+
+      Hist->fObs[isys]->Fill(obs, w);
+      if(fill_verbose_sys_) {
+        Hist->fDeltaObs   [isys]->Fill(obs - obs_o, w);
+        Hist->fWeight     [isys]->Fill(w);
+        Hist->fDeltaWeight[isys]->Fill(w-w_o);
+      }
+    }
+  }
+
+  //------------------------------------------------------------------------------------
   // Fill the standard histograms
   void ConvAna::FillAllHistograms(const int index) {
     if(evt_hists_[index]) FillEventHist(evt_hists_[index]);
     if(trk_hists_[index]) FillTrackHist(trk_hists_[index], track_);
     // if(cls_hists_[index]) FillCaloClusterHist(cls_hists_[index], cluster_);
+    if(sys_hists_[index]) FillSystematicHist(sys_hists_[index]);
     if(fill_trees_ && trs_hists_[index]) FillTree(trs_hists_[index], track_, nullptr, nullptr);
   }
 
@@ -194,7 +236,60 @@ namespace Mu2eEvtAna {
   // Initialize the input ntuple information
   int ConvAna::InitializeInput() {
     Mu2eEvtAna::InitializeInput();
+    InitDataset();
     return 0;
+  }
+
+  //------------------------------------------------------------------------------------
+  // Determine the input sample type from the analysis name
+  void ConvAna::InitDataset() {
+    // short dataset tags (see scripts/datasets.C), e.g. "ConvAna.rmce0b1s5r0100.m0"
+    // and the full dataset names, e.g. "nts.mu2e.RMCPhaseSpace0NExternalMix1BB..."
+    struct Match_t { const char* tag; const char* full; Dataset_t dataset; };
+    const Match_t matches[] = {
+      {"rmce0", "RMCPhaseSpace0NExternal", kRMCE0    },
+      {"rmce1", "RMCPhaseSpace1NExternal", kRMCE1    },
+      {"rmci0", "RMCPhaseSpace0NInternal", kRMCI0    },
+      {"rmci1", "RMCPhaseSpace1NInternal", kRMCI1    },
+      {"rpce" , "RPCExternal"            , kRPCE     },
+      {"rpci" , "RPCInternal"            , kRPCI     },
+      {"cele" , "CeMLeadingLog"          , kCeMinus  },
+      {"cpos" , "CePLeadingLog"          , kCePlus   },
+      {"cry4a", "CosmicSignal"           , kCosmic   },
+      {"dio00", "DIOtail"                , kDIO      },
+      {"pbar" , "PbarResampling"         , kPbar     },
+      {"fpos" , "FlatePlus"              , kFlatPlus },
+      {"mds"  , "ensembleMDS"            , kEnsemble }
+    };
+    dataset_ = kUnknown;
+    for(const auto& match : matches) {
+      if(name_.Contains(match.tag) || name_.Contains(match.full)) {
+        dataset_ = match.dataset;
+        break;
+      }
+    }
+    if(verbose_ > 0 || dataset_ == kUnknown)
+      printf("[ConvAna::%s] Name %s --> dataset %s\n", __func__, name_.Data(), DatasetName(dataset_));
+  }
+
+  //------------------------------------------------------------------------------------
+  const char* ConvAna::DatasetName(Dataset_t dataset) {
+    switch(dataset) {
+      case kCeMinus : return "CeMinus";
+      case kCePlus  : return "CePlus";
+      case kCosmic  : return "Cosmic";
+      case kDIO     : return "DIO";
+      case kRMCE0   : return "RMCExternal0N";
+      case kRMCE1   : return "RMCExternal1N";
+      case kRMCI0   : return "RMCInternal0N";
+      case kRMCI1   : return "RMCInternal1N";
+      case kRPCE    : return "RPCExternal";
+      case kRPCI    : return "RPCInternal";
+      case kPbar    : return "Pbar";
+      case kFlatPlus: return "FlatPlus";
+      case kEnsemble: return "Ensemble";
+      default       : return "Unknown";
+    }
   }
 
   //------------------------------------------------------------------------------------

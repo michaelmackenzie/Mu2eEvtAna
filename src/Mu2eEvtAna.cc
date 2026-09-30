@@ -960,6 +960,12 @@ namespace Mu2eEvtAna {
             auto& simp_t = simps_[evt_.nsimps_];
             ++evt_.nsimps_;
             simp_t.Initialize(&simp);
+            if(simp_t.mcrel_ == 0) { // add the primary to the list
+              if(simp_t.start_code_ == mu2e::ProcessCode::mu2eExternalRMC ||
+                 simp_t.start_code_ == mu2e::ProcessCode::mu2eInternalRMC) {
+                evt_.rmc_energy_ += simp_t.mom_start_.e();
+              }
+            }
           }
         }
       }
