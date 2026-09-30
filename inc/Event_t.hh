@@ -33,6 +33,7 @@ namespace Mu2eEvtAna {
     Int_t         ngood_caloclusters_;
     Int_t         ncrv_clusters_    ;
     Int_t         ngood_crvclusters_;
+    Float_t       rmc_energy_       ;
 
     // Track array counters
     Int_t         ntracks_          ;
@@ -75,6 +76,7 @@ namespace Mu2eEvtAna {
       ngood_caloclusters_= 0;
       ncrv_clusters_     = 0;
       ngood_crvclusters_ = 0;
+      rmc_energy_        = 0.f;
       ntracks_           = 0;
       nelectrons_        = 0;
       nmuons_            = 0;
