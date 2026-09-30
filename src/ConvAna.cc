@@ -841,8 +841,8 @@ namespace Mu2eEvtAna {
         // BNV ID: the standard ID without its momentum window (kP) or its in-time multi-track veto (kUpstream,
         // which would reject reconstructed signal e+e- pairs); the upstream reflection veto is applied separately
         const int bnv_ignore = (1 << kP) | (1 << kUpstream);
-        const bool bnv_id      = upstream_veto && ID.ID(~bnv_ignore) == 0;
-        const bool bnv_id_tdip = upstream_veto && ID.ID(~(bnv_ignore | (1 << kTDip))) == 0; // also no tan(dip) window
+        const bool bnv_id      = upstream_veto && ID_n.ID(~bnv_ignore) == 0;
+        const bool bnv_id_tdip = upstream_veto && ID_n.ID(~(bnv_ignore | (1 << kTDip))) == 0; // also no tan(dip) window
         if(p_trk > 105.f) {
           if(bnv_id) {
             FillAllHistograms(201);
