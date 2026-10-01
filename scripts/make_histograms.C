@@ -62,10 +62,15 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
   }
 
   auto datasets = DATA::datasets();
+  const bool is_run1b = TString(function) == "run1b_ana";
 
   vector<TString> logs;
   for(auto config : datasets) {
-    if(dataset == "" && !config.process_) continue;
+    if(dataset == "") {
+      if(!config.process_) continue;
+      const bool is_run1b_data = config.name_.EndsWith("r0204");
+      if(is_run1b_data != is_run1b) continue;
+    }
     if(dataset != "" && config.name_ != dataset) continue;
     // allow overriding the output name tag when a single dataset is requested
     const TString out_tag = (name_tag != "" && dataset != "") ? name_tag : config.name_;
