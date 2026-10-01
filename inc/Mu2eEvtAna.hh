@@ -113,7 +113,7 @@ namespace Mu2eEvtAna {
     virtual void FillCRVHist(CRVHist_t* Hist, CRVCluster_t* Stub);
     virtual void FillTree(Tree_t* Tree, Track_t* Track, CaloCluster_t* Cluster, CRVCluster_t* Stub);
 
-    virtual CutID TrackID(Track_t* track);
+    virtual void SetTrackIDs(Track_t* track);
     static TString TrackIDBitName(const int bit) {
       switch(bit) {
       case kP: return "P";
@@ -130,6 +130,8 @@ namespace Mu2eEvtAna {
       case kFitHyp: return "Fit hyp.";
       case kCosmicID: return "Cosmic ID";
       case kCRV: return "CRV";
+      case kCosTheta: return "cos(#theta)";
+      case kTZSlope: return "TZ slope";
       case kMC: return "MC";
       }
       return Form("Unknown-%i", bit);
@@ -213,6 +215,7 @@ namespace Mu2eEvtAna {
     Bool_t          load_baskets_ = true;
     Bool_t          use_xrootd_   = true;
     Bool_t          fill_trees_   = true;
+    Int_t           hist_track_id_ = 0; // Track_t ID index shown in the track ID bit histograms
 
     Long64_t        tree_entries_ = 0;
 

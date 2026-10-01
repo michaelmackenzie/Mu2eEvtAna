@@ -58,6 +58,7 @@ namespace Mu2eEvtAna {
     int   trk_tsda;
     float trk_mc_dp; // MC info
     float trk_mc_pdg;
+    int   trk_id; // selection ID bits (Track_t ID index hist_track_id_), 0 if all cuts pass
 
     // CRV information
     float crv_z;
@@ -153,6 +154,7 @@ namespace Mu2eEvtAna {
       trk_tzslope_ratio = 0.f;
       trk_mc_dp = 0.f;
       trk_mc_pdg = 0.f;
+      trk_id = 0;
 
       crv_z = 0.f;
       crv_deltat = 0.f;

@@ -33,13 +33,13 @@ namespace Mu2eEvtAna {
   // track selection bits
   enum {
     kP = 0, kRMax = 1, kTrkQual = 2, kT0 = 3, kFitCon = 4,
-    kClusterE = 5, kD0 = 6, kTDip = 7, kT0Loose = 8,
-    kUpstream = 10, kPID = 11, kFitHyp = 12, kCosmicID = 13,
-    kCRV = 15, kMC = 20
+    kClusterE = 5, kD0 = 6, kTDip = 7, kT0Loose = 8, kCosTheta = 9,
+    kUpstream = 10, kPID = 11, kFitHyp = 12, kCosmicID = 13, kTZSlope = 14,
+    kCRV = 15, kMC = 20 // note: CutID::Passes() and ID() default to masking bits 0-15
   };
 
   // Set offsets
-  enum { kCRVVetoOffset = 1000, kTimeCutOffset = 2000 }; // control region offsets
+  enum { kCRVVetoOffset = 1000, kTimeCutOffset = 2000, kChargeOffset = 4000 }; // control region offsets
 
   // Track fit parametrization, derived from which trksegpars_* branch is populated for a track.
   // Run1B (straight-line, field-off) tracks are KinematicLine; standard Run-1A tracks are LoopHelix.

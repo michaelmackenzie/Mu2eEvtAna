@@ -26,20 +26,45 @@ using namespace mu2e;
 namespace Mu2eEvtAna {
   class ConvAna : public Mu2eEvtAna {
   public:
+    // Sample type, inferred from the analysis name (name_)
+    enum Dataset_t {
+      kUnknown = 0,
+      kCeMinus,  // cele: CeM leading log
+      kCePlus,   // cpos: CeP leading log
+      kCosmic,   // cry4a: cosmic signal
+      kDIO,      // dio00: DIO tail
+      kRMCE0,    // rmce0: RMC external conversion, 0 neutron knockout
+      kRMCE1,    // rmce1: RMC external conversion, 1 neutron knockout
+      kRMCI0,    // rmci0: RMC internal conversion, 0 neutron knockout
+      kRMCI1,    // rmci1: RMC internal conversion, 1 neutron knockout
+      kRPCE,     // rpce: RPC external conversion
+      kRPCI,     // rpci: RPC internal conversion
+      kPbar,     // pbar: antiproton resampling
+      kFlatPlus, // fpos: flat e+
+      kEnsemble  // mds: mock data ensemble
+    };
+
     ConvAna(int verbose = 0);
     ~ConvAna() {};
 
-    void InitHistSelections();
+    void InitHistSelections() override;
     void BookSystematicHist(SysHist_t* Hist, const char* Folder);
-    void BookHistograms(TDirectory* dir);
-    bool ProcessEvent();
-    void InitializeEvent();
-    void InitTrack(const rooutil::Track* track, Track_t& trk_par);
+    void BookHistograms(TDirectory* dir) override;
+    void FillSystematicHist(SysHist_t* Hist);
+    bool ProcessEvent() override;
+    void InitializeEvent() override;
+    void SetEventWeight(); // apply per-event sample weights (antiproton reweighting)
+    void InitTrack(const rooutil::Track* track, Track_t& trk_par) override;
 
-    int InitializeInput();
-    int InitializeOutput();
+    int InitializeInput() override;
+    void InitDataset(); // set dataset_ from name_
+    static const char* DatasetName(Dataset_t dataset);
+    bool IsRMC() const { return dataset_ == kRMCE0 || dataset_ == kRMCE1 || dataset_ == kRMCI0 || dataset_ == kRMCI1; }
+    bool IsRMCInternal() const { return dataset_ == kRMCI0 || dataset_ == kRMCI1; }
+    bool IsRMCExternal() const { return dataset_ == kRMCE0 || dataset_ == kRMCE1; }
+    int InitializeOutput() override;
 
-    void EndJob();
+    void EndJob() override;
 
     void FillAllHistograms(const int index);
     void InitTreeData();
@@ -47,18 +72,33 @@ namespace Mu2eEvtAna {
     bool Run1ACutFlow();
     bool StandardCutFlow();
 
-    void ValidateVariable(float var, const char* name) {
+    bool ValidateVariable(float var, const char* name) {
       if(!std::isfinite(var)) {
         printf(">>> Event %5i/%5i/%6i: Variable %s is non-finite = %f\n", evt_.run_, evt_.subrun_, evt_.event_, name, var);
+        return false;
       }
+      return true;
     }
 
-    TString OutputFileName() { return "ConvAna." + name_ + ".root"; }
+    double phase_space_cdf(double k, double kmax, double power) {
+      if(kmax <= 0.) return 0.;
+      if(power < 0) return 0.;
+      k = std::max(0., std::min(kmax, k));
+      const double x_1 = k / kmax;
+      const double x_2 = 1.;
+      const double val_1 = (x_1 - 1.)*std::pow(1-x_1, power)*(power*x_1+x_1+1.);
+      const double val_2 = (x_2 - 1.)*std::pow(1-x_2, power)*(power*x_2+x_2+1.);
+      const double integral = val_2 - val_1;
+      return integral;
+    }
+
+    TString OutputFileName() override { return "ConvAna." + name_ + ".root"; }
 
     CutFlow            cut_flow_                        ; // standard selection
     CutFlow            run1a_cut_flow_                  ; // Run 1A paper selection
     CutFlow            dev_cut_flow_                    ; // For cut-set testing
 
+    Dataset_t          dataset_ = kUnknown              ; // input sample type
     Bool_t             fill_verbose_sys_ = false        ; // add additional info with each systematic
 
     SysHist_t*         sys_hists_[kMaxHists]            ; // systematic histograms

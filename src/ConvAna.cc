@@ -124,7 +124,6 @@ namespace Mu2eEvtAna {
     hist_sets[ 73] = new hist_info_t("e-: Optimized cut-set"            ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 74] = new hist_info_t("e-: Optimized cut-set"            ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 75] = new hist_info_t("e-: Provided cut-set"             ,  true,  true,  true,  true,  true,  true,  true,  true);
-    hist_sets[ 76] = new hist_info_t("e-: Provided cut-set"             ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 77] = new hist_info_t("e-: ID, > 3 ST inters"            ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 78] = new hist_info_t("e-: ID, <= 3 ST inters"           ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 79] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true, false);
@@ -136,7 +135,7 @@ namespace Mu2eEvtAna {
       if(!hist_sets[index]) continue;
       const bool is_cr = i >= 1000 && !hist_sets[index]->_crs;
       if(is_cr && !hist_sets[index]->_crs) continue; // control region
-      if(i >= 4000) break; //Control regions above 4000 not yet implemented
+      if(i >= 8000) break; //Control regions above 8000 not yet implemented
       evt_hists_[i] = new EventHist_t;
       if(hist_sets[index]->_trk) trk_hists_[i] = new TrackHist_t;
       if(hist_sets[index]->_crv && ! is_cr) crv_hists_[i] = new CRVHist_t;
@@ -152,10 +151,8 @@ namespace Mu2eEvtAna {
     if(!Hist) {
       throw std::runtime_error("Attempting to book histograms in a null SysHist_t\n");
     }
-    for(int isys = 0; isys < kMaxSystematics; ++isys) {
-      // check if the systematic is defined
-      TString name = systematics_.GetName(isys);
-      if(name == "") continue;
+    for(const int isys : systematics_.Defined()) {
+      const TString name = systematics_.GetName(isys);
       Hist->fObs[isys] = new TH1F(Form("obs_%i", isys),Form("%s: Systematic %s",Folder, name.Data()), 300, 80., 110.); //FIXME: This should inherit from the nominal observable binning
       // For debug investigations
       if(fill_verbose_sys_) {
@@ -183,11 +180,55 @@ namespace Mu2eEvtAna {
   }
 
   //------------------------------------------------------------------------------------
+  // Fill the systematic histograms
+  void ConvAna::FillSystematicHist(SysHist_t* Hist) {
+    if(!Hist) {
+      throw std::runtime_error(Form("ConvAna::%s: Attempting to fill histograms in a null SysHist_t\n", __func__));
+    }
+    if(!track_) return;
+    const float obs_o(track_->PFront()), w_o(evt_.weight_);
+    for(const int isys : systematics_.Defined()) {
+      float obs(obs_o), w(w_o);
+      const bool is_up = systematics_.IsUp(isys);
+      switch(systematics_.GetType(isys)) {
+      case Systematics::kRMCPower:
+        if(dataset_ == kRMCE0 || dataset_ == kRMCI0) {
+          const float energy = evt_.rmc_energy_;
+          if(energy <= 0.) {
+            printf("ConvAna::%s: %4i %6i %6i : No RMC energy!\n", __func__,
+                   evt_.run_, evt_.subrun_, evt_.event_);
+
+          } else {
+            constexpr float kmax = 101.866;
+            const double x = energy / kmax;
+            const double shift = (is_up) ? 0.5 : -0.5; // rough gauge for a shift in the power-law
+            const double nominal = (x < 1.) ? (2.       + 1.)*(2.       + 2.)/kmax*x*std::pow(1.-x, 2      ) : 0.;
+            const double shifted = (x < 1.) ? (2.+shift + 1.)*(2.+shift + 2.)/kmax*x*std::pow(1.-x, 2+shift) : 0.;
+            const double cdf_nom = phase_space_cdf(97., kmax, 2.); // normalize in the high tail region
+            const double cdf_sys = phase_space_cdf(97., kmax, 2.+shift);
+            w *= (nominal > 0. && cdf_nom > 0. && cdf_sys > 0.) ? (shifted/cdf_sys) / (nominal / cdf_nom) : 0.;
+          }
+        }
+        break;
+      default: break;
+      }
+
+      Hist->fObs[isys]->Fill(obs, w);
+      if(fill_verbose_sys_) {
+        Hist->fDeltaObs   [isys]->Fill(obs - obs_o, w);
+        Hist->fWeight     [isys]->Fill(w);
+        Hist->fDeltaWeight[isys]->Fill(w-w_o);
+      }
+    }
+  }
+
+  //------------------------------------------------------------------------------------
   // Fill the standard histograms
   void ConvAna::FillAllHistograms(const int index) {
     if(evt_hists_[index]) FillEventHist(evt_hists_[index]);
     if(trk_hists_[index]) FillTrackHist(trk_hists_[index], track_);
     // if(cls_hists_[index]) FillCaloClusterHist(cls_hists_[index], cluster_);
+    if(sys_hists_[index]) FillSystematicHist(sys_hists_[index]);
     if(fill_trees_ && trs_hists_[index]) FillTree(trs_hists_[index], track_, nullptr, nullptr);
   }
 
@@ -195,7 +236,60 @@ namespace Mu2eEvtAna {
   // Initialize the input ntuple information
   int ConvAna::InitializeInput() {
     Mu2eEvtAna::InitializeInput();
+    InitDataset();
     return 0;
+  }
+
+  //------------------------------------------------------------------------------------
+  // Determine the input sample type from the analysis name
+  void ConvAna::InitDataset() {
+    // short dataset tags (see scripts/datasets.C), e.g. "ConvAna.rmce0b1s5r0100.m0"
+    // and the full dataset names, e.g. "nts.mu2e.RMCPhaseSpace0NExternalMix1BB..."
+    struct Match_t { const char* tag; const char* full; Dataset_t dataset; };
+    const Match_t matches[] = {
+      {"rmce0", "RMCPhaseSpace0NExternal", kRMCE0    },
+      {"rmce1", "RMCPhaseSpace1NExternal", kRMCE1    },
+      {"rmci0", "RMCPhaseSpace0NInternal", kRMCI0    },
+      {"rmci1", "RMCPhaseSpace1NInternal", kRMCI1    },
+      {"rpce" , "RPCExternal"            , kRPCE     },
+      {"rpci" , "RPCInternal"            , kRPCI     },
+      {"cele" , "CeMLeadingLog"          , kCeMinus  },
+      {"cpos" , "CePLeadingLog"          , kCePlus   },
+      {"cry4a", "CosmicSignal"           , kCosmic   },
+      {"dio00", "DIOtail"                , kDIO      },
+      {"pbar" , "PbarResampling"         , kPbar     },
+      {"fpos" , "FlatePlus"              , kFlatPlus },
+      {"mds"  , "ensembleMDS"            , kEnsemble }
+    };
+    dataset_ = kUnknown;
+    for(const auto& match : matches) {
+      if(name_.Contains(match.tag) || name_.Contains(match.full)) {
+        dataset_ = match.dataset;
+        break;
+      }
+    }
+    if(verbose_ > 0 || dataset_ == kUnknown)
+      printf("[ConvAna::%s] Name %s --> dataset %s\n", __func__, name_.Data(), DatasetName(dataset_));
+  }
+
+  //------------------------------------------------------------------------------------
+  const char* ConvAna::DatasetName(Dataset_t dataset) {
+    switch(dataset) {
+      case kCeMinus : return "CeMinus";
+      case kCePlus  : return "CePlus";
+      case kCosmic  : return "Cosmic";
+      case kDIO     : return "DIO";
+      case kRMCE0   : return "RMCExternal0N";
+      case kRMCE1   : return "RMCExternal1N";
+      case kRMCI0   : return "RMCInternal0N";
+      case kRMCI1   : return "RMCInternal1N";
+      case kRPCE    : return "RPCExternal";
+      case kRPCI    : return "RPCInternal";
+      case kPbar    : return "Pbar";
+      case kFlatPlus: return "FlatPlus";
+      case kEnsemble: return "Ensemble";
+      default       : return "Unknown";
+    }
   }
 
   //------------------------------------------------------------------------------------
@@ -224,40 +318,41 @@ namespace Mu2eEvtAna {
     if(evaluate_mvas_) {
       track_ = &trk_par;
       InitTreeData();
-      ValidateVariable(tree_.trkqual_nactive, "TrkQual_nactive");
-      ValidateVariable(tree_.trkqual_activehitsfraction, "TrkQual_activehitsfraction");
-      ValidateVariable(tree_.trkqual_nullhitsfraction, "TrkQual_nullhitsfraction");
-      ValidateVariable(tree_.trkqual_activematsitesfraction, "TrkQual_activematsitesfraction");
-      ValidateVariable(tree_.trkqual_fitcons, "TrkQual_fitcons");
-      ValidateVariable(tree_.trkqual_momerr, "TrkQual_momerr");
-      ValidateVariable(tree_.trkqual_t0err, "TrkQual_t0err");
-      ValidateVariable(tree_.trk_ep, "TrkEP");
-      ValidateVariable(tree_.trk_dt, "TrkDt");
-      ValidateVariable(tree_.trk_fitcon, "TrkFitCon");
-      ValidateVariable(tree_.trk_logfitcon, "TrkLogFitCon");
-      ValidateVariable(tree_.trk_active_ratio, "TrkActiveRatio");
-      ValidateVariable(tree_.trk_null_ratio, "TrkNullRatio");
-      ValidateVariable(tree_.trk_tzslope, "TrkTZSlope");
-      ValidateVariable(tree_.trk_tzslope_sig, "TrkTZSlopeSig");
-      ValidateVariable(tree_.trk_tzslope_ratio, "TrkTZSlopeRatio");
-      ValidateVariable(tree_.trk_d0, "TrkD0");
-      ValidateVariable(tree_.trk_tandip, "TrkTanDip");
-      ValidateVariable(tree_.trk_cos, "TrkCosTheta");
-      ValidateVariable(tree_.trk_rmax, "TrkRMax");
+      bool good_trkqual(true), good_pid(true), good_trkpid(true), good_cosmic(true);
+      good_trkqual &= ValidateVariable(tree_.trkqual_nactive, "TrkQual_nactive");
+      good_trkqual &= ValidateVariable(tree_.trkqual_activehitsfraction, "TrkQual_activehitsfraction");
+      good_trkqual &= ValidateVariable(tree_.trkqual_nullhitsfraction, "TrkQual_nullhitsfraction");
+      good_trkqual &= ValidateVariable(tree_.trkqual_activematsitesfraction, "TrkQual_activematsitesfraction");
+      good_trkqual &= ValidateVariable(tree_.trkqual_fitcons, "TrkQual_fitcons");
+      good_trkqual &= ValidateVariable(tree_.trkqual_momerr, "TrkQual_momerr");
+      good_trkqual &= ValidateVariable(tree_.trkqual_t0err, "TrkQual_t0err");
+      good_pid     &= ValidateVariable(tree_.trk_ep, "TrkEP");
+      good_pid     &= ValidateVariable(tree_.trk_dt, "TrkDt");
+      good_trkpid  &= ValidateVariable(tree_.trk_fitcon, "TrkFitCon");
+      good_trkpid  &= ValidateVariable(tree_.trk_logfitcon, "TrkLogFitCon");
+      good_trkpid  &= ValidateVariable(tree_.trk_active_ratio, "TrkActiveRatio");
+      good_trkpid  &= ValidateVariable(tree_.trk_null_ratio, "TrkNullRatio");
+      good_trkpid  &= ValidateVariable(tree_.trk_tzslope, "TrkTZSlope");
+      good_trkpid  &= ValidateVariable(tree_.trk_tzslope_sig, "TrkTZSlopeSig");
+      good_trkpid  &= ValidateVariable(tree_.trk_tzslope_ratio, "TrkTZSlopeRatio");
+      good_cosmic  &= ValidateVariable(tree_.trk_d0, "TrkD0");
+      good_cosmic  &= ValidateVariable(tree_.trk_tandip, "TrkTanDip");
+      good_cosmic  &= ValidateVariable(tree_.trk_cos, "TrkCosTheta");
+      good_cosmic  &= ValidateVariable(tree_.trk_rmax, "TrkRMax");
       if(evaluate_mvas_ > 0) {
         watch_->SetTime("MVAs");
-        trk_par.trkqual_ = (trkqual_) ? trkqual_->EvaluateMVA("TrkQual") : -999.f;
-        trk_par.pid_ = (pid_) ? pid_->EvaluateMVA("PID") : -999.f;
-        trk_par.trkpid_ = (trkpid_) ? trkpid_->EvaluateMVA("TrkPID") : -999.f;
-        trk_par.cosmic_id_ = (cosmic_id_) ? cosmic_id_->EvaluateMVA("CosmicID") : -999.f;
+        trk_par.trkqual_   = (good_trkqual && trkqual_  ) ? trkqual_  ->EvaluateMVA("TrkQual")  : -999.f;
+        trk_par.pid_       = (good_pid     && pid_      ) ? pid_      ->EvaluateMVA("PID")      : -999.f;
+        trk_par.trkpid_    = (good_trkpid  && trkpid_   ) ? trkpid_   ->EvaluateMVA("TrkPID")   : -999.f;
+        trk_par.cosmic_id_ = (good_cosmic  && cosmic_id_) ? cosmic_id_->EvaluateMVA("CosmicID") : -999.f;
         watch_->StopTime("MVAs");
       }
       // Reset the main ID with the new MVA scores
-      trk_par.SetID(TrackID(&trk_par), 0);
+      SetTrackIDs(&trk_par);
     }
 
     // Standard Run 1A selection set
-    trk_par.SetID(Run1ATrackID(&trk_par), 1);
+    trk_par.SetID(Run1ATrackID(&trk_par), 2);
   }
 
   //------------------------------------------------------------------------------------
@@ -517,10 +612,10 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Main event-by-event processing
-  bool ConvAna::ProcessEvent() {
-    ValidateTracks();
-
-    // Determine the event weight
+  //------------------------------------------------------------------------------------
+  // Apply per-event sample weights
+  void ConvAna::SetEventWeight() {
+    // Antiproton reweighting
     for(int isimp = 0; isimp < evt_.nsimps_; ++isimp) {
       auto& simp = simps_[isimp];
       if(simp.pdg_ == -2212 && simp.start_code_ == mu2e::ProcessCode::mu2eAntiproton) { // antiproton sim
@@ -537,7 +632,14 @@ namespace Mu2eEvtAna {
                                 );
       }
     }
+  }
 
+  //------------------------------------------------------------------------------------
+  // Main event-by-event processing
+  bool ConvAna::ProcessEvent() {
+    ValidateTracks();
+
+    SetEventWeight();
 
     // const float nominal_weight = evt_.weight_;
 
@@ -580,8 +682,9 @@ namespace Mu2eEvtAna {
         if(track_->PFront() > 95.f && track_->Charge() < 0) FillAllHistograms(4);
 
         // Standard IDs
-        const auto ID = track_->ID(0);
-        const auto Run1AID = track_->ID(1);
+        const auto ID_n    = track_->ID(0);
+        const auto ID_p    = track_->ID(1);
+        const auto Run1AID = track_->ID(2);
 
         // Cosmic multiplicity/reflection vetos
         bool multi_trk(true), upstream_veto(true);
@@ -606,30 +709,38 @@ namespace Mu2eEvtAna {
         }
 
         // Offset to control regions
-        int set_offset(0);
-        if(ID.CheckBit(kCRV)) set_offset += kCRVVetoOffset;
-        if(ID.CheckBit(kT0))  set_offset += kTimeCutOffset;
-        const int id_no_crv = ID.ID(~(1 << kCRV)); // ID without the CRV coincidence cluster considered
-        const int id_no_time = ID.ID(~(1 << kT0)); // ID with a looser timing cut
-        const int id_no_crv_time = id_no_crv & id_no_time;
+        int neg_set_offset(0), pos_set_offset(0);
+        if(ID_n.CheckBit(kCRV)) neg_set_offset += kCRVVetoOffset;
+        if(ID_n.CheckBit(kT0))  neg_set_offset += kTimeCutOffset;
+        if(ID_p.CheckBit(kCRV)) pos_set_offset += kCRVVetoOffset;
+        if(ID_p.CheckBit(kT0))  pos_set_offset += kTimeCutOffset;
+        const int id_n_no_crv      = ID_n.ID(~(1 << kCRV)); // ID without the CRV coincidence cluster considered
+        const int id_p_no_crv      = ID_p.ID(~(1 << kCRV));
+        const int id_n_no_time     = ID_n.ID(~(1 << kT0)); // ID with a looser timing cut
+        const int id_p_no_time     = ID_p.ID(~(1 << kT0));
+        const int id_n_no_crv_time = id_n_no_crv & id_n_no_time;
+        const int id_p_no_crv_time = id_p_no_crv & id_p_no_time;
 
-        if(event_id == 0 && upstream_veto && multi_trk && id_no_crv_time == 0) {
-          FillTrackHist(trk_hists_[10 + set_offset], track_);
-          if(track_->Charge() < 0) { // electron selection
-            if(track_->PFront() > 100.f && track_->PFront() < 110.f) {
-              FillAllHistograms(20 + set_offset);
-              if(track_->PFront() > 103.6f && track_->PFront() < 104.9f) {
-                FillAllHistograms(21 + set_offset);
-              }
-              // alternate ID set on top of standard ID (~75% signal eff)
-              const bool alt_id = (track_->CosThetaFront() > 0.5 && track_->CosThetaFront() < 0.646805 &&
-                                   track_->TFront() > 594.049 &&
-                                   track_->RMaxFront() > 482.031 &&
-                                   track_->EPFront() < 0.960571 &&
-                                   track_->AltPID() > 0.140625);
-              if(alt_id) FillAllHistograms(24 + set_offset);
-              else       FillAllHistograms(25 + set_offset);
+        // Accounting for the different charge selections
+        if(track_->Charge() > 0) neg_set_offset += kChargeOffset;
+        if(track_->Charge() < 0) pos_set_offset += kChargeOffset;
+
+        if(event_id == 0 && upstream_veto && multi_trk && id_n_no_crv_time == 0) {
+          FillTrackHist(trk_hists_[10 + neg_set_offset], track_);
+          // Negative charge selection base
+          if(track_->PFront() > 100.f && track_->PFront() < 110.f) {
+            FillAllHistograms(20 + neg_set_offset);
+            if(track_->PFront() > 103.6f && track_->PFront() < 104.9f) {
+              FillAllHistograms(21 + neg_set_offset);
             }
+            // alternate ID set on top of standard ID (~75% signal eff)
+            const bool alt_id = (track_->CosThetaFront() > 0.5 && track_->CosThetaFront() < 0.646805 &&
+                                 track_->TFront() > 594.049 &&
+                                 track_->RMaxFront() > 482.031 &&
+                                 track_->EPFront() < 0.960571 &&
+                                 track_->AltPID() > 0.140625);
+            if(alt_id) FillAllHistograms(24 + neg_set_offset);
+            else       FillAllHistograms(25 + neg_set_offset);
           }
         }
 
@@ -638,11 +749,12 @@ namespace Mu2eEvtAna {
         int run1a_set_offset(0);
         if(Run1AID.CheckBit(kCRV)) run1a_set_offset += kCRVVetoOffset;
         if(Run1AID.CheckBit(kT0))  run1a_set_offset += kTimeCutOffset;
+        if(track_->Charge() > 0)   run1a_set_offset += kChargeOffset;
         const int run1a_id_no_crv = Run1AID.ID(~(1 << kCRV)); // ID without the CRV coincidence cluster considered
         const int run1a_id_no_time = Run1AID.ID(~(1 << kT0)); // ID with a looser timing cut
         const int run1a_id_no_crv_time = run1a_id_no_crv & run1a_id_no_time;
 
-        if(event_id == 0 && run1a_id_no_crv_time == 0 && track_->Charge() < 0) {
+        if(event_id == 0 && run1a_id_no_crv_time == 0) {
           if(track_->TFront() > 640.) { // nominal timing window for 1D fit
             if(evt_.nde_tracks_ == 1) FillAllHistograms(60 + run1a_set_offset);
             if(upstream_veto && multi_trk) {
@@ -673,7 +785,7 @@ namespace Mu2eEvtAna {
                                     && track_->TrkPID() > 0.078125);
         if(no_csm_opt_id) {
           int cut_opt_offset = 0;
-          if(ID.CheckBit(kCRV)) cut_opt_offset += kCRVVetoOffset;
+          if(ID_n.CheckBit(kCRV)) cut_opt_offset += kCRVVetoOffset;
           FillAllHistograms(73 + cut_opt_offset);
         }
 
@@ -691,93 +803,104 @@ namespace Mu2eEvtAna {
                                  && track_->TrkQual() > 0.2);
         if(evt_opt_id) {
           int cut_opt_offset = 0;
-          if(ID.CheckBit(kCRV)) cut_opt_offset += kCRVVetoOffset;
+          if(ID_n.CheckBit(kCRV)) cut_opt_offset += kCRVVetoOffset;
           FillAllHistograms(74 + cut_opt_offset);
         }
 
         // Version provided by Natalie from detailed selection optimization
         bool prv_opt_id = true;
-        prv_opt_id &= track_->Charge() < 0; if(prv_opt_id) dev_cut_flow_.Increment("charge");
-        prv_opt_id &= (trigger_.FiredAPR() || trigger_.FiredCPR()); if(prv_opt_id) dev_cut_flow_.Increment("trigger");
-        prv_opt_id &= upstream_veto; if(prv_opt_id) dev_cut_flow_.Increment("upstream_reflection");
-        prv_opt_id &= multi_trk; if(prv_opt_id) dev_cut_flow_.Increment("multi_trk");
-        if(prv_opt_id) FillAllHistograms(81); // For input to Natalie's code
-        prv_opt_id &= track_->PID() > 0.54f && track_->ECluster() > 0.; if(prv_opt_id) dev_cut_flow_.Increment("PID");
-        prv_opt_id &= track_->TanDipFront() > 0.575f && track_->TanDipFront() < 0.85f; if(prv_opt_id) dev_cut_flow_.Increment("tan_dip");
-        prv_opt_id &= track_->STBoundary() > 0; if(prv_opt_id) dev_cut_flow_.Increment("st_boundary");
-        prv_opt_id &= track_->NSTInter() > 0; if(prv_opt_id) dev_cut_flow_.Increment("st_inter");
-        prv_opt_id &= track_->OPAInter() == 0; if(prv_opt_id) dev_cut_flow_.Increment("opa_inter");
-        prv_opt_id &= track_->TSDAInter() == 0; if(prv_opt_id) dev_cut_flow_.Increment("tsda_inter");
-        prv_opt_id &= track_->TrkQual() > 0.155f; if(prv_opt_id) dev_cut_flow_.Increment("trkqual");
-        prv_opt_id &= track_->NActive() >= 20; if(prv_opt_id) dev_cut_flow_.Increment("nactive");
-        prv_opt_id &= track_->TErrMiddle() < 0.85f; if(prv_opt_id) dev_cut_flow_.Increment("t0_err");
-        if(!Run1AID.CheckBit(kCRV)) {
+        bool charge_cut = track_->Charge() < 0;
+        if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("charge");
+        prv_opt_id &= (trigger_.FiredAPR() || trigger_.FiredCPR()); if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("trigger");
+        prv_opt_id &= upstream_veto; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("upstream_reflection");
+        prv_opt_id &= multi_trk; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("multi_trk");
+        if(prv_opt_id && charge_cut) FillAllHistograms(81); // For input to Natalie's code
+        prv_opt_id &= track_->PID() > 0.54f && track_->ECluster() > 0.; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("PID");
+        prv_opt_id &= track_->TanDipFront() > 0.575f && track_->TanDipFront() < 0.85f; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("tan_dip");
+        prv_opt_id &= track_->STBoundary() > 0; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("st_boundary");
+        prv_opt_id &= track_->NSTInter() > 0; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("st_inter");
+        prv_opt_id &= track_->OPAInter() == 0; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("opa_inter");
+        prv_opt_id &= track_->TSDAInter() == 0; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("tsda_inter");
+        prv_opt_id &= track_->TrkQual() > 0.155f; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("trkqual");
+        prv_opt_id &= track_->NActive() >= 20; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("nactive");
+        prv_opt_id &= track_->TErrMiddle() < 0.85f; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("t0_err");
+
+        // For the cut-flow, don't apply momentum, time, charge, or CRV cuts yet
+        if(!Run1AID.CheckBit(kCRV) && charge_cut) {
           if(prv_opt_id) dev_cut_flow_.Increment("crv_veto");
-          prv_opt_id &= track_->PFront() > 100.f && track_->PFront() < 110.f;  if(prv_opt_id) dev_cut_flow_.Increment("momentum");
-          prv_opt_id &= track_->TFront() > 475.f && track_->TFront() < 1650.f; if(prv_opt_id) dev_cut_flow_.Increment("t_475");
-          if(prv_opt_id && track_->TFront() > 540.f) {
-            dev_cut_flow_.Increment("t_540"); // don't actually apply this here
-            if(prv_opt_id && track_->TFront() > 640.f) {
-              dev_cut_flow_.Increment("t_640"); // don't actually apply this here
-              if(track_->PFront() > 103.34f && track_->PFront() < 104.74f) {
-                dev_cut_flow_.Increment("sr_momentum");
-                if(verbose_ > 1) printf("CE: %4i %6i %6i : p = %f t = %f\n",
-                                        evt_.run_, evt_.subrun_, evt_.event_,
-                                        track_->PFront(), track_->TFront());
+          if(track_->PFront() > 100.f && track_->PFront() < 110.f) {
+            dev_cut_flow_.Increment("momentum");
+            if(track_->TFront() > 475.f && track_->TFront() < 1650.f) {
+              dev_cut_flow_.Increment("t_475");
+              if(prv_opt_id && track_->TFront() > 540.f) {
+                dev_cut_flow_.Increment("t_540");
+                if(prv_opt_id && track_->TFront() > 640.f) {
+                  dev_cut_flow_.Increment("t_640");
+                  if(track_->PFront() > 103.34f && track_->PFront() < 104.74f) {
+                    dev_cut_flow_.Increment("sr_momentum");
+                    if(verbose_ > 1) printf("CE: %4i %6i %6i : p = %f t = %f\n",
+                                            evt_.run_, evt_.subrun_, evt_.event_,
+                                            track_->PFront(), track_->TFront());
+                  }
+                }
               }
             }
           }
         }
-        if(prv_opt_id) {
+
+        if(prv_opt_id && track_->PFront() > 94. && track_->PFront() < 110.) {
           int cut_opt_offset = 0;
           if(Run1AID.CheckBit(kCRV)) cut_opt_offset += kCRVVetoOffset;
-          if(track_->TFront() > 540.f) {  // nominal 1D selection
-            FillAllHistograms(75 + cut_opt_offset);
-            // Test splitting on N(ST foil intersections)
-            if(track_->NSTInter() > 3) FillAllHistograms(77 + cut_opt_offset);
-            else                       FillAllHistograms(78 + cut_opt_offset);
-            if(evt_.nde_tracks_ == 1 && track_->TFront() > 640.) // strict track counting and t0 cut
-              FillAllHistograms(76 + cut_opt_offset);
+          if(!charge_cut) cut_opt_offset += kChargeOffset;
+          int offset_1d = cut_opt_offset; // for 1D selections with a timing cut
+          if(track_->TFront() <= 540.f) offset_1d += kTimeCutOffset;
 
-            // Print cosmics that pass all cuts
-            if(name_.Contains("cry4a") && !Run1AID.CheckBit(kCRV)) {
-              printf("[ConvAna::%s] Event %5i:%6i:%8i passes Run 1A selection\n",
-                     __func__, evt_.run_, evt_.subrun_, evt_.event_);
-              track_->Print("banner");
-              for(int i = 0; i < evt_.ntracks_; ++i) {
-                if(i == itrk) continue; // skip this track
-                tracks_[i].Print();
-              }
-              printf("CRV clusters:\n");
-              for(int istub = 0; istub < evt_.ncrv_clusters_; ++istub) {
-                const auto& stub = crv_clusters_[istub];
-                stub.Print((istub == 0) ? "banner" : "");
-              }
-              printf("Calo clusters:\n");
-              for(int icls = 0; icls < evt_.ncalo_clusters_; ++icls) {
-                const auto& cls = calo_clusters_[icls];
-                cls.Print((icls == 0) ? "banner" : "");
-              }
+          // nominal 1D selection
+          FillAllHistograms(75 + offset_1d);
+          // Test splitting on N(ST foil intersections)
+          if(track_->NSTInter() > 3) FillAllHistograms(77 + offset_1d);
+          else                       FillAllHistograms(78 + offset_1d);
+
+          // Print cosmics that pass all cuts
+          if(offset_1d == 0 && name_.Contains("cry4a") && !Run1AID.CheckBit(kCRV)) {
+            printf("[ConvAna::%s] Event %5i:%6i:%8i passes Run 1A selection\n",
+                   __func__, evt_.run_, evt_.subrun_, evt_.event_);
+            track_->Print("banner");
+            for(int i = 0; i < evt_.ntracks_; ++i) {
+              if(i == itrk) continue; // skip this track
+              tracks_[i].Print();
             }
-          } // end 540 ns selection
-          if(track_->TFront() > 475.f) FillAllHistograms(80 + cut_opt_offset); // nominal 2D selection
+            printf("CRV clusters:\n");
+            for(int istub = 0; istub < evt_.ncrv_clusters_; ++istub) {
+              const auto& stub = crv_clusters_[istub];
+              stub.Print((istub == 0) ? "banner" : "");
+            }
+            printf("Calo clusters:\n");
+            for(int icls = 0; icls < evt_.ncalo_clusters_; ++icls) {
+              const auto& cls = calo_clusters_[icls];
+              cls.Print((icls == 0) ? "banner" : "");
+            }
+          }
+
+          // nominal 2D selection
+          if(track_->TFront() > 475.f) FillAllHistograms(80 + cut_opt_offset);
         }
 
 
-        bool test_id = true; // As of 2026-08-29 from Natalie
+        bool test_id = true; // As of 2026-09-28 from Natalie
         test_id &= track_->Charge() < 0;
         test_id &= (trigger_.FiredAPR() || trigger_.FiredCPR());
         test_id &= upstream_veto;
         test_id &= multi_trk;
         test_id &= track_->NSTInter() > 0;
         test_id &= track_->OPAInter() == 0;
-        test_id &= track_->D0Front() < 82.1943365;
-        test_id &= track_->D0Front() > -74.479075;
-        test_id &= track_->PID() > 0.60835038 && track_->ECluster() > 0.;
-        test_id &= track_->TanDipFront() > 0.520177267 && track_->TanDipFront() < 0.8539424;
-        test_id &= track_->TrkQual() > 0.1718097;
-        test_id &= track_->NActive() >= 21;
-        test_id &= track_->TErrMiddle() < 0.7900952;
+        test_id &= track_->D0Front() <  91.211543177;
+        test_id &= track_->D0Front() > -36.29673596;
+        test_id &= track_->PID() > 0.5058837697 && track_->ECluster() > 0.;
+        test_id &= track_->TanDipFront() > 0.4938016 && track_->TanDipFront() < 0.862519827;
+        test_id &= track_->TrkQual() > 0.17542357;
+        test_id &= track_->NActive() >= 20;
+        test_id &= track_->TErrMiddle() < 0.89444511;
         test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
         test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
         if(test_id) {
@@ -791,13 +914,13 @@ namespace Mu2eEvtAna {
         //------------------------------------
 
         if(track_->PFront() > 75.f && track_->Charge() > 0) FillAllHistograms(5);
-        if(track_->Charge() > 0 && id_no_crv_time == 0) {
+        if(id_p_no_crv_time == 0) {
           if(track_->PFront() > 80.f && track_->PFront() < 100.f) {
-            FillAllHistograms(40 + set_offset);
+            FillAllHistograms(40 + pos_set_offset);
             // narrow momentum window
-            if(track_->PFront() > 90.f && track_->PFront() < 93.f) FillAllHistograms(41 + set_offset);
+            if(track_->PFront() > 90.f && track_->PFront() < 93.f) FillAllHistograms(41 + pos_set_offset);
           }
-          FillAllHistograms(42 + set_offset); // broad momentum window
+          FillAllHistograms(42 + pos_set_offset); // broad momentum window
         }
 
       } // end De selection

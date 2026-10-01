@@ -130,6 +130,9 @@ namespace Mu2eEvtAna {
     hist_sets[ 73] = new hist_info_t("rmc_line_cut"                    ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 74] = new hist_info_t("rmc_seed_cut"                    ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 80] = new hist_info_t("ce_id"                           ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 90] = new hist_info_t("rpc_base"                        ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 93] = new hist_info_t("rpc_line_cut"                    ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 94] = new hist_info_t("rpc_seed_cut"                    ,  true,  true,  true,  true,  true,  true, false, false);
 
     for (int i=0; i<kMaxHists; i++) {
       const int index = i % 1000; // base index, ignoring control region offset
@@ -420,7 +423,7 @@ namespace Mu2eEvtAna {
       }
 
       //------------------------------------------------
-      // Photon selection
+      // RMC selection
       //------------------------------------------------
 
       if(base_id && pu_veto && pu_r_veto) {
@@ -437,6 +440,32 @@ namespace Mu2eEvtAna {
             if(is_pu && energy > 70.f) PrintClusterInfo("[Accepted RMC: PU]", cluster);
             FillCaloClusterHist(cls_hists_[74], cluster);
             FillTimeClusterHist(tcs_hists_[74], e_tc);
+          }
+        }
+      }
+
+      //------------------------------------------------
+      // RPC selection
+      //------------------------------------------------
+
+      if(!mc_veto && energy > 60. && energy < 140. &&
+         time > 300. && time < 500. &&
+         pu_veto && pu_r_veto) {
+        FillCaloClusterHist(cls_hists_[90], cluster);
+        FillTimeClusterHist(tcs_hists_[90], e_tc);
+        bool trk_veto = false;
+        trk_veto |= e_line != nullptr;
+        if(!trk_veto) {
+          FillCaloClusterHist(cls_hists_[93], cluster);
+          FillTimeClusterHist(tcs_hists_[93], e_tc);
+          trk_veto |= e_line_seed != nullptr;
+          if(electron_tc_hits_ && e_tc && e_tc->HasHits()) {
+            trk_veto |= e_tc->NHitsAboveZ(1300.) >= 3;
+          }
+          if(!trk_veto) {
+            if(is_pu && energy > 70.f) PrintClusterInfo("[Accepted RPC: PU]", cluster);
+            FillCaloClusterHist(cls_hists_[94], cluster);
+            FillTimeClusterHist(tcs_hists_[94], e_tc);
           }
         }
       }

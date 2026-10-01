@@ -204,6 +204,7 @@ namespace Mu2eEvtAna {
     }
     Hist->fP[0]          = new TH1F("p"           ,Form("%s: Track momentum"                       ,Folder),  300,    0.,  150.);
     Hist->fP[1]          = new TH1F("p_2"         ,Form("%s: Track momentum"                       ,Folder),  600,   80.,  110.);
+    Hist->fPWide         = new TH1F("p_wide"      ,Form("%s: Track momentum"                       ,Folder),  300,    0.,  300.);
     Hist->fObs           = new TH1F("obs"         ,Form("%s: Track momentum"                       ,Folder),  300,   80.,  110.); // fit histogram
     Hist->fPt            = new TH1F("pt"          ,Form("%s: track transverse momentum"            ,Folder),  300,    0.,  300.);
     Hist->fPCorr         = new TH1F("p_corr"      ,Form("%s: corrected track momentum"             ,Folder),  600,   80.,  110.);
@@ -229,6 +230,7 @@ namespace Mu2eEvtAna {
     Hist->fFitCons[1]    = new TH1F("fitCons_log" ,Form("%s: track log10(p(chi2,ndof))"            ,Folder),  200,   -6.,    0.);
     Hist->fFitMomErr     = new TH1F("fitMomErr"   ,Form("%s: track momentum uncertainty"           ,Folder),  200,    0.,    5.);
     Hist->fTanDip        = new TH1F("tanDip"      ,Form("%s: track tanDip"                         ,Folder),  200,    0.,    2.);
+    Hist->fTanDipWide    = new TH1F("tanDip_wide" ,Form("%s: track tanDip"                         ,Folder),  300,    0.,    6.);
     Hist->fCosTheta      = new TH1F("cosTheta"    ,Form("%s: track cos(#theta)"                    ,Folder),  200,   -1.,    1.);
     Hist->fRadius        = new TH1F("radius"      ,Form("%s: track radius"                         ,Folder), 1000,    0., 1000.);
     Hist->fRMax          = new TH1F("rMax"        ,Form("%s: track rMax"                           ,Folder), 2000,    0., 2000.);
@@ -501,6 +503,7 @@ namespace Mu2eEvtAna {
     Tree->tree->Branch("trk_ntsda"              , &Tree->trk_tsda                );
     Tree->tree->Branch("trk_mc_dp"              , &Tree->trk_mc_dp               );
     Tree->tree->Branch("trk_mc_pdg"             , &Tree->trk_mc_pdg              );
+    Tree->tree->Branch("trk_id"                 , &Tree->trk_id                  );
   }
 
   //------------------------------------------------------------------------------------
@@ -629,6 +632,7 @@ namespace Mu2eEvtAna {
     const float Weight(evt_.weight_);
     Hist->fP[0] ->Fill(Track->PFront(), Weight);
     Hist->fP[1] ->Fill(Track->PFront(), Weight);
+    Hist->fPWide->Fill(Track->PFront(), Weight);
     Hist->fObs->Fill(Track->Obs(), Weight);
     Hist->fPt->Fill(Track->PTFront(), Weight);
     Hist->fPCenter[0]->Fill(Track->PMiddle()*Track->Charge(), Weight);
@@ -647,6 +651,7 @@ namespace Mu2eEvtAna {
     Hist->fFitCons[1]->Fill(std::log10(std::max(1.e-10f, Track->FitCon())), Weight);
     Hist->fFitMomErr->Fill(Track->MomErrFront(), Weight);
     Hist->fTanDip->Fill(Track->TanDipFront(), Weight);
+    Hist->fTanDipWide->Fill(Track->TanDipFront(), Weight);
     Hist->fCosTheta->Fill(Track->CosThetaFront(), Weight);
     Hist->fRadius->Fill(Track->RadiusFront(), Weight);
     Hist->fRMax->Fill(Track->RMaxFront(), Weight);
@@ -669,7 +674,7 @@ namespace Mu2eEvtAna {
     Hist->fIPAInters->Fill(Track->NIPAInter(), Weight);
     // Hist->fBestAlg->Fill(Track->BestAlg(), Weight);
     // Hist->fAlgMask->Fill(Track->AlgMask(), Weight);
-    const auto ID = Track->ID(0);
+    const auto ID = Track->ID(hist_track_id_);
     if(ID == 0) {
       Hist->fTrackID   ->Fill("Passed", Weight);
       Hist->fExlTrackID->Fill("Passed", Weight);
@@ -971,6 +976,7 @@ namespace Mu2eEvtAna {
       Tree->trk_tsda = Track->TSDAInter();
       Tree->trk_mc_dp = Track->MCDeltaPFront();
       Tree->trk_mc_pdg = Track->MCPDG();
+      Tree->trk_id = Track->ID(hist_track_id_).ID(0xffffffff);
 
       // For CRV deadtime estimate in Run 1A optimization (simple dt window)
       float min_crv_time = -9999.f;
@@ -1095,6 +1101,12 @@ namespace Mu2eEvtAna {
             auto& simp_t = simps_[evt_.nsimps_];
             ++evt_.nsimps_;
             simp_t.Initialize(&simp);
+            if(simp_t.mcrel_ == 0) { // add the primary to the list
+              if(simp_t.start_code_ == mu2e::ProcessCode::mu2eExternalRMC ||
+                 simp_t.start_code_ == mu2e::ProcessCode::mu2eInternalRMC) {
+                evt_.rmc_energy_ += simp_t.mom_start_.e();
+              }
+            }
           }
         }
       }
@@ -1171,7 +1183,7 @@ namespace Mu2eEvtAna {
       de->upstream_ = match;
 
       // Set track ID info after CRV cluster and upstream track matching
-      de->SetID(TrackID(de), 0);
+      SetTrackIDs(de);
 
       // Set an alternate ID
       bool us_cut = true;
@@ -1190,6 +1202,7 @@ namespace Mu2eEvtAna {
                                    && de->TrkPID() > 0.078125);
       de->SetID(no_csm_opt_id, 2);
     }
+
     if(verbose_ > 2) {
       for(int itrk = 0; itrk < evt_.ntracks_; ++itrk)
         tracks_[itrk].Print((itrk == 0) ? "banner" : "");
@@ -1250,7 +1263,7 @@ namespace Mu2eEvtAna {
     trk_par.stub_ = match;
 
     // Initial track ID
-    trk_par.SetID(TrackID(&trk_par), 0);
+    SetTrackIDs(&trk_par);
   }
 
   //------------------------------------------------------------------------------------
@@ -1271,81 +1284,85 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Track selection
-  CutID Mu2eEvtAna::TrackID(Track_t* track) {
-    if(!track || !track->track_) return 0;
-    CutID ID;
+  void Mu2eEvtAna::SetTrackIDs(Track_t* track) {
+    if(!track || !track->track_) return;
+    CutID ID_n, ID_p;
 
+    // Process the standard electron and positron IDs
+    for(int charge = -1; charge < 2; charge += 2) {
     // Charge-specific cuts
-    if(track->Charge() < 0) { // electrons
-      if(track->PFront() < 85.f || track->PFront() > 130.f)        ID.SetBit(kP);
-      if(track->RMaxFront() < 430. || track->RMaxFront() > 650.)   ID.SetBit(kRMax);
-      if(track->AltTrkQual() > -10. && track->AltTrkQual() < 0.2)  ID.SetBit(kTrkQual);
-      if(track->TFront() < 540. || track->TFront() > 1650.)        ID.SetBit(kT0);
-      if(track->FitCon() < 1.e-5)                                  ID.SetBit(kFitCon);
-      if(track->ECluster() <= 0.)                                  ID.SetBit(kClusterE);
-      else if(track->AltPID() < 0.5f)                              ID.SetBit(kPID);
-      if(track->TanDipFront() < 0.5 || track->TanDipFront() > 2.0) ID.SetBit(kTDip);
+      CutID& ID = (charge < 0) ? ID_n : ID_p;
+      if(charge < 0) { // electrons
+        if(track->PFront() < 85.f || track->PFront() > 130.f)        ID.SetBit(kP);
+        if(track->RMaxFront() < 430. || track->RMaxFront() > 650.)   ID.SetBit(kRMax);
+        if(track->AltTrkQual() > -10. && track->AltTrkQual() < 0.2)  ID.SetBit(kTrkQual);
+        if(track->TFront() < 540. || track->TFront() > 1650.)        ID.SetBit(kT0);
+        if(track->FitCon() < 1.e-5)                                  ID.SetBit(kFitCon);
+        if(track->ECluster() <= 0.)                                  ID.SetBit(kClusterE);
+        else if(track->AltPID() < 0.5f)                              ID.SetBit(kPID);
+        if(track->TanDipFront() < 0.5 || track->TanDipFront() > 2.0) ID.SetBit(kTDip);
 
-      // Kinematic cosmic ID
-      if(track->CosmicID() > -100.f && track->CosmicID() < 0.85f)  ID.SetBit(kCosmicID);
+        // Kinematic cosmic ID
+        if(track->CosmicID() > -100.f && track->CosmicID() < 0.85f)  ID.SetBit(kCosmicID);
 
-    } else {                  // positrons
-      if(track->PFront() < 80.f || track->PFront() > 120.f)        ID.SetBit(kP);
-      if(track->RMaxFront() < 400. || track->RMaxFront() > 610.)   ID.SetBit(kRMax);
-      if(track->TrkQual() > -10. && track->TrkQual() < 0.015)      ID.SetBit(kTrkQual);
-      // if(track->AltTrkQual() > -10. && track->AltTrkQual() < 0.02) ID.SetBit(kTrkQual);
-      if(track->TFront() < 500. || track->TFront() > 1650.)        ID.SetBit(kT0);
-      if(track->FitCon() < 1.e-8)                                  ID.SetBit(kFitCon);
-      if(track->TanDipFront() < 0.5 || track->TanDipFront() > 1.5) ID.SetBit(kTDip);
+      } else { // positrons
+        if(track->PFront() < 80.f || track->PFront() > 120.f)        ID.SetBit(kP);
+        if(track->RMaxFront() < 400. || track->RMaxFront() > 610.)   ID.SetBit(kRMax);
+        if(track->TrkQual() > -10. && track->TrkQual() < 0.015)      ID.SetBit(kTrkQual);
+        // if(track->AltTrkQual() > -10. && track->AltTrkQual() < 0.02) ID.SetBit(kTrkQual);
+        if(track->TFront() < 500. || track->TFront() > 1650.)        ID.SetBit(kT0);
+        if(track->FitCon() < 1.e-8)                                  ID.SetBit(kFitCon);
+        if(track->TanDipFront() < 0.5 || track->TanDipFront() > 1.5) ID.SetBit(kTDip);
 
-      if(track->ECluster() <= 0.) { // no cluster associated
-        if(track->TrkPID() < -100.f)                               ID.SetBit(kClusterE); // no score --> fail it
-        else if(track->TrkPID() < 0.15f)                           ID.SetBit(kPID); // tracker-only PID
-      } else if(track->AltPID() < 0.10f)                           ID.SetBit(kPID); // full PID
-    }
-
-    // General selections
-    if(track->OPAInter())                                          ID.SetBit(kRMax);
-    if(track->TSDAInter())                                         ID.SetBit(kRMax);
-    if(!track->STBoundary())                                       ID.SetBit(kD0); // consistent with stopping target
-    if(track->TFront() < 475. || track->TFront() > 1650.)          ID.SetBit(kT0Loose); //for control regions
-
-    // upstream and multi-track rejection
-    bool multi_trk(true), upstream_veto(true);
-    for(int i = 0; i < evt_.ntracks_; ++i) {
-      if(&tracks_[i] == &(*track)) continue; // skip this track
-      const auto alt_trk = &tracks_[i];
-      if(!alt_trk->IsGood()) continue; // if not a properly fit track, skip it
-
-      // Check for an upstream partner track
-      if(alt_trk->PZFront() < 0.f) {
-        const float dt = track->TFront() - alt_trk->TFront();
-        upstream_veto &= dt < 40.f || dt > 110.f; // veto events that are reflection candidates
+        if(track->ECluster() <= 0.) { // no cluster associated
+          if(track->TrkPID() < -100.f)                               ID.SetBit(kClusterE); // no score --> fail it
+          else if(track->TrkPID() < 0.15f)                           ID.SetBit(kPID); // tracker-only PID
+        } else if(track->AltPID() < 0.10f)                           ID.SetBit(kPID); // full PID
       }
 
-      // Check for other electrons/positrons in-time with this track
-      if(std::abs(alt_trk->FitPDG()) == 11 && alt_trk->PZFront() > 0.f) { // downstream electron/positron track
-        const float dt = track->TFront() - alt_trk->TFront();
-        multi_trk &= std::fabs(dt) > 150.; // veto events with tracks coincident with the main track
+      // General selections
+      if(track->OPAInter())                                          ID.SetBit(kRMax);
+      if(track->TSDAInter())                                         ID.SetBit(kRMax);
+      if(!track->STBoundary())                                       ID.SetBit(kD0); // consistent with stopping target
+      if(track->TFront() < 475. || track->TFront() > 1650.)          ID.SetBit(kT0Loose); //for control regions
+
+      // upstream and multi-track rejection
+      bool multi_trk(true), upstream_veto(true);
+      for(int i = 0; i < evt_.ntracks_; ++i) {
+        if(&tracks_[i] == &(*track)) continue; // skip this track
+        const auto alt_trk = &tracks_[i];
+        if(!alt_trk->IsGood()) continue; // if not a properly fit track, skip it
+
+        // Check for an upstream partner track
+        if(alt_trk->PZFront() < 0.f) {
+          const float dt = track->TFront() - alt_trk->TFront();
+          upstream_veto &= dt < 40.f || dt > 110.f; // veto events that are reflection candidates
+        }
+
+        // Check for other electrons/positrons in-time with this track
+        if(std::abs(alt_trk->FitPDG()) == 11 && alt_trk->PZFront() > 0.f) { // downstream electron/positron track
+          const float dt = track->TFront() - alt_trk->TFront();
+          multi_trk &= std::fabs(dt) > 150.; // veto events with tracks coincident with the main track
+        }
+      }
+      if(!upstream_veto)                                           ID.SetBit(kUpstream);
+      if(!multi_trk)                                               ID.SetBit(kUpstream); // FIXME: Add a bit
+
+
+      // CRV rejection
+      if(track->stub_) {
+        auto stub = track->stub_;
+        const float deltat_st     = track->TFront() - stub->TimeViaSTBack();
+        const float deltat_calo   = track->TFront() - stub->TimeViaCaloFront();
+        const float deltat_crv    = track->TFront() - stub->Time();
+        const float min_extrap_dt(-50.f), max_extrap_dt(60.f);
+        if((deltat_st   > min_extrap_dt && deltat_st   < max_extrap_dt) ||
+           (deltat_calo > min_extrap_dt && deltat_calo < max_extrap_dt) ||
+           (deltat_crv > -25.f && deltat_crv < 0.f))               ID.SetBit(kCRV);
       }
     }
-
-    if(!upstream_veto)                                           ID.SetBit(kUpstream);
-    if(!multi_trk)                                               ID.SetBit(kUpstream); // FIXME: Add a bit
-
-    // CRV rejection
-    if(track->stub_) {
-      auto stub = track->stub_;
-      const float deltat_st     = track->TFront() - stub->TimeViaSTBack();
-      const float deltat_calo   = track->TFront() - stub->TimeViaCaloFront();
-      const float deltat_crv    = track->TFront() - stub->Time();
-      const float min_extrap_dt(-50.f), max_extrap_dt(60.f);
-      if((deltat_st   > min_extrap_dt && deltat_st   < max_extrap_dt) ||
-         (deltat_calo > min_extrap_dt && deltat_calo < max_extrap_dt) ||
-         (deltat_crv > -25.f && deltat_crv < 0.f))               ID.SetBit(kCRV);
-    }
-
-    return ID;
+    track->SetID(ID_n, 0);
+    track->SetID(ID_p, 1);
   }
 
   //------------------------------------------------------------------------------------

@@ -9,7 +9,8 @@
               Can also be a single ntuple file (*.root) or a file list of ntuples, in which
               case only that input is processed
    mode     : Histogramming mode
-   function : histogramming processing function, defined in ana/scripts/
+   function : analyzer function name, registered in Mu2eEvtAna/scripts/functions.C (mu2e_ana, rmc_ana, cnv_ana) or by
+              another package with RegisterAnalyzer(), or else a function defined in the interpreter
    n_threads: Number of threads per process to split file lists (default 1)
    name_tag : Tag used to name the output files, defaults to the dataset name for a dataset
               or to the input file name for a file input
@@ -55,9 +56,7 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
       return 1;
     }
     printf(" Processing input %s with name tag %s (%i threads)...\n", dataset.Data(), tag.Data(), n_threads);
-    if(     strcmp(function, "mu2e_ana") == 0) return mu2e_ana(dataset, mode, max_entries, 0, n_threads, tag);
-    else if(strcmp(function, "rmc_ana")  == 0) return rmc_ana (dataset, mode, max_entries, 0, n_threads, tag);
-    else if(strcmp(function, "cnv_ana")  == 0) return cnv_ana (dataset, mode, max_entries, 0, n_threads, tag);
+    if(IsRegisteredAnalyzer(function)) return ProcessWithThreads(function, dataset, mode, max_entries, 0, n_threads, tag);
     return gInterpreter->ProcessLine(Form("%s(\"%s\", %i, %lld, 0, %i, \"%s\");",
                                           function, dataset.Data(), mode, max_entries, n_threads, tag.Data()));
   }
@@ -75,7 +74,7 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
     if(dataset != "" && config.name_ != dataset) continue;
     // allow overriding the output name tag when a single dataset is requested
     const TString out_tag = (name_tag != "" && dataset != "") ? name_tag : config.name_;
-    if(processes > 1) {
+    if(processes > 1) { // note: analyzers registered by other packages are not known to these sub-processes
       while(CountAnalyzerProcesses() >= processes) sleep(10);
       TString command = Form("root.exe -q -b \"${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/make_histograms.C(0, \\\"%s\\\", %i, \\\"%s\\\", %i)\" >| log/out_%s.log 2>&1 &",
                              config.name_.Data(), mode, function, n_threads, config.name_.Data());
@@ -83,14 +82,11 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
       logs.push_back(Form("log/out_%s.log", config.name_.Data()));
       gSystem->Exec(command.Data());
     } else {
-      if(n_threads > 1) {
-        if(     strcmp(function, "mu2e_ana") == 0) mu2e_ana(config.name_, mode, max_entries, 0, n_threads, out_tag);
-        else if(strcmp(function, "rmc_ana")  == 0) rmc_ana (config.name_, mode, max_entries, 0, n_threads, out_tag);
-        else if(strcmp(function, "cnv_ana")  == 0) cnv_ana (config.name_, mode, max_entries, 0, n_threads, out_tag);
-        else if(strcmp(function, "run1b_ana") == 0) run1b_ana(config.name_, mode, max_entries, 0, n_threads, out_tag);
+      if(IsRegisteredAnalyzer(function)) {
+        ProcessWithThreads(function, config.name_, mode, max_entries, 0, n_threads, out_tag);
       } else {
-        gInterpreter->ProcessLine(Form("%s(\"%s\", %i, %lld, 0, 1, \"%s\");",
-                                       function, config.name_.Data(), mode, max_entries, out_tag.Data()));
+        gInterpreter->ProcessLine(Form("%s(\"%s\", %i, %lld, 0, %i, \"%s\");",
+                                       function, config.name_.Data(), mode, max_entries, n_threads, out_tag.Data()));
       }
     }
   }

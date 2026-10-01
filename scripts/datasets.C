@@ -17,8 +17,8 @@ namespace DATA {
   vector<Dataset_t> datasets() {
     vector<Dataset_t> datasets;
 
-    const bool ele = false; // datasets for electron analysis
-    const bool pos = true ; // datasets for positron analysis
+    const bool ele = true ; // datasets for electron analysis
+    const bool pos = false; // datasets for positron analysis
 
     datasets.emplace_back(false,  "cele1b0s5r0100", "nts.mu2e.CeMLeadingLogOnSpill-reco-ntuple.MDC2025-002.root"     , 4009075,   10000000);
     datasets.emplace_back(false,  "cry4ab0s5r0100", "nts.mu2e.CosmicSignalOnSpill-reco-ntuple.MDC2025-002.root"      , 4120241,    4437500. /*livetime*/);
@@ -46,7 +46,7 @@ namespace DATA {
     datasets.emplace_back(false, "cele0b0s51r0204", "nts.mu2e.CeEndpoint-KL.Run1B-010.root"                        ,   1184477, 1900000000);
     datasets.emplace_back(false, "cele0b1s51r0204", "nts.mu2e.CeEndpointMix1BB-KL.Run1Baw_best_v1_5.root"          ,   1326786, 1999000000);
     datasets.emplace_back(false, "fgam0b1s51r0204", "nts.mu2e.FlatGammaMix1BB-KL.Run1Baw_best_v1_5.root"           ,   1039674, 1999000000);
-    datasets.emplace_back(false, "csms0b1s51r0204", "nts.mu2e.CosmicCRYAllMix1BB-KL.Run1Baw_best_v1_5.root"        ,   2351533,     2.29e4); // cosmic N(gen) is livetime
+    datasets.emplace_back(false, "csms0b1s51r0204", "nts.mu2e.CosmicCRYAllMix1BB-KL.Run1B-010.root"                ,   2351533,     2.29e4); // cosmic N(gen) is livetime
     datasets.emplace_back(false, "dio00b1s51r0204", "dig.mu2e.DIOMix1BB.Run1Ban_best_v1_4-000.art"                 ,        1.,         1.);
     datasets.emplace_back(false, "fele0b1s51r0204", "nts.mu2e.FlateMinusMix1BB-KL.Run1Baw_best_v1_5.root"          ,    704053, 1998000000);
     datasets.emplace_back(false, "pgamcb1s51r0204", "nts.mu2e.PolyFlatGammaCaloMix1BB-KL.Run1B-010.root"   ,   5249814,  100000000);
