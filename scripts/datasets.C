@@ -20,25 +20,38 @@ namespace DATA {
     const bool ele = true ; // datasets for electron analysis
     const bool pos = false; // datasets for positron analysis
 
-    datasets.emplace_back(false,  "cele1b0s5r0100", "nts.mu2e.CeMLeadingLogOnSpill-reco-ntuple.MDC2025-002.root"     , 4009075,   10000000);
-    datasets.emplace_back(false,  "cry4ab0s5r0100", "nts.mu2e.CosmicSignalOnSpill-reco-ntuple.MDC2025-002.root"      , 4120241,    4437500. /*livetime*/);
-    datasets.emplace_back(false,  "dio00b0s5r0100", "nts.mu2e.DIOtail95OnSpill-reco-ntuple.MDC2025-002.root"         , 8780533,   25000000);
+    // MDC2025au version, old PID
+    datasets.emplace_back(false,  "cele1b1s5r0100", "nts.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_1.root"              , 4141125,   10000000);
+    datasets.emplace_back(false,  "cpos1b1s5r0100", "nts.mu2e.CePLeadingLogMix1BB.MDC2025au_best_v1_1.root"              , 3235878,   10000000);
+    datasets.emplace_back(false,  "cry4ab1s5r0100", "nts.mu2e.CosmicSignalMix1BB.MDC2025au_best_v1_1.root"               , 4155435,    4437713. /*livetime*/);
+    datasets.emplace_back(false,  "dio00b1s5r0100", "nts.mu2e.DIOtail95Mix1BB.MDC2025au_best_v1_1.root"                  , 9368976,   25000000);
+    datasets.emplace_back(false,  "rmce0b1s5r0100", "nts.mu2e.RMCPhaseSpace0NExternalMix1BB.MDC2025au_best_v1_1.root"    , 4967393, 7000000000);
+    datasets.emplace_back(false,  "rmce1b1s5r0100", "nts.mu2e.RMCPhaseSpace1NExternalMix1BB.MDC2025au_best_v1_1.root"    , 2974188, 7000000000);
+    datasets.emplace_back(false,  "rmci0b1s5r0100", "nts.mu2e.RMCPhaseSpace0NInternalMix1BB.MDC2025au_best_v1_1.root"    , 1229006,   50000000);
+    datasets.emplace_back(false,  "rmci1b1s5r0100", "nts.mu2e.RMCPhaseSpace1NInternalMix1BB.MDC2025au_best_v1_1.root"    ,  517029,   50000000);
+    datasets.emplace_back(false,  "rpce1b1s5r0100", "nts.mu2e.RPCExternalPhysicalMix1BB.MDC2025au_best_v1_1.root"        ,  458818, 5000000000);
+    datasets.emplace_back(false,  "rpci1b1s5r0100", "nts.mu2e.RPCInternalPhysicalMix1BB.MDC2025au_best_v1_1.root"        , 1899806,  125000000);
+    datasets.emplace_back(false,  "pbar1b1s5r0100", "nts.mu2e.PbarResamplingMix1BB.MDC2025au_best_v1_1.root"             , 6461314,   30000000);
+    datasets.emplace_back(false,  "fpos0b1s5r0100", "nts.mu2e.FlatePlusMix1BB.MDC2025au_best_v1_1.root"                  , 2285546,    7500000);
+    datasets.emplace_back(false,  "mds3cb1s5r0100", "nts.mu2e.ensembleMDS3cMix1BB.MDC2025au_best_v1_1.root"              , 4926941, 1. /*data-ish*/);
+    datasets.emplace_back(false,  "mds3db0s5r0100", "nts.mu2e.ensembleMDS3dOnSpill.MDC2025au_best_v1_1-001.root"         , 9837962, 1. /*data-ish*/);
 
-    datasets.emplace_back(ele  ,  "cele1b1s5r0100", "nts.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_1.root"          , 4141125,   10000000);
-    datasets.emplace_back(pos  ,  "cpos1b1s5r0100", "nts.mu2e.CePLeadingLogMix1BB.MDC2025au_best_v1_1.root"          , 3235878,   10000000);
-    datasets.emplace_back(true ,  "cry4ab1s5r0100", "nts.mu2e.CosmicSignalMix1BB.MDC2025au_best_v1_1.root"           , 4155435,    4437713. /*livetime*/);
-    datasets.emplace_back(ele  ,  "dio00b1s5r0100", "nts.mu2e.DIOtail95Mix1BB.MDC2025au_best_v1_1.root"              , 9368976,   25000000);
-    datasets.emplace_back(true ,  "rmce0b1s5r0100", "nts.mu2e.RMCPhaseSpace0NExternalMix1BB.MDC2025au_best_v1_1.root", 4967393, 7000000000);
-    datasets.emplace_back(pos  ,  "rmce1b1s5r0100", "nts.mu2e.RMCPhaseSpace1NExternalMix1BB.MDC2025au_best_v1_1.root", 2974188, 7000000000);
-    datasets.emplace_back(pos  ,  "rmci0b1s5r0100", "nts.mu2e.RMCPhaseSpace0NInternalMix1BB.MDC2025au_best_v1_1.root", 1229006,   50000000);
-    datasets.emplace_back(pos  ,  "rmci1b1s5r0100", "nts.mu2e.RMCPhaseSpace1NInternalMix1BB.MDC2025au_best_v1_1.root",  517029,   50000000);
-    datasets.emplace_back(true ,  "rpce1b1s5r0100", "nts.mu2e.RPCExternalPhysicalMix1BB.MDC2025au_best_v1_1.root"    ,  458818, 5000000000);
-    datasets.emplace_back(true ,  "rpci1b1s5r0100", "nts.mu2e.RPCInternalPhysicalMix1BB.MDC2025au_best_v1_1.root"    , 1899806,  125000000);
-    datasets.emplace_back(pos  ,  "pbar1b1s5r0100", "nts.mu2e.PbarResamplingMix1BB.MDC2025au_best_v1_1.root"         , 6461314,   30000000);
-    datasets.emplace_back(false,  "fpos0b1s5r0100", "nts.mu2e.FlatePlusMix1BB.MDC2025au_best_v1_1.root"              , 2285546,    7500000);
+    // MDC2025au-001 version, new PID (same mcs, so same counts)
+    datasets.emplace_back(ele  ,  "cele1b1s5r0101", "nts.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_1-001.root"          , 4141125,   10000000);
+    datasets.emplace_back(pos  ,  "cpos1b1s5r0101", "nts.mu2e.CePLeadingLogMix1BB.MDC2025au_best_v1_1-001.root"          , 3235878,   10000000);
+    datasets.emplace_back(true ,  "cry4ab1s5r0101", "nts.mu2e.CosmicSignalMix1BB.MDC2025au_best_v1_1-001.root"           , 4155435,    4437713. /*livetime*/);
+    datasets.emplace_back(ele  ,  "dio00b1s5r0101", "nts.mu2e.DIOtail95Mix1BB.MDC2025au_best_v1_1-001.root"              , 9368976,   25000000);
+    datasets.emplace_back(true ,  "rmce0b1s5r0101", "nts.mu2e.RMCPhaseSpace0NExternalMix1BB.MDC2025au_best_v1_1-001.root", 4967393, 7000000000);
+    datasets.emplace_back(true ,  "rmce1b1s5r0101", "nts.mu2e.RMCPhaseSpace1NExternalMix1BB.MDC2025au_best_v1_1-001.root", 2974188, 7000000000);
+    datasets.emplace_back(true ,  "rmci0b1s5r0101", "nts.mu2e.RMCPhaseSpace0NInternalMix1BB.MDC2025au_best_v1_1-001.root", 1229006,   50000000);
+    datasets.emplace_back(true ,  "rmci1b1s5r0101", "nts.mu2e.RMCPhaseSpace1NInternalMix1BB.MDC2025au_best_v1_1-001.root",  517029,   50000000);
+    datasets.emplace_back(true ,  "rpce1b1s5r0101", "nts.mu2e.RPCExternalPhysicalMix1BB.MDC2025au_best_v1_1-001.root"    ,  458818, 5000000000);
+    datasets.emplace_back(true ,  "rpci1b1s5r0101", "nts.mu2e.RPCInternalPhysicalMix1BB.MDC2025au_best_v1_1-001.root"    , 1899806,  125000000);
+    datasets.emplace_back(true ,  "pbar1b1s5r0101", "nts.mu2e.PbarResamplingMix1BB.MDC2025au_best_v1_1-001.root"         , 6461314,   30000000);
+    datasets.emplace_back(false,  "fpos0b1s5r0101", "nts.mu2e.FlatePlusMix1BB.MDC2025au_best_v1_1-001.root"              , 2285546,    7500000);
+    datasets.emplace_back(false,  "mds3cb1s5r0101", "nts.mu2e.ensembleMDS3cMix1BB.MDC2025au_best_v1_1-001.root"          , 4926941, 1. /*data-ish*/);
+    datasets.emplace_back(false,  "mds3db0s5r0101", "nts.mu2e.ensembleMDS3dOnSpill.MDC2025au_best_v1_1-001-001.root"     , 9837962, 1. /*data-ish*/);
 
-    datasets.emplace_back(false,  "mds3cb1s5r0100", "nts.mu2e.ensembleMDS3cMix1BB.MDC2025au_best_v1_1.root"          , 4926941, 1. /*data-ish*/);
-    datasets.emplace_back(false,  "mds3db0s5r0100", "nts.mu2e.ensembleMDS3dOnSpill.MDC2025au_best_v1_1-001.root"     , 9837962, 1. /*data-ish*/);
     return datasets;
   }
 }

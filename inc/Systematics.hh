@@ -23,17 +23,20 @@ namespace Mu2eEvtAna {
     enum Type_t {
       kUndefined = -1,
       kNominal   =  0,
-      kScale        ,
-      kRMCPower
+      kScale         ,
+      kRMCPower      ,
+      kRMCEndpoint
     };
 
     // Systematic index (histogram index, e.g. obs_<index>)
     enum Sys_t {
-      kNominalSys    =  0,
-      kScaleUp       =  1,
-      kScaleDown     =  2,
-      kRMCPowerUp    = 21,
-      kRMCPowerDown  = 22
+      kNominalSys       =  0,
+      kScaleUp          =  1,
+      kScaleDown        =  2,
+      kRMCPowerUp       = 21,
+      kRMCPowerDown     = 22,
+      kRMCEndpointUp    = 23,
+      kRMCEndpointDown  = 24
     };
 
     //-----------------------------------------------------------------------------
@@ -96,11 +99,13 @@ namespace Mu2eEvtAna {
   private:
     static Data_t getData(const int isys) {
       switch(isys) {
-      case kNominalSys  : return Data_t(isys, kNominal , "Nominal" , true );
-      case kScaleUp     : return Data_t(isys, kScale   , "Scale"   , true );
-      case kScaleDown   : return Data_t(isys, kScale   , "Scale"   , false);
-      case kRMCPowerUp  : return Data_t(isys, kRMCPower, "RMCPower", true );
-      case kRMCPowerDown: return Data_t(isys, kRMCPower, "RMCPower", false);
+      case kNominalSys     : return Data_t(isys, kNominal , "Nominal"    , true );
+      case kScaleUp        : return Data_t(isys, kScale   , "Scale"      , true );
+      case kScaleDown      : return Data_t(isys, kScale   , "Scale"      , false);
+      case kRMCPowerUp     : return Data_t(isys, kRMCPower, "RMCPower"   , true );
+      case kRMCPowerDown   : return Data_t(isys, kRMCPower, "RMCPower"   , false);
+      case kRMCEndpointUp  : return Data_t(isys, kRMCPower, "RMCEndpoint", true );
+      case kRMCEndpointDown: return Data_t(isys, kRMCPower, "RMCEndpoint", false);
       default: break;
       }
 

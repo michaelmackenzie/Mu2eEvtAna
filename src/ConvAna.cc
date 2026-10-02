@@ -120,7 +120,6 @@ namespace Mu2eEvtAna {
     hist_sets[ 62] = new hist_info_t("e-: Run 1A ID + upstream veto"    ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 65] = new hist_info_t("e-: Run 1A ID, loose time"        ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 66] = new hist_info_t("e-: Run 1A ID, cut-and-count"     ,  true,  true,  true,  true,  true,  true,  true, false);
-    hist_sets[ 70] = new hist_info_t("e-: cut-flow ID"                  ,  true, false, false, false, false, false, false, false);
     hist_sets[ 73] = new hist_info_t("e-: Optimized cut-set"            ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 74] = new hist_info_t("e-: Optimized cut-set"            ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 75] = new hist_info_t("e-: Provided cut-set"             ,  true,  true,  true,  true,  true,  true,  true,  true);
@@ -206,6 +205,26 @@ namespace Mu2eEvtAna {
             const double shifted = (x < 1.) ? (2.+shift + 1.)*(2.+shift + 2.)/kmax*x*std::pow(1.-x, 2+shift) : 0.;
             const double cdf_nom = phase_space_cdf(97., kmax, 2.); // normalize in the high tail region
             const double cdf_sys = phase_space_cdf(97., kmax, 2.+shift);
+            w *= (nominal > 0. && cdf_nom > 0. && cdf_sys > 0.) ? (shifted/cdf_sys) / (nominal / cdf_nom) : 0.;
+          }
+        }
+        break;
+      case Systematics::kRMCEndpoint:
+        if(dataset_ == kRMCE0 || dataset_ == kRMCI0) {
+          const float energy = evt_.rmc_energy_;
+          if(energy <= 0.) {
+            printf("ConvAna::%s: %4i %6i %6i : No RMC energy!\n", __func__,
+                   evt_.run_, evt_.subrun_, evt_.event_);
+
+          } else {
+            constexpr float kmax = 101.866;
+            const double shift = (is_up) ? 0. : -0.5; // rough gauge for a shift in the endpoint, can't move any higher
+            const double x_0 = energy / (kmax);
+            const double x   = energy / (kmax + shift);
+            const double nominal = (x_0 < 1.) ? 1./kmax        *x_0*std::pow(1.-x_0, 2) : 0.;
+            const double shifted = (x   < 1.) ? 1./(kmax+shift)*x  *std::pow(1.-x  , 2) : 0.;
+            const double cdf_nom = phase_space_cdf(97., kmax      , 2.); // normalize in the high tail region
+            const double cdf_sys = phase_space_cdf(97., kmax+shift, 2.);
             w *= (nominal > 0. && cdf_nom > 0. && cdf_sys > 0.) ? (shifted/cdf_sys) / (nominal / cdf_nom) : 0.;
           }
         }
@@ -458,92 +477,6 @@ namespace Mu2eEvtAna {
   }
 
   //------------------------------------------------------------------------------------
-  // Evaluate the Run 1A selection cut-flow
-  bool ConvAna::Run1ACutFlow() {
-    if(!track_) return false;
-
-    if(track_->FitPDG() != 11) return false;
-    if(track_->Charge() > 0)   return false;
-    run1a_cut_flow_.Increment("is_reco_electron");
-
-    // Downstream electron sets
-    if(track_->PZFront() <= 0.f) return false;
-    run1a_cut_flow_.Increment("has_downstream");
-    run1a_cut_flow_.Increment("upstream_veto");
-    run1a_cut_flow_.Increment("trk_front_seg");
-
-    const auto Run1AID = track_->ID(1);
-    const int event_id = (
-                          1*(evt_.nde_tracks_ != 1) +
-                          2*(!trigger_.FiredAPR() && !trigger_.FiredCPR())
-                          );
-
-    if(track_->PID() > 0.67) {
-      run1a_cut_flow_.Increment("good_trkpid");
-      if(track_->TrkQual() > 0.2) {
-        run1a_cut_flow_.Increment("good_trkqual");
-        if(track_->TErrFront() < 0.9) {
-          run1a_cut_flow_.Increment("within_t0err");
-          if(track_->NActive() >= 20) {
-            run1a_cut_flow_.Increment("has_hits");
-            if(track_->NSTInter() > 0) {
-              run1a_cut_flow_.Increment("has_st");
-              if(track_->OPAInter() == 0) {
-                run1a_cut_flow_.Increment("no_opa");
-                bool fail_crv = false;
-                for(int icrv = 0; icrv < evt_.ncrv_clusters_; ++icrv) {
-                  CRVCluster_t* stub = &crv_clusters_[icrv];
-                  if(stub->PEs() >= 25. && stub->NHits() >= 15 && stub->TimeSpan() < 175.) {
-                    fail_crv = true;
-                    break;
-                  }
-                }
-                if(!fail_crv) {
-                  run1a_cut_flow_.Increment("no_crv_quality");
-                  run1a_cut_flow_.Increment("no_crv_timewindow");
-                  if(track_->stub_) {
-                    auto stub = track_->stub_;
-                    const float deltat_crv    = track_->TFront() - stub->Time();
-                    if(deltat_crv > -150.f && deltat_crv < 150.f) fail_crv = true;
-                  }
-                  if(!fail_crv) {
-                    run1a_cut_flow_.Increment("no_crv_veto");
-                    if(track_->TanDipFront() > 0.5 && track_->TanDipFront() < 0.95) {
-                      run1a_cut_flow_.Increment("pz_over_pt");
-                      if(trigger_.FiredAPR() || trigger_.FiredCPR()) {
-                        run1a_cut_flow_.Increment("good_trigger");
-                        if(evt_.nde_tracks_ == 1) {
-                          run1a_cut_flow_.Increment("nde_tracks");
-                          if(track_->PFront() > 103.34 && track_->PFront() < 104.74) {
-                            run1a_cut_flow_.Increment("final_mom_region");
-                            if(track_->TFront() > 640. && track_->TFront() < 1650.) {
-                              run1a_cut_flow_.Increment("final_time_region");
-                              if(!Run1AID.Passes() || event_id != 0) {
-                                std::cout << "[ConvAna::" << __func__ << "] "
-                                          << evt_.run_ << ":" << evt_.subrun_ << ":" << evt_.event_
-                                          << " Event passes paper cuts but fails Run1AID = "
-                                          << std::hex << Run1AID << std::dec
-                                          << " or event_id = " << event_id
-                                          << std::endl;
-                              }
-                              return true;
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    return false;
-  }
-
-  //------------------------------------------------------------------------------------
   // Evaluate the standard selection cut-flow
   bool ConvAna::StandardCutFlow() {
     if(!track_) return false;
@@ -671,7 +604,6 @@ namespace Mu2eEvtAna {
       if(track_->PFront() <= 0.) continue;
       dev_cut_flow_.Increment("has_front_seg");
       StandardCutFlow();
-      if(Run1ACutFlow()) FillAllHistograms(70);
       if(std::abs(track_->FitPDG()) != 11) continue; // skip muon fits for now due to rooutil bug
       dev_cut_flow_.Increment("is_electron");
 
@@ -936,7 +868,6 @@ namespace Mu2eEvtAna {
   void ConvAna::EndJob() {
     printf("ConvAna::%s\n", __func__);
     cut_flow_.Print();
-    run1a_cut_flow_.Print();
     dev_cut_flow_.Print();
   }
 }
