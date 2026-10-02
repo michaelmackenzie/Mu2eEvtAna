@@ -6,3 +6,4 @@
 #include "Mu2eEvtAna/inc/Mu2eEvtAna.hh"
 #include "Mu2eEvtAna/inc/RMCAna.hh"
 #include "Mu2eEvtAna/inc/ConvAna.hh"
+#include "Mu2eEvtAna/inc/Run1BAna.hh"

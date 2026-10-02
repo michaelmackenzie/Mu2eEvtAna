@@ -20,6 +20,10 @@ namespace DATA {
     const bool ele = true ; // datasets for electron analysis
     const bool pos = false; // datasets for positron analysis
 
+    //---------------------------------------
+    // Run 1A datasets
+    //---------------------------------------
+
     // MDC2025au version, old PID
     datasets.emplace_back(false,  "cele1b1s5r0100", "nts.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_1.root"              , 4141125,   10000000);
     datasets.emplace_back(false,  "cpos1b1s5r0100", "nts.mu2e.CePLeadingLogMix1BB.MDC2025au_best_v1_1.root"              , 3235878,   10000000);
@@ -51,6 +55,23 @@ namespace DATA {
     datasets.emplace_back(false,  "fpos0b1s5r0101", "nts.mu2e.FlatePlusMix1BB.MDC2025au_best_v1_1-001.root"              , 2285546,    7500000);
     datasets.emplace_back(false,  "mds3cb1s5r0101", "nts.mu2e.ensembleMDS3cMix1BB.MDC2025au_best_v1_1-001.root"          , 4926941, 1. /*data-ish*/);
     datasets.emplace_back(false,  "mds3db0s5r0101", "nts.mu2e.ensembleMDS3dOnSpill.MDC2025au_best_v1_1-001-001.root"     , 9837962, 1. /*data-ish*/);
+
+    //---------------------------------------
+    // Run 1B datasets
+    //---------------------------------------
+
+    // datasets.emplace_back(true , "mnbs0b1s51r0204", "dig.mu2e.NoPrimaryMix1BB.Run1Ban_best_v1_4-000.art"       ,  99995000,   99995000); // unbiased pileup
+    datasets.emplace_back(false, "mnbs1b1s51r0204", "nts.mu2e.NoPrimaryMix1BB-KL.Run1B-011.root"                   , 344196254, 5000000000); // biased to high energy clusters
+    datasets.emplace_back(false, "cele0b0s51r0204", "nts.mu2e.CeEndpoint-KL.Run1B-010.root"                        ,   1184477, 1900000000);
+    datasets.emplace_back(false, "cele0b1s51r0204", "nts.mu2e.CeEndpointMix1BB-KL.Run1Baw_best_v1_5.root"          ,   1326786, 1999000000);
+    datasets.emplace_back(false, "fgam0b1s51r0204", "nts.mu2e.FlatGammaMix1BB-KL.Run1Baw_best_v1_5.root"           ,   1039674, 1999000000);
+    datasets.emplace_back(false, "csms0b1s51r0204", "nts.mu2e.CosmicCRYAllMix1BB-KL.Run1B-010.root"                ,   2351533,     2.29e4); // cosmic N(gen) is livetime
+    datasets.emplace_back(false, "dio00b1s51r0204", "dig.mu2e.DIOMix1BB.Run1Ban_best_v1_4-000.art"                 ,        1.,         1.);
+    datasets.emplace_back(false, "fele0b1s51r0204", "nts.mu2e.FlateMinusMix1BB-KL.Run1Baw_best_v1_5.root"          ,    704053, 1998000000);
+    datasets.emplace_back(false, "pgamcb1s51r0204", "nts.mu2e.PolyFlatGammaCaloMix1BB-KL.Run1B-010.root"   ,   5249814,  100000000);
+    datasets.emplace_back(false, "neut0b1s51r0204", "nts.mu2e.MuCapNeutronTailCaloMix1BB-KL.Run1Baw_best_v1_5.root",    154086,  125000000);
+    datasets.emplace_back(false, "prot0b1s51r0204", "nts.mu2e.MuCapProtonTailCaloMix1BB-KL.Run1B-010.root"         ,    158688,  100000000);
+    datasets.emplace_back(false, "rpce0b1s51r0204", "nts.mu2e.RPCExternalMix1BB-KL.Run1Baw_best_v1_5.root"         ,    643155, 4999841344);
 
     return datasets;
   }

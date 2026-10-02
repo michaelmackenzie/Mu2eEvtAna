@@ -15,31 +15,25 @@ namespace Mu2eEvtAna {
     TH1D* fDiskID;
     TH1F* fEnergy;
     TH1F* fT0;
-    TH1F* fRow;
-    TH1F* fCol;
     TH1F* fX;
     TH1F* fY;
-    TH1F* fZ;
     TH1F* fR;
     TH1F* fNCr0; // all clustered
-    TH1F* fNCr1; // above 1MeV
-    TH1F* fYMean;
-    TH1F* fZMean;
-    TH1F* fSigY;
-    TH1F* fSigZ;
-    TH1F* fSigR;
     TH1F* fFrE1;
     TH1F* fFrE2;
-    TH1F* fSigE1;
-    TH1F* fSigE2;
-    TH1F* fTimeRMS;
-    TH1F* fMaxR;
+    TH1F* fTVar;
+    TH1F* fTMeanDiff;
+    TH1F* fTVarWt;
+    TH1F* fTMeanDiffWt;
+    TH1F* fMaxHitExtent;
+    TH1F* fMaxHitR;
     TH1F* fE9OverE;
     TH1F* fE25OverE;
     TH1F* fRingEOverE;
     TH1F* fRingEOverE1;
     TH1F* fOutRingE;
     TH1F* fOutRingEOverE;
+    TH1F* fSecondMoment;
     TH1F* fNCoreCrystals;
     TH1F* fCoreEnergy;
     TH1F* fCoreEnergyFrac;

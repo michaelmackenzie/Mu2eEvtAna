@@ -56,12 +56,16 @@
 #include "Mu2eEvtAna/inc/Norm_t.hh"
 #include "Mu2eEvtAna/inc/Event_t.hh"
 #include "Mu2eEvtAna/inc/Track_t.hh"
+#include "Mu2eEvtAna/inc/LineSeed_t.hh"
+#include "Mu2eEvtAna/inc/TimeCluster_t.hh"
 #include "Mu2eEvtAna/inc/CRVCluster_t.hh"
 #include "Mu2eEvtAna/inc/CaloCluster_t.hh"
 #include "Mu2eEvtAna/inc/SimParticle_t.hh"
 #include "Mu2eEvtAna/inc/Trigger_t.hh"
 #include "Mu2eEvtAna/inc/EventHist_t.hh"
 #include "Mu2eEvtAna/inc/TrackHist_t.hh"
+#include "Mu2eEvtAna/inc/LineSeedHist_t.hh"
+#include "Mu2eEvtAna/inc/TimeClusterHist_t.hh"
 #include "Mu2eEvtAna/inc/CaloClusterHist_t.hh"
 #include "Mu2eEvtAna/inc/CRVHist_t.hh"
 #include "Mu2eEvtAna/inc/Tree_t.hh"
@@ -96,11 +100,15 @@ namespace Mu2eEvtAna {
     virtual void AddOutputBranches(TTree* t);
     virtual void BookEventHist(EventHist_t* Hist, const char* Folder);
     virtual void BookTrackHist(TrackHist_t* Hist, const char* Folder);
+    virtual void BookTimeClusterHist(TimeClusterHist_t* Hist, const char* Folder);
+    virtual void BookLineSeedHist(LineSeedHist_t* Hist, const char* Folder);
     virtual void BookCaloClusterHist(CaloClusterHist_t* Hist, const char* Folder);
     virtual void BookCRVHist(CRVHist_t* Hist, const char* Folder);
     virtual void BookTree(Tree_t* Tree, const char* Folder);
     virtual void FillEventHist(EventHist_t* Hist);
     virtual void FillTrackHist(TrackHist_t* Hist, Track_t* Track);
+    virtual void FillTimeClusterHist(TimeClusterHist_t* Hist, const TimeCluster_t* Cluster);
+    virtual void FillLineSeedHist(LineSeedHist_t* Hist, const LineSeed_t* Seed);
     virtual void FillCaloClusterHist(CaloClusterHist_t* Hist, CaloCluster_t* Cluster);
     virtual void FillCRVHist(CRVHist_t* Hist, CRVCluster_t* Stub);
     virtual void FillTree(Tree_t* Tree, Track_t* Track, CaloCluster_t* Cluster, CRVCluster_t* Stub);
@@ -171,11 +179,15 @@ namespace Mu2eEvtAna {
     TDirectory*        data_dir_;
     TDirectory*        evt_dirs_  [kMaxHists];
     TDirectory*        trk_dirs_  [kMaxHists];
+    TDirectory*        lns_dirs_  [kMaxHists];
+    TDirectory*        tcs_dirs_  [kMaxHists];
     TDirectory*        cls_dirs_  [kMaxHists];
     TDirectory*        crv_dirs_  [kMaxHists];
     TDirectory*        trs_dirs_  [kMaxHists];
     EventHist_t*       evt_hists_ [kMaxHists];
     TrackHist_t*       trk_hists_ [kMaxHists];
+    TimeClusterHist_t* tcs_hists_ [kMaxHists];
+    LineSeedHist_t*    lns_hists_ [kMaxHists];
     CaloClusterHist_t* cls_hists_ [kMaxHists];
     CRVHist_t*         crv_hists_ [kMaxHists];
     Tree_t*            trs_hists_ [kMaxHists];
@@ -206,6 +218,16 @@ namespace Mu2eEvtAna {
     Int_t           hist_track_id_ = 0; // Track_t ID index shown in the track ID bit histograms
 
     Long64_t        tree_entries_ = 0;
+
+    // Branches turned off/on by InitializeInput() before the rooutil::Event is constructed.
+    // disabled_branches_ starts with the same set Mu2eEvtAna has always disabled by default;
+    // a derived class can erase entries from it (e.g. to keep trksegpars_kl) or add to
+    // enabled_branches_ (applied after) without touching the base list.
+    std::vector<TString> disabled_branches_ = {
+      "trkhitscalibs", "trkhitsmc", "trkmats", "trksegpars_ch", "trksegpars_kl",
+      "calohits", "calodigis", "calorecodigis", "crvcoincmcplane"
+    };
+    std::vector<TString> enabled_branches_; //applied after disabled_branches_
 
     mu2e::StopWatch* watch_; // track processing times
   };

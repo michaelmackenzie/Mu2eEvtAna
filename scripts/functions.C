@@ -25,9 +25,10 @@ struct AnalyzerInfo_t {
 
 std::map<TString, AnalyzerInfo_t>& AnalyzerRegistry() {
   static std::map<TString, AnalyzerInfo_t> registry = {
-    {"mu2e_ana", {"Mu2eEvtAna::Mu2eEvtAna", ""}},
-    {"rmc_ana" , {"Mu2eEvtAna::RMCAna"    , ""}},
-    {"cnv_ana" , {"Mu2eEvtAna::ConvAna"   , ""}},
+    {"mu2e_ana" , {"Mu2eEvtAna::Mu2eEvtAna", ""}},
+    {"rmc_ana"  , {"Mu2eEvtAna::RMCAna"    , ""}},
+    {"cnv_ana"  , {"Mu2eEvtAna::ConvAna"   , ""}},
+    {"run1b_ana", {"Mu2eEvtAna::Run1BAna", ""}},
   };
   return registry;
 }
@@ -322,6 +323,10 @@ int rmc_ana(TString input, int Mode = 0, Long64_t max_entries = -1, Long64_t fir
 
 int cnv_ana(TString input, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1, TString name_tag = "") {
   return ProcessWithThreads("cnv_ana", input, Mode, max_entries, first_entry, n_threads, name_tag);
+}
+
+int run1b_ana(TString input, int Mode = 0, Long64_t max_entries = -1, Long64_t first_entry = 0, int n_threads = 1, TString name_tag = "") {
+  return ProcessWithThreads("run1b_ana", input, Mode, max_entries, first_entry, n_threads, name_tag);
 }
 
 #endif
