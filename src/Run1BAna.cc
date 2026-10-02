@@ -16,6 +16,9 @@ namespace Mu2eEvtAna {
     disabled_branches_.erase(
       std::remove(disabled_branches_.begin(), disabled_branches_.end(), TString("calohits")),
       disabled_branches_.end());
+    disabled_branches_.erase(
+      std::remove(disabled_branches_.begin(), disabled_branches_.end(), TString("calohitsmc")),
+      disabled_branches_.end());
   }
 
   //------------------------------------------------------------------------------------

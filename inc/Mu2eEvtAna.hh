@@ -225,7 +225,7 @@ namespace Mu2eEvtAna {
     // enabled_branches_ (applied after) without touching the base list.
     std::vector<TString> disabled_branches_ = {
       "trkhitscalibs", "trkhitsmc", "trkmats", "trksegpars_ch", "trksegpars_kl",
-      "calohits", "calodigis", "calorecodigis", "crvcoincmcplane"
+      "calohits", "calohitsmc", "calodigis", "calorecodigis", "crvcoincmcplane"
     };
     std::vector<TString> enabled_branches_; //applied after disabled_branches_
 
