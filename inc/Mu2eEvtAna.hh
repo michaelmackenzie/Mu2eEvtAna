@@ -224,7 +224,7 @@ namespace Mu2eEvtAna {
     // a derived class can erase entries from it (e.g. to keep trksegpars_kl) or add to
     // enabled_branches_ (applied after) without touching the base list.
     std::vector<TString> disabled_branches_ = {
-      "trkhitscalibs", "trkhitsmc", "trkmats", "trksegpars_ch", "trksegpars_kl",
+      "trkhits", "trkhitscalibs", "trkhitsmc", "trkmats", "trksegpars_ch", "trksegpars_kl",
       "calohits", "calohitsmc", "calodigis", "calorecodigis", "crvcoincmcplane"
     };
     std::vector<TString> enabled_branches_; //applied after disabled_branches_

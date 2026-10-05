@@ -371,7 +371,8 @@ namespace Mu2eEvtAna {
     }
 
     // Standard Run 1A selection set
-    trk_par.SetID(Run1ATrackID(&trk_par), 2);
+    const auto ID = Run1ATrackID(&trk_par);
+    trk_par.SetID(ID, 2);
   }
 
   //------------------------------------------------------------------------------------
@@ -746,7 +747,7 @@ namespace Mu2eEvtAna {
         prv_opt_id &= (trigger_.FiredAPR() || trigger_.FiredCPR()); if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("trigger");
         prv_opt_id &= upstream_veto; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("upstream_reflection");
         prv_opt_id &= multi_trk; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("multi_trk");
-        if(prv_opt_id && charge_cut) FillAllHistograms(81); // For input to Natalie's code
+        if(track_->PFront() > 100.f && prv_opt_id && charge_cut) FillAllHistograms(81); // For input to Natalie's code
         prv_opt_id &= track_->PID() > 0.54f && track_->ECluster() > 0.; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("PID");
         prv_opt_id &= track_->TanDipFront() > 0.575f && track_->TanDipFront() < 0.85f; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("tan_dip");
         prv_opt_id &= track_->STBoundary() > 0; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("st_boundary");
@@ -758,8 +759,8 @@ namespace Mu2eEvtAna {
         prv_opt_id &= track_->TErrMiddle() < 0.85f; if(prv_opt_id && charge_cut) dev_cut_flow_.Increment("t0_err");
 
         // For the cut-flow, don't apply momentum, time, charge, or CRV cuts yet
-        if(!Run1AID.CheckBit(kCRV) && charge_cut) {
-          if(prv_opt_id) dev_cut_flow_.Increment("crv_veto");
+        if(prv_opt_id && !Run1AID.CheckBit(kCRV) && charge_cut) {
+          dev_cut_flow_.Increment("crv_veto");
           if(track_->PFront() > 100.f && track_->PFront() < 110.f) {
             dev_cut_flow_.Increment("momentum");
             if(track_->TFront() > 475.f && track_->TFront() < 1650.f) {
@@ -794,7 +795,7 @@ namespace Mu2eEvtAna {
           else                       FillAllHistograms(78 + offset_1d);
 
           // Print cosmics that pass all cuts
-          if(offset_1d == 0 && name_.Contains("cry4a") && !Run1AID.CheckBit(kCRV)) {
+          if(offset_1d == 0 && name_.Contains("cry4a")) {
             printf("[ConvAna::%s] Event %5i:%6i:%8i passes Run 1A selection\n",
                    __func__, evt_.run_, evt_.subrun_, evt_.event_);
             track_->Print("banner");
@@ -820,24 +821,35 @@ namespace Mu2eEvtAna {
 
 
         bool test_id = true; // As of 2026-09-28 from Natalie
-        test_id &= track_->Charge() < 0;
+        // test_id &= track_->Charge() < 0;
         test_id &= (trigger_.FiredAPR() || trigger_.FiredCPR());
         test_id &= upstream_veto;
         test_id &= multi_trk;
         test_id &= track_->NSTInter() > 0;
         test_id &= track_->OPAInter() == 0;
-        test_id &= track_->D0Front() <  91.211543177;
-        test_id &= track_->D0Front() > -36.29673596;
-        test_id &= track_->PID() > 0.5058837697 && track_->ECluster() > 0.;
-        test_id &= track_->TanDipFront() > 0.4938016 && track_->TanDipFront() < 0.862519827;
-        test_id &= track_->TrkQual() > 0.17542357;
-        test_id &= track_->NActive() >= 20;
-        test_id &= track_->TErrMiddle() < 0.89444511;
+        test_id &= track_->TSDAInter() == 0;
+        // test_id &= track_->D0Front() <  91.211543177;
+        // test_id &= track_->D0Front() > -36.29673596;
+        // test_id &= track_->PID() > 0.5058837697 && track_->ECluster() > 0.;
+        // test_id &= track_->TanDipFront() > 0.4938016 && track_->TanDipFront() < 0.862519827;
+        // test_id &= track_->TrkQual() > 0.17542357;
+        // test_id &= track_->NActive() >= 20;
+        // test_id &= track_->TErrMiddle() < 0.89444511;
+        // test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
+        // test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
+        test_id &= track_->NActive() >= 18;
+        test_id &= track_->CosThetaFront() > 0.5089f && track_->CosThetaFront() < 0.6536f;
+        test_id &= track_->RMaxFront() > 450.f && track_->RMaxFront() < 630.f;
+        test_id &= track_->EPFront() < 0.92f;
+        test_id &= track_->TrkQual() > 0.047f;
+        test_id &= track_->PID() > 0.44f && track_->ECluster() > 0.f;
         test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
-        test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
+        test_id &= track_->TFront() > 475. && track_->TFront() < 1650.;
         if(test_id) {
           int cut_opt_offset = 0;
-          if(Run1AID.CheckBit(kCRV)) cut_opt_offset += kCRVVetoOffset;
+          if(Run1AID.CheckBit(kCRV))    cut_opt_offset += kCRVVetoOffset;
+          if(track_->TFront() <= 515.f) cut_opt_offset += kTimeCutOffset;
+          if(track_->Charge() > 0)      cut_opt_offset += kChargeOffset;
           FillAllHistograms(79 + cut_opt_offset);
         }
 

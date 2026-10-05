@@ -84,6 +84,8 @@ namespace Mu2eEvtAna {
     float AltPID    () const { return (track_) ? pid_          : -1000.f; }
     float TrkPID    () const { return (track_) ? trkpid_       : -1000.f; }
     float CosmicID  () const { return (track_) ? cosmic_id_    : -1000.f; }
+    float TTSlope   () const { return (track_ && track_->trkdtdt) ? track_->trkdtdt->slope    :     0.f; }
+    float TTSlopeUnc() const { return (track_ && track_->trkdtdt) ? track_->trkdtdt->slopeUnc :    -1.f; }
     float TZSlope   () const { return (track_) ? tz_slope_     :     0.f; }
     float TZSlopeUnc() const { return (track_) ? tz_slope_unc_ :    -1.f; }
     bool  OPAInter  () const { return (track_ && track_->trk) ? track_->trk->opainter : false; }

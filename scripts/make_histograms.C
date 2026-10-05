@@ -41,14 +41,6 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
     gSystem->Exec("[ ! -d temp ] && mkdir temp");
     gSystem->Exec("[ ! -d output ] && mkdir output");
   }
-  // Check the token is available
-  if(use_xrootd_) {
-    TString token_str = gSystem->GetFromPipe("timeout 10 getToken; if [ $? -ne 0 ]; then echo Failed; else echo Passed; fi");
-    if(!token_str.Contains("Passed")) {
-      cout << "Failed to get token!\n";
-      return 1;
-    }
-  }
 
   if(file_input) { // a single ntuple file or a file list, process it directly
     if(gSystem->AccessPathName(dataset) && !dataset.Contains("://")) {
@@ -74,6 +66,16 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
     if(dataset != "" && config.name_ != dataset) continue;
     // allow overriding the output name tag when a single dataset is requested
     const TString out_tag = (name_tag != "" && dataset != "") ? name_tag : config.name_;
+
+    // Check the token is available before processing each dataset
+    if(use_xrootd_) {
+      TString token_str = gSystem->GetFromPipe("timeout 10 getToken; if [ $? -ne 0 ]; then echo Failed; else echo Passed; fi");
+      if(!token_str.Contains("Passed")) {
+        cout << "Failed to get token!\n";
+        return 1;
+      }
+    }
+
     if(processes > 1) { // note: analyzers registered by other packages are not known to these sub-processes
       while(CountAnalyzerProcesses() >= processes) sleep(10);
       TString command = Form("root.exe -q -b \"${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/make_histograms.C(0, \\\"%s\\\", %i, \\\"%s\\\", %i)\" >| log/out_%s.log 2>&1 &",

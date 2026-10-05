@@ -115,15 +115,6 @@ namespace Mu2eEvtAna {
     }
 
     // Turn off branches not used by default (before Event object is created)
-    if(ntuple_->GetBranch("trkhits"        )) {
-      // This requires a higher split level in the TTree
-      // ntuple_->SetBranchStatus("trkhits.*"        , 0);
-      // ntuple_->SetBranchStatus("trkhits.poca"     , 1); // only keep the hits position and time
-      // ntuple_->SetBranchStatus("trkhits.ptoca"    , 1);
-      // ntuple_->SetBranchStatus("trkhits.etime"    , 1);
-      // ntuple_->SetBranchStatus("trkhits.earlyend" , 1);
-      // ntuple_->SetBranchStatus("trkhits.tottdrift", 1);
-    }
     for(const auto& branch : disabled_branches_) {
       if(ntuple_->GetBranch(branch)) ntuple_->SetBranchStatus(branch, 0);
     }
@@ -218,7 +209,7 @@ namespace Mu2eEvtAna {
     Hist->fPSTApproxDiff = new TH1F("p_approx_ST_diff",Form("%s: track p(ST) - p(Front)"           ,Folder),  400,   -1.,    9.);
     Hist->fPExitDiff     = new TH1F("pExit_diff"  ,Form("%s: track p(Front) - p(Exit)"             ,Folder),  400,   -1.,    4.);
     Hist->fT0            = new TH1F("t0"          ,Form("%s: track t_{0}"                          ,Folder),  400,    0., 2000.);
-    Hist->fT0Err         = new TH1F("t0err"       ,Form("%s: track t_{0} uncertainty"              ,Folder),  100,    0.,   20.);
+    Hist->fT0Err         = new TH1F("t0err"       ,Form("%s: track t_{0} uncertainty"              ,Folder),  100,    0.,    2.);
     Hist->fD0            = new TH1F("d0"          ,Form("%s: track d0"                             ,Folder),  200, -200.,  200.);
     Hist->fDP            = new TH1F("dP"          ,Form("%s: track p_reco - p_mc"                  ,Folder),  400,  -20.,   20.);
     Hist->fDPvsP         = new TH2F("dPvsP"       ,Form("%s: track p_reco - p_mc"                  ,Folder),  20,   80., 120., 100, -5., 5.);
@@ -1184,23 +1175,6 @@ namespace Mu2eEvtAna {
 
       // Set track ID info after CRV cluster and upstream track matching
       SetTrackIDs(de);
-
-      // Set an alternate ID
-      bool us_cut = true;
-      if(de->upstream_) {
-        const float dt = de->TFront() - de->upstream_->TFront();
-        us_cut = dt < 60.f || dt > 110.f;
-      }
-      const bool no_csm_opt_id =  (de->FitPDG() == 11 && de->PZFront() < 0.f && de->PFront() > 75.
-                                   && de->STBoundary()
-                                   && de->AltPID() > 0.5f && de->ECluster() > 0.
-                                   && us_cut
-                                   && de->CosThetaFront() > 0.525 && de->CosThetaFront() < 0.649 // start optimized cuts
-                                   && de->RMaxFront() > 482. && de->RMaxFront() < 642.6
-                                   && de->TFront() > 540. && de->TFront() < 1650.
-                                   && de->AltTrkQual() > 0.235352
-                                   && de->TrkPID() > 0.078125);
-      de->SetID(no_csm_opt_id, 2);
     }
 
     if(verbose_ > 2) {
