@@ -94,45 +94,6 @@ int RunAnalyzer(Mu2eEvtAna::Mu2eEvtAna* ana, TString input, TString ana_name, Lo
   return ana->Process(max_entries);
 }
 
-// Split a file list into parts
-void SplitFileList(TString file_list, int n_parts, int part, TString output_file) {
-  ifstream infile(file_list);
-  if(!infile.is_open()) {
-    cout << "Error: cannot open file list " << file_list << endl;
-    return;
-  }
-
-  vector<string> lines;
-  string line;
-  while(getline(infile, line)) {
-    if(!line.empty()) lines.push_back(line);
-  }
-  infile.close();
-
-  int n_total = lines.size();
-  if(n_total == 0) {
-    ofstream outfile(output_file);
-    outfile.close();
-    return;
-  }
-
-  if(n_parts < 1) n_parts = n_total;
-  if(part < 0 || part >= n_parts) {
-    cout << "Error: part must be in range [0, " << n_parts-1 << "]" << endl;
-    return;
-  }
-
-  int per_part = (n_total + n_parts - 1) / n_parts;
-  int start = part * per_part;
-  int end = min(start + per_part, n_total);
-
-  ofstream outfile(output_file);
-  for(int i = start; i < end; ++i) {
-    outfile << lines[i] << endl;
-  }
-  outfile.close();
-}
-
 // Process one thread's share of the input, using the file list written by ProcessWithThreads.
 // Called in a child process via functions.C(ana_func, class_name, libraries, name_tag, mode, max_entries, first_entry, thread_id, xrootd)
 int functions(TString ana_func, TString class_name, TString libraries, TString name_tag, int Mode,
@@ -173,7 +134,6 @@ int ProcessWithThreads(TString ana_func, TString input, int Mode,
   }
 
   TString dataset = (name_tag != "") ? name_tag : DefaultNameTag(input);
-  const bool single_file = file_list.EndsWith(".root");
   if(file_list != input) cout << "Processing dataset " << input << " (file list " << file_list << ")" << endl;
   else                   cout << "Processing input file " << file_list << endl;
   cout << "Output name tag: " << dataset << endl;
@@ -188,53 +148,21 @@ int ProcessWithThreads(TString ana_func, TString input, int Mode,
     return status;
   }
 
-  // Count number of files in the input and split before submitting threads
-  int n_input_files = 0;
-  vector<string> all_files;
-  if(single_file) { // a single ntuple file, nothing to split
-    all_files.push_back(file_list.Data());
-    n_input_files = 1;
-  } else {
-    ifstream infile(file_list);
-    string line;
-    while(getline(infile, line)) {
-      if(!line.empty()) {
-        all_files.push_back(line);
-        n_input_files++;
-      }
-    }
-    infile.close();
+  // Split the input files between the threads before submitting them
+  const vector<string> all_files = ReadFileList(file_list);
+  const int n_input_files = all_files.size();
+  if(n_input_files == 0) {
+    cout << "Input " << input << " has no files to process!" << endl;
+    return -1;
   }
-
-  // Adjust n_threads if fewer input files than requested threads
-  int actual_n_threads = n_threads;
   if(n_input_files < n_threads) {
-    actual_n_threads = n_input_files;
-    cout << "Note: Reducing threads from " << n_threads << " to " << actual_n_threads
+    cout << "Note: Reducing threads from " << n_threads << " to " << n_input_files
          << " (only " << n_input_files << " input files)" << endl;
   }
 
   gSystem->Exec("[ ! -d log ] && mkdir log");
-  gSystem->Exec("[ ! -d temp ] && mkdir temp");
-
-  // Split file list before submitting threads
-  vector<TString> thread_files;
-  for(int t = 0; t < actual_n_threads; ++t) {
-    TString thread_file = Form("temp/%s_thread_%i.files", dataset.Data(), t);
-    thread_files.push_back(thread_file);
-    // be very sure we're not using an old file
-    gSystem->Exec(Form("[ -f temp/%s ] && rm %s", thread_file.Data(), thread_file.Data()));
-
-    int per_part = (n_input_files + actual_n_threads - 1) / actual_n_threads;
-    int start = t * per_part;
-    int end = min(start + per_part, n_input_files);
-
-    ofstream outfile(thread_file);
-    for(int i = start; i < end; ++i) {
-      outfile << all_files[i] << endl;
-    }
-    outfile.close();
-  }
+  const vector<TString> thread_files = SplitFileList(all_files, n_threads, "temp", dataset);
+  const int actual_n_threads = thread_files.size();
 
   cout << "Processing " << dataset << " with " << actual_n_threads << " threads" << endl;
 

@@ -479,59 +479,67 @@ namespace Mu2eEvtAna {
 
   //------------------------------------------------------------------------------------
   // Evaluate the standard selection cut-flow
-  bool ConvAna::StandardCutFlow() {
+  bool ConvAna::StandardCutFlow(const bool eminus) {
     if(!track_) return false;
 
-    const auto ID = track_->ID(0);
+    const auto ID = track_->ID((eminus) ? 0 : 1);
+    auto& cut_flow = (eminus) ? cut_flow_em_ : cut_flow_ep_;
     const int event_id = (
-                          1*(evt_.nde_tracks_ != 1) +
                           2*(!trigger_.FiredAPR() && !trigger_.FiredCPR())
                           );
 
-    if(track_->FitPDG() != 11) return false;
-    if(track_->Charge() > 0)   return false;
-    cut_flow_.Increment("is_reco_electron");
+    if(track_->PFront() <= 0.f) return false;
+    cut_flow.Increment("has_front_seg");
+
+    if(std::abs(track_->FitPDG()) != 11) return false;
+    cut_flow.Increment("is_reco_electron");
+    // printf("[ConvAna::%s] PDG = %i Charge = %i pz = %.2f\n",
+    //        __func__, track_->FitPDG(), track_->Charge(), track_->PZFront());
+    if(eminus && (track_->Charge() > 0))   return false;
+    if(!eminus && (track_->Charge() < 0))   return false;
+    cut_flow.Increment("charge_cut");
 
     // Downstream electron sets
     if(track_->PZFront() <= 0.f) return false;
-    cut_flow_.Increment("has_downstream");
+    cut_flow.Increment("has_downstream");
 
     if((ID.CheckBit(kUpstream))) return false;
-    cut_flow_.Increment("upstream_veto");
-    cut_flow_.Increment("trk_front_seg");
+    cut_flow.Increment("upstream_veto");
+    cut_flow.Increment("trk_front_seg");
     if((ID.CheckBit(kPID))) return false;
-    cut_flow_.Increment("good_trkpid");
+    cut_flow.Increment("good_trkpid");
     if((ID.CheckBit(kClusterE))) return false;
-    cut_flow_.Increment("good_cluster");
+    cut_flow.Increment("good_cluster");
     if((ID.CheckBit(kTrkQual))) return false;
-    cut_flow_.Increment("good_trkqual");
+    cut_flow.Increment("good_trkqual");
     if((ID.CheckBit(kFitCon))) return false;
-    cut_flow_.Increment("fitcon");
-    cut_flow_.Increment("has_hits");
+    cut_flow.Increment("fitcon");
+    cut_flow.Increment("has_hits");
     if((ID.CheckBit(kD0))) return false;
-    cut_flow_.Increment("has_st");
+    cut_flow.Increment("has_st");
     if((ID.CheckBit(kRMax))) return false;
-    cut_flow_.Increment("no_opa");
+    cut_flow.Increment("no_opa");
     if((ID.CheckBit(kCRV))) return false;
-    cut_flow_.Increment("no_crv_quality");
-    cut_flow_.Increment("no_crv_timewindow");
-    cut_flow_.Increment("no_crv_veto");
+    cut_flow.Increment("no_crv_quality");
+    cut_flow.Increment("no_crv_timewindow");
+    cut_flow.Increment("no_crv_veto");
     if((ID.CheckBit(kTDip))) return false;
-    cut_flow_.Increment("pz_over_pt");
+    cut_flow.Increment("pz_over_pt");
     if((ID.CheckBit(kCosmicID)) != 0) return false;
-    cut_flow_.Increment("cosmic_id");
+    cut_flow.Increment("cosmic_id");
     if((event_id & (2)) != 0) return false;
-    cut_flow_.Increment("trigger");
+    cut_flow.Increment("trigger");
     if((ID.CheckBit(kP))) return false;
-    cut_flow_.Increment("loose_mom_region");
-    if(track_->PFront() < 103.5 || track_->PFront() > 105.) return false;
-    cut_flow_.Increment("final_mom_region");
+    cut_flow.Increment("loose_mom_region");
+    if(eminus && (track_->PFront() < 103.5 || track_->PFront() > 105.)) return false;
+    if(!eminus && (track_->PFront() < 90. || track_->PFront() > 92.5)) return false;
+    cut_flow.Increment("final_mom_region");
     if((ID.CheckBit(kT0Loose))) return false;
-    cut_flow_.Increment("loose_time_region");
+    cut_flow.Increment("loose_time_region");
     if((ID.CheckBit(kT0))) return false;
-    cut_flow_.Increment("final_time_region");
+    cut_flow.Increment("final_time_region");
     if((event_id & 1) != 0) return false;
-    cut_flow_.Increment("de_track_count");
+    cut_flow.Increment("de_track_count");
 
     if(!ID.Passes() || event_id != 0) {
       std::cout << "[ConvAna::" << __func__ << "] "
@@ -583,28 +591,34 @@ namespace Mu2eEvtAna {
                             __func__, evt_.run_, evt_.subrun_, evt_.event_);
 
     // all events
-    cut_flow_.ResetEvent();
-    cut_flow_.Increment("All");
+    cut_flow_em_.ResetEvent();
+    cut_flow_em_.Increment("All");
+    cut_flow_ep_.ResetEvent();
+    cut_flow_ep_.Increment("All");
     run1a_cut_flow_.ResetEvent();
     run1a_cut_flow_.Increment("All");
     dev_cut_flow_.ResetEvent();
     dev_cut_flow_.Increment("All");
 
     // Event-level requirements
+    const bool triggered = trigger_.FiredAPR() || trigger_.FiredCPR();
     const int event_id = (
                           // 1*(evt_.nde_tracks_ != 1) +
-                          2*(!trigger_.FiredAPR() && !trigger_.FiredCPR())
+                          2*(!triggered)
                           );
 
     // Loop through the track collection
     for(int itrk = 0; itrk < evt_.ntracks_; ++itrk) {
       track_ = &tracks_[itrk];
+      cut_flow_ep_.Increment("a_track");
+      cut_flow_ep_.Increment("a_track");
       dev_cut_flow_.Increment("a_track");
       if(!track_->IsGood()) continue; // if not a properly fit track, skip it
       dev_cut_flow_.Increment("a_converged_track");
       if(track_->PFront() <= 0.) continue;
       dev_cut_flow_.Increment("has_front_seg");
-      StandardCutFlow();
+      StandardCutFlow(true);
+      StandardCutFlow(false);
       if(std::abs(track_->FitPDG()) != 11) continue; // skip muon fits for now due to rooutil bug
       dev_cut_flow_.Increment("is_electron");
 
@@ -858,7 +872,7 @@ namespace Mu2eEvtAna {
         //------------------------------------
 
         if(track_->PFront() > 75.f && track_->Charge() > 0) FillAllHistograms(5);
-        if(id_p_no_crv_time == 0) {
+        if(id_p_no_crv_time == 0 && triggered) {
           if(track_->PFront() > 80.f && track_->PFront() < 100.f) {
             FillAllHistograms(40 + pos_set_offset);
             // narrow momentum window
@@ -879,7 +893,11 @@ namespace Mu2eEvtAna {
 
   void ConvAna::EndJob() {
     printf("ConvAna::%s\n", __func__);
-    cut_flow_.Print();
+    printf("Nominal e- cut-flow:\n");
+    cut_flow_em_.Print();
+    printf("Nominal e+ cut-flow:\n");
+    cut_flow_ep_.Print();
+    printf("Test cut-flow:\n");
     dev_cut_flow_.Print();
   }
 }

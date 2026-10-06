@@ -70,7 +70,7 @@ namespace Mu2eEvtAna {
     void InitTreeData();
     CutID Run1ATrackID(Track_t* track);
     bool Run1ACutFlow();
-    bool StandardCutFlow();
+    bool StandardCutFlow(const bool eminus = true);
 
     bool ValidateVariable(float var, const char* name) {
       if(!std::isfinite(var)) {
@@ -94,7 +94,8 @@ namespace Mu2eEvtAna {
 
     TString OutputFileName() override { return "ConvAna." + name_ + ".root"; }
 
-    CutFlow            cut_flow_                        ; // standard selection
+    CutFlow            cut_flow_em_                     ; // standard e- selection
+    CutFlow            cut_flow_ep_                     ; // standard e+ selection
     CutFlow            run1a_cut_flow_                  ; // Run 1A paper selection
     CutFlow            dev_cut_flow_                    ; // For cut-set testing
 

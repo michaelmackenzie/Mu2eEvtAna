@@ -18,7 +18,7 @@ namespace DATA {
     vector<Dataset_t> datasets;
 
     const bool ele = true ; // datasets for electron analysis
-    const bool pos = false; // datasets for positron analysis
+    const bool pos = true ; // datasets for positron analysis
 
     //---------------------------------------
     // Run 1A datasets

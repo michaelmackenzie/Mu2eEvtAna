@@ -67,52 +67,72 @@ TString DefaultNameTag(TString input) {
 }
 
 /**
- * Split a file list into N parts, writing each part to a separate file.
- * Returns a vector of output file paths.
+ * Read the non-empty lines of a file list.
+ * A single ntuple file (*.root, local path or xrootd URL) is treated as a list of one file.
  */
-vector<TString> SplitFileList(TString file_list, int n_parts, TString output_dir, TString prefix) {
-  gSystem->Exec(Form("[ ! -d %s ] && mkdir -p %s", output_dir.Data(), output_dir.Data()));
-
+vector<string> ReadFileList(TString file_list) {
+  vector<string> lines;
+  if(file_list.EndsWith(".root")) {
+    lines.push_back(file_list.Data());
+    return lines;
+  }
   ifstream infile(file_list);
   if(!infile.is_open()) {
     cout << "Error: cannot open file list " << file_list << endl;
-    return {};
+    return lines;
   }
-
-  vector<string> lines;
   string line;
   while(getline(infile, line)) {
     if(!line.empty()) lines.push_back(line);
   }
   infile.close();
+  return lines;
+}
 
-  int n_total = lines.size();
+/**
+ * Split a list of files into N parts, writing each part to <output_dir>/<prefix>_thread_<i>.files.
+ * The files are distributed as evenly as possible: each part gets N(files)/N(parts) files, with the
+ * first N(files)%N(parts) parts getting one extra. N(parts) is reduced to N(files) if needed, so no
+ * part is empty. Returns a vector of output file paths.
+ */
+vector<TString> SplitFileList(const vector<string>& lines, int n_parts, TString output_dir, TString prefix) {
+  const int n_total = lines.size();
   if(n_total == 0) {
-    cout << "Warning: file list " << file_list << " is empty" << endl;
+    cout << "Warning: no files to split" << endl;
     return {};
   }
 
   if(n_parts < 1) n_parts = 1;
   if(n_parts > n_total) n_parts = n_total;
 
-  int per_part = (n_total + n_parts - 1) / n_parts;
+  gSystem->Exec(Form("[ ! -d %s ] && mkdir -p %s", output_dir.Data(), output_dir.Data()));
+
+  const int base_per_part = n_total / n_parts;
+  const int leftover      = n_total % n_parts;
 
   vector<TString> output_files;
+  int start = 0;
   for(int part = 0; part < n_parts; ++part) {
-    int start = part * per_part;
-    int end = min(start + per_part, n_total);
+    const int end = start + base_per_part + (part < leftover ? 1 : 0); // end index, not included in this part
 
     TString output_file = Form("%s/%s_thread_%i.files", output_dir.Data(), prefix.Data(), part);
-    ofstream outfile(output_file);
+    ofstream outfile(output_file); // truncates any old file
     for(int i = start; i < end; ++i) {
       outfile << lines[i] << endl;
     }
     outfile.close();
 
     output_files.push_back(output_file);
+    start = end;
   }
 
   return output_files;
+}
+
+vector<TString> SplitFileList(TString file_list, int n_parts, TString output_dir, TString prefix) {
+  const vector<string> lines = ReadFileList(file_list);
+  if(lines.empty()) cout << "Warning: file list " << file_list << " is empty" << endl;
+  return SplitFileList(lines, n_parts, output_dir, prefix);
 }
 
 /**
