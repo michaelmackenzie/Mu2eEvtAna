@@ -862,7 +862,7 @@ namespace Mu2eEvtAna {
         if(test_id) {
           int cut_opt_offset = 0;
           if(Run1AID.CheckBit(kCRV))    cut_opt_offset += kCRVVetoOffset;
-          if(track_->TFront() <= 515.f) cut_opt_offset += kTimeCutOffset;
+          if(track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset;
           if(track_->Charge() > 0)      cut_opt_offset += kChargeOffset;
           FillAllHistograms(79 + cut_opt_offset);
         }
