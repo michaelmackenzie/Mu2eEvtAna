@@ -495,6 +495,10 @@ namespace Mu2eEvtAna {
     Tree->tree->Branch("trk_mc_dp"              , &Tree->trk_mc_dp               );
     Tree->tree->Branch("trk_mc_pdg"             , &Tree->trk_mc_pdg              );
     Tree->tree->Branch("trk_id"                 , &Tree->trk_id                  );
+    Tree->tree->Branch("trk_multitrk_dt"        , &Tree->trk_multitrk_dt         );
+    Tree->tree->Branch("trk_upstream_dt"        , &Tree->trk_upstream_dt         );
+    Tree->tree->Branch("trk_crv_dt"             , &Tree->trk_crv_dt              );
+    Tree->tree->Branch("trk_crv_raw_dt"         , &Tree->trk_crv_raw_dt          );
   }
 
   //------------------------------------------------------------------------------------
@@ -969,14 +973,41 @@ namespace Mu2eEvtAna {
       Tree->trk_mc_pdg = Track->MCPDG();
       Tree->trk_id = Track->ID(hist_track_id_).ID(0xffffffff);
 
-      // For CRV deadtime estimate in Run 1A optimization (simple dt window)
-      float min_crv_time = -9999.f;
+      // For CRV deadtime estimates
+      float min_crv_time(-10000.f), min_crv_raw_time(-10000.f);
       for(int icrv = 0; icrv < evt_.ncrv_clusters_; ++icrv) {
         CRVCluster_t* stub = &crv_clusters_[icrv];
-        const float dt = Track->TFront() - stub->Time();
-        if(std::fabs(dt) < min_crv_time) min_crv_time = dt;
+        const float raw_dt = Track->TFront() - stub->Time();
+        if(std::fabs(raw_dt) < std::fabs(min_crv_raw_time)) min_crv_raw_time = raw_dt;
+        const float dt_cal = Track->TFront() - stub->TimeViaCaloFront();
+        const float dt_st  = Track->TFront() - stub->TimeViaSTBack();
+        const float dt = (std::fabs(dt_cal) < std::fabs(dt_st)) ? dt_cal : dt_st;
+        if(std::fabs(dt) < std::fabs(min_crv_time)) min_crv_time = dt;
       }
-      Tree->trk_min_crv_time = min_crv_time;
+      Tree->trk_crv_raw_dt = min_crv_raw_time;
+      Tree->trk_crv_dt = min_crv_time;
+
+      // Upstream and Multi-track associations
+      float min_multitrk_dt(-10000.f), min_upstream_dt(-10000.f);
+      for(int i = 0; i < evt_.ntracks_; ++i) {
+        if(&tracks_[i] == &(*Track)) continue; // skip this track
+        const auto alt_trk = &tracks_[i];
+        if(!alt_trk->IsGood()) continue; // if not a properly fit track, skip it
+
+        // Multi-track candidates
+        if(std::abs(alt_trk->FitPDG()) == std::abs(Track->FitPDG()) && alt_trk->PZFront() > 0.f) { // downstream same-type track
+          const float dt = Track->TFront() - alt_trk->TFront();
+          if(std::fabs(dt) < std::fabs(min_multitrk_dt)) min_multitrk_dt = dt;
+        }
+
+        // potential upstream partners
+        if(alt_trk->PZFront() < 0.f && alt_trk->TFront() < Track->TFront() - 25.f) {
+          const float dt = Track->TFront() - alt_trk->TFront();
+          if(std::fabs(dt) < std::fabs(min_upstream_dt)) min_upstream_dt = dt;
+        }
+      }
+      Tree->trk_multitrk_dt = min_multitrk_dt;
+      Tree->trk_upstream_dt = min_upstream_dt;
     }
 
     Tree->tree->Fill();
@@ -1224,7 +1255,7 @@ namespace Mu2eEvtAna {
       CRVCluster_t* stub = &crv_clusters_[icrv];
       // approximate track time assuming path through the calo
       const float time_cal(stub->TimeViaCaloFront());
-      // approximate track time assuming path through the ST (with rebounding add on if needed)
+      // approximate track time assuming path through the ST (with rebounding added on if needed)
       const float time_st (stub->TimeViaSTBack());
       const float min_time = std::min(std::fabs(time_cal - trk_time), std::fabs(time_st - trk_time));
       if(min_time < max_match_time) {

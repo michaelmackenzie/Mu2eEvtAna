@@ -49,7 +49,6 @@ namespace Mu2eEvtAna {
     float trk_altpid;
     float trk_cosmicid;
     float trk_charge;
-    float trk_min_crv_time;
     int   trk_nst_down; // intersections
     int   trk_nst_up;
     int   trk_stboundary;
@@ -59,6 +58,10 @@ namespace Mu2eEvtAna {
     float trk_mc_dp; // MC info
     float trk_mc_pdg;
     int   trk_id; // selection ID bits (Track_t ID index hist_track_id_), 0 if all cuts pass
+    float trk_multitrk_dt; // associations
+    float trk_upstream_dt;
+    float trk_crv_dt;
+    float trk_crv_raw_dt;
 
     // CRV information
     float crv_z;

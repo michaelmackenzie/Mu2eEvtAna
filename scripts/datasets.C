@@ -18,7 +18,7 @@ namespace DATA {
     vector<Dataset_t> datasets;
 
     const bool ele = true ; // datasets for electron analysis
-    const bool pos = true ; // datasets for positron analysis
+    const bool pos = false; // datasets for positron analysis
 
     //---------------------------------------
     // Run 1A datasets
@@ -46,9 +46,9 @@ namespace DATA {
     datasets.emplace_back(true ,  "cry4ab1s5r0101", "nts.mu2e.CosmicSignalMix1BB.MDC2025au_best_v1_1-001.root"           , 4155435,    4437713. /*livetime*/);
     datasets.emplace_back(ele  ,  "dio00b1s5r0101", "nts.mu2e.DIOtail95Mix1BB.MDC2025au_best_v1_1-001.root"              , 9368976,   25000000);
     datasets.emplace_back(true ,  "rmce0b1s5r0101", "nts.mu2e.RMCPhaseSpace0NExternalMix1BB.MDC2025au_best_v1_1-001.root", 4967393, 7000000000);
-    datasets.emplace_back(true ,  "rmce1b1s5r0101", "nts.mu2e.RMCPhaseSpace1NExternalMix1BB.MDC2025au_best_v1_1-001.root", 2974188, 7000000000);
-    datasets.emplace_back(true ,  "rmci0b1s5r0101", "nts.mu2e.RMCPhaseSpace0NInternalMix1BB.MDC2025au_best_v1_1-001.root", 1229006,   50000000);
-    datasets.emplace_back(true ,  "rmci1b1s5r0101", "nts.mu2e.RMCPhaseSpace1NInternalMix1BB.MDC2025au_best_v1_1-001.root",  517029,   50000000);
+    datasets.emplace_back(pos  ,  "rmce1b1s5r0101", "nts.mu2e.RMCPhaseSpace1NExternalMix1BB.MDC2025au_best_v1_1-001.root", 2974188, 7000000000);
+    datasets.emplace_back(pos  ,  "rmci0b1s5r0101", "nts.mu2e.RMCPhaseSpace0NInternalMix1BB.MDC2025au_best_v1_1-001.root", 1229006,   50000000);
+    datasets.emplace_back(pos  ,  "rmci1b1s5r0101", "nts.mu2e.RMCPhaseSpace1NInternalMix1BB.MDC2025au_best_v1_1-001.root",  517029,   50000000);
     datasets.emplace_back(true ,  "rpce1b1s5r0101", "nts.mu2e.RPCExternalPhysicalMix1BB.MDC2025au_best_v1_1-001.root"    ,  458818, 5000000000);
     datasets.emplace_back(true ,  "rpci1b1s5r0101", "nts.mu2e.RPCInternalPhysicalMix1BB.MDC2025au_best_v1_1-001.root"    , 1899806,  125000000);
     datasets.emplace_back(true ,  "pbar1b1s5r0101", "nts.mu2e.PbarResamplingMix1BB.MDC2025au_best_v1_1-001.root"         , 6461314,   30000000);

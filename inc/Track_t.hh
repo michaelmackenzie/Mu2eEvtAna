@@ -44,6 +44,12 @@ namespace Mu2eEvtAna {
     float tz_slope_;
     float tz_slope_unc_;
 
+    // Object associations
+    float min_multi_trk_dt_;
+    float min_upstream_dt_;
+    float min_crv_stub_dt_; // uses the time of flight
+    float min_crv_stub_raw_dt_; // uses CRV stub time
+
     // Track IDs
     CutID id_[kMaxTrackIDs];
 
@@ -517,15 +523,19 @@ namespace Mu2eEvtAna {
     //----------------------------------------------
     // Reset the input info
     void Reset() {
-      track_        = nullptr;
-      stub_         = nullptr;
-      upstream_     = nullptr;
-      trkqual_      = -1000.f;
-      pid_          = -1000.f;
-      trkpid_       = -1000.f;
-      cosmic_id_    = -1000.f;
-      tz_slope_     = 0.f;
-      tz_slope_unc_ = -1.f;
+      track_               = nullptr;
+      stub_                = nullptr;
+      upstream_            = nullptr;
+      trkqual_             = -1000.f;
+      pid_                 = -1000.f;
+      trkpid_              = -1000.f;
+      cosmic_id_           = -1000.f;
+      tz_slope_            = 0.f;
+      tz_slope_unc_        = -1.f;
+      min_multi_trk_dt_    = -10000.f;
+      min_upstream_dt_     = -10000.f;
+      min_crv_stub_dt_     = -10000.f;
+      min_crv_stub_raw_dt_ = -10000.f;
       for(int iid = 0; iid < kMaxTrackIDs; ++iid) id_[iid].Reset();
       for(int iobs = 0; iobs < kMaxObservables; ++iobs) obs_[iobs] = 0.;
     }

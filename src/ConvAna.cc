@@ -115,6 +115,7 @@ namespace Mu2eEvtAna {
     hist_sets[ 40] = new hist_info_t("e+: full window"                  ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 41] = new hist_info_t("e+: narrow window"                ,  true,  true,  true,  true, false, false,  true, false);
     hist_sets[ 42] = new hist_info_t("e+: broad window"                 ,  true,  true,  true,  true, false, false,  true, false);
+    hist_sets[ 45] = new hist_info_t("e+: loose ID for opt"             ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 50] = new hist_info_t("e+: no CRV veto"                  ,  true, false, false, false,  true, false,  true, false);
     hist_sets[ 60] = new hist_info_t("e-: Run 1A ID"                    ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 62] = new hist_info_t("e-: Run 1A ID + upstream veto"    ,  true,  true,  true,  true,  true,  true,  true, false);
@@ -128,6 +129,9 @@ namespace Mu2eEvtAna {
     hist_sets[ 79] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 80] = new hist_info_t("e-: 2D (t,p) selection"           ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 81] = new hist_info_t("e-: Initial ID for optimization"  ,  true, false, false, false, false, false, false,  true);
+    hist_sets[ 85] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true, false);
+    hist_sets[ 86] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true, false);
+    hist_sets[ 87] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true, false);
 
     for (int i=0; i<kMaxHists; i++) {
       const int index = i % 1000; // base index, ignoring control region offset
@@ -834,44 +838,112 @@ namespace Mu2eEvtAna {
         }
 
 
-        bool test_id = true; // As of 2026-09-28 from Natalie
-        // test_id &= track_->Charge() < 0;
-        test_id &= (trigger_.FiredAPR() || trigger_.FiredCPR());
-        test_id &= upstream_veto;
-        test_id &= multi_trk;
-        test_id &= track_->NSTInter() > 0;
-        test_id &= track_->OPAInter() == 0;
-        test_id &= track_->TSDAInter() == 0;
-        // test_id &= track_->D0Front() <  91.211543177;
-        // test_id &= track_->D0Front() > -36.29673596;
-        // test_id &= track_->PID() > 0.5058837697 && track_->ECluster() > 0.;
-        // test_id &= track_->TanDipFront() > 0.4938016 && track_->TanDipFront() < 0.862519827;
-        // test_id &= track_->TrkQual() > 0.17542357;
-        // test_id &= track_->NActive() >= 20;
-        // test_id &= track_->TErrMiddle() < 0.89444511;
-        // test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
-        // test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
-        test_id &= track_->NActive() >= 18;
-        test_id &= track_->CosThetaFront() > 0.5089f && track_->CosThetaFront() < 0.6536f;
-        test_id &= track_->RMaxFront() > 450.f && track_->RMaxFront() < 630.f;
-        test_id &= track_->EPFront() < 0.92f;
-        test_id &= track_->TrkQual() > 0.047f;
-        test_id &= track_->PID() > 0.44f && track_->ECluster() > 0.f;
-        test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
-        test_id &= track_->TFront() > 475. && track_->TFront() < 1650.;
-        if(test_id) {
-          int cut_opt_offset = 0;
-          if(Run1AID.CheckBit(kCRV))    cut_opt_offset += kCRVVetoOffset;
-          if(track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset;
-          if(track_->Charge() > 0)      cut_opt_offset += kChargeOffset;
-          FillAllHistograms(79 + cut_opt_offset);
+        bool base_test_id = true; // As of 2026-10-07 from Natalie
+        // base_test_id &= track_->Charge() < 0;
+        base_test_id &= (trigger_.FiredAPR() || trigger_.FiredCPR());
+        base_test_id &= upstream_veto;
+        base_test_id &= multi_trk;
+        base_test_id &= track_->NSTInter() > 0;
+        base_test_id &= track_->OPAInter() == 0;
+        base_test_id &= track_->TSDAInter() == 0;
+        if(base_test_id) { // base for all test selections
+          // nactive >= 17, t0err < 0.82, d0min bound: -60, d0max bound: 94, tandip min bound: 0.56, tandip max bound: 0.88, trkquality > 0.15, trkpid score > 0.59
+          {
+            bool test_id = true;
+            test_id &= track_->D0Front() <  94.;
+            test_id &= track_->D0Front() > -60.;
+            test_id &= track_->PID() > 0.59 && track_->ECluster() > 0.;
+            test_id &= track_->TanDipFront() > 0.56 && track_->TanDipFront() < 0.88;
+            test_id &= track_->TrkQual() > 0.15;
+            test_id &= track_->NActive() >= 17;
+            test_id &= track_->TErrMiddle() < 0.82;
+            test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
+            test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
+            if(test_id) {
+              int cut_opt_offset = 0;
+              if(Run1AID.CheckBit(kCRV))    cut_opt_offset += kCRVVetoOffset;
+              if(track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset;
+              if(track_->Charge() > 0)      cut_opt_offset += kChargeOffset;
+              FillAllHistograms(79 + cut_opt_offset);
+            }
+          }
+          // for 47 events: nactive >= 17, t0err < 0.82, d0min bound: -60, d0max bound: 94, tandip min bound: 0.6, tandip max bound: 0.88, trkquality > 0.15, trkpid score > 0.59
+          {
+            bool test_id = true;
+            test_id &= track_->NActive() >= 17;
+            test_id &= track_->TErrMiddle() < 0.82;
+            test_id &= track_->D0Front() <  94.;
+            test_id &= track_->D0Front() > -60.;
+            test_id &= track_->TanDipFront() > 0.6 && track_->TanDipFront() < 0.88;
+            test_id &= track_->TrkQual() > 0.15;
+            test_id &= track_->PID() > 0.59 && track_->ECluster() > 0.;
+            test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
+            test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
+            if(test_id) {
+              int cut_opt_offset = 0;
+              if(Run1AID.CheckBit(kCRV))    cut_opt_offset += kCRVVetoOffset;
+              if(track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset;
+              if(track_->Charge() > 0)      cut_opt_offset += kChargeOffset;
+              FillAllHistograms(85 + cut_opt_offset);
+            }
+          }
+          // for 46 events: nactive >= 17, t0err < 0.82, d0min bound: -60, d0max bound: 94, tandip min bound: 0.56, tandip max bound: 0.86, trkquality > 0.15, trkpid score > 0.59
+          {
+            bool test_id = true;
+            test_id &= track_->NActive() >= 17;
+            test_id &= track_->TErrMiddle() < 0.82;
+            test_id &= track_->D0Front() <  94.;
+            test_id &= track_->D0Front() > -60.;
+            test_id &= track_->TanDipFront() > 0.56 && track_->TanDipFront() < 0.86;
+            test_id &= track_->TrkQual() > 0.15;
+            test_id &= track_->PID() > 0.59 && track_->ECluster() > 0.;
+            test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
+            test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
+            if(test_id) {
+              int cut_opt_offset = 0;
+              if(Run1AID.CheckBit(kCRV))    cut_opt_offset += kCRVVetoOffset;
+              if(track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset;
+              if(track_->Charge() > 0)      cut_opt_offset += kChargeOffset;
+              FillAllHistograms(86 + cut_opt_offset);
+            }
+          }
+          // for 45 events: nactive >= 17, t0err < 0.82, d0min bound: -60, d0max bound: 94, tandip min bound: 0.6, tandip max bound: 0.86, trkquality > 0.15, trkpid score > 0.59
+          {
+            bool test_id = true;
+            test_id &= track_->NActive() >= 17;
+            test_id &= track_->TErrMiddle() < 0.82;
+            test_id &= track_->D0Front() <  94.;
+            test_id &= track_->D0Front() > -60.;
+            test_id &= track_->TanDipFront() > 0.6 && track_->TanDipFront() < 0.86;
+            test_id &= track_->TrkQual() > 0.15;
+            test_id &= track_->PID() > 0.59 && track_->ECluster() > 0.;
+            test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
+            test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
+            if(test_id) {
+              int cut_opt_offset = 0;
+              if(Run1AID.CheckBit(kCRV))    cut_opt_offset += kCRVVetoOffset;
+              if(track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset;
+              if(track_->Charge() > 0)      cut_opt_offset += kChargeOffset;
+              FillAllHistograms(87 + cut_opt_offset);
+            }
+          }
         }
 
         //------------------------------------
         // Positron selections
         //------------------------------------
 
+        // inclusive selection
         if(track_->PFront() > 75.f && track_->Charge() > 0) FillAllHistograms(5);
+
+        // loose selection for optimization
+        if(track_->Charge() > 0 && triggered &&
+           track_->PFront() > 87.f && track_->PFront() < 97.f &&
+           track_->TFront() > 475.f && track_->TFront() < 1650.f &&
+           track_->STBoundary()) {
+          FillAllHistograms(45);
+        }
+
         if(id_p_no_crv_time == 0 && triggered) {
           if(track_->PFront() > 80.f && track_->PFront() < 100.f) {
             FillAllHistograms(40 + pos_set_offset);
