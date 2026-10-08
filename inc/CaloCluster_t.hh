@@ -150,8 +150,10 @@ namespace Mu2eEvtAna {
     // Additional functions
 
     float R        () const { return std::sqrt(X()*X() + Y()*Y()); }
-    float E1       () const { return HitE(0); }
-    float E2       () const { return E1() + HitE(1); }
+    float E1       () const { return (cluster_) ? cluster_->e1_ : 0.f; }
+    float E2       () const { return (cluster_) ? cluster_->e2_ : 0.f; }
+    // float E1       () const { return HitE(0); }
+    // float E2       () const { return E1() + HitE(1); }
     float TMean    (bool usewt = false) const { // mean hit time, with/without energy weights
       if(is_init_) return tmean_[usewt ? 1 : 0];
       return CalcTMean(usewt);
@@ -173,17 +175,23 @@ namespace Mu2eEvtAna {
       return CalcEOutRing();
     }
     float E9() const {
-      if(is_init_) return e9_;
-      return CalcENeighbors(1.5*crystal_dx_);
+      if(!cluster_) return 0.f;
+      return cluster_->e9_;
+      // if(is_init_) return e9_;
+      // return CalcENeighbors(1.5*crystal_dx_);
     }
     float E25() const {
-      if(is_init_) return e25_;
-      return CalcENeighbors(2.5*crystal_dx_);
+      if(!cluster_) return 0.f;
+      return cluster_->e25_;
+      // if(is_init_) return e25_;
+      // return CalcENeighbors(2.5*crystal_dx_);
     }
     float ERing() const { return E9() - E1(); }
     float SecondMoment() const {
-      if(is_init_) return second_moment_;
-      return CalcSecondMoment();
+      if(!cluster_) return 0.f;
+      return cluster_->secondMoment_;
+      // if(is_init_) return second_moment_;
+      // return CalcSecondMoment();
     }
 
     //-------------------------------------------------

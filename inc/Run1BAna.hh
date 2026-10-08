@@ -105,7 +105,12 @@ namespace Mu2eEvtAna {
     std::vector<std::vector<TimeCluster_t>> time_clusters_; // [collection][cluster]
     std::vector<std::vector<LineSeed_t>>    line_seeds_;    // [collection][seed]
 
-    CutFlow cut_flow_; // default selection
+    CutFlow cut_flow_ce_     ; // CE selection
+    CutFlow cut_flow_rmc_    ; // RMC selection
+    CutFlow cut_flow_rpc_    ; // RPC selection
+    CutFlow cut_flow_proton_ ; // Proton selection
+    CutFlow cut_flow_neutron_; // Neutron selection
+
   };
 }
 

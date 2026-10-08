@@ -332,7 +332,11 @@ namespace Mu2eEvtAna {
   //------------------------------------------------------------------------------------
   // Main event-by-event processing
   bool Run1BAna::ProcessEvent() {
-    cut_flow_.ResetEvent();
+    cut_flow_ce_     .ResetEvent();
+    cut_flow_rmc_    .ResetEvent();
+    cut_flow_rpc_    .ResetEvent();
+    cut_flow_proton_ .ResetEvent();
+    cut_flow_neutron_.ResetEvent();
 
     // Identify the sample type
     const bool is_pu = name_.Contains("mnbs");
@@ -354,7 +358,11 @@ namespace Mu2eEvtAna {
 
     for(int icls = 0; icls < evt_.ncalo_clusters_; ++icls) {
       const auto cluster = &calo_clusters_[icls];
-      cut_flow_.Increment("has_cluster");
+      cut_flow_ce_     .Increment("has_cluster");
+      cut_flow_rmc_    .Increment("has_cluster");
+      cut_flow_rpc_    .Increment("has_cluster");
+      cut_flow_proton_ .Increment("has_cluster");
+      cut_flow_neutron_.Increment("has_cluster");
 
       //------------------------------------------------
       // Common variables
@@ -365,6 +373,8 @@ namespace Mu2eEvtAna {
       const int   ncr           = cluster->NCrystals();
       const float e1_r          = cluster->E1() / energy;
       const float e2_r          = cluster->E2() / energy;
+      const float e24_r         = (cluster->E25() - cluster->E1()) / energy;
+      const float e2p_r         = (cluster->E2()-cluster->E1()) / energy;
       const float tvar          = cluster->TVar();
       const float second_moment = cluster->SecondMoment();
       const int   disk          = cluster->DiskID();
@@ -375,6 +385,8 @@ namespace Mu2eEvtAna {
       const auto p_tc           = cluster->proton_time_cluster_;
       const auto p_line_seed    = cluster->proton_line_seed_;
       const auto p_line         = cluster->proton_line_;
+      const auto c_line         = cluster->cosmic_line_;
+      const int   n_e_hits_high = (e_tc) ? e_tc->NHitsAboveZ(1300.) : -1;
 
       const int sim_pdg = cluster->MCPDG();
       const float sim_edep = cluster->MCSimEDep();
@@ -384,20 +396,37 @@ namespace Mu2eEvtAna {
         mc_veto |= (sim_pdg == 22 || sim_pdg == 2212 || sim_pdg == 2112) && sim_edep > 60.f;
       }
 
+      if(!mc_veto) {
+        cut_flow_ce_     .Increment("mc_veto");
+        cut_flow_rmc_    .Increment("mc_veto");
+        cut_flow_rpc_    .Increment("mc_veto");
+        cut_flow_proton_ .Increment("mc_veto");
+        cut_flow_neutron_.Increment("mc_veto");
+      }
+
       // Base selection cuts
-      const float min_energy =   60.f;
-      const float max_energy =  120.f;
-      const float min_time   =  500.f;
-      const float max_time   = 1650.f;
-      const bool  base_id    = (!mc_veto &&
-                                energy > min_energy && energy < max_energy
-                                && time > min_time && time < max_time);
-      const bool  pu_veto    = (ncr > 1 && ncr < 6 &&
-                                e1_r > 0.6f && e2_r > 0.8f &&
-                                tvar < 1.f &&
-                                second_moment < 1.e3 &&
-                                disk == 0);
-      const bool  pu_r_veto  = r > 500.f && r < 580.f;
+      const float min_energy         =   60.f;
+      const float max_energy         =  120.f;
+      const float min_time           =  500.f;
+      const float max_time           = 1650.f;
+      const int   min_cr             =      2;
+      const int   max_cr             =      5;
+      const float min_e1_r           =   0.6f;
+      const float min_e2_r           =   0.8f;
+      const float max_tvar           =    1.f;
+      const float max_sec_mom        =  1.e3f;
+      const float min_r              =  500.f;
+      const float max_r              =  580.f;
+      const int   max_e_tc_hits_high = 2;
+      const bool  base_id            = (!mc_veto &&
+                                        energy > min_energy && energy < max_energy
+                                        && time > min_time && time < max_time);
+      const bool  pu_veto            = (ncr >= min_cr && ncr <= max_cr &&
+                                        e1_r > min_e1_r && e2_r > min_e2_r &&
+                                        tvar < max_tvar &&
+                                        second_moment < max_sec_mom &&
+                                        disk == 0);
+      const bool  pu_r_veto          = r > min_r && r < max_r;
 
       //------------------------------------------------
       // Basic selections
@@ -406,12 +435,6 @@ namespace Mu2eEvtAna {
       FillCaloClusterHist(cls_hists_[0], cluster);
       if(energy > 50.) FillCaloClusterHist(cls_hists_[1], cluster);
       if(energy > 70.) FillCaloClusterHist(cls_hists_[2], cluster);
-      if(energy > 50.) {
-        cut_flow_.Increment("e_50");
-        if(energy > 70.) {
-          cut_flow_.Increment("e_70");
-        }
-      }
       if(base_id) {
         FillCaloClusterHist(cls_hists_[70], cluster);
         FillTimeClusterHist(tcs_hists_[70], e_tc);
@@ -451,8 +474,66 @@ namespace Mu2eEvtAna {
       // RPC selection
       //------------------------------------------------
 
-      if(!mc_veto && energy > 60. && energy < 140. &&
-         time > 300. && time < 500. &&
+      const float rpc_energy_min =  60.;
+      const float rpc_energy_max = 140.;
+      const float rpc_time_min   = 300.;
+      const float rpc_time_max   = 550.;
+
+      // cut-flow
+      // Cut Group  Events Passing  Absolute [%]  Relative [%]                                Description
+      //                             No cuts   N/A         2351533    100.000000    100.000000                       No selection applied
+      //                  cluster_energy_cut   NaN          791591     33.662764     33.662764                           60 < E < 150 MeV
+      //                    cluster_time_cut   NaN           67572      2.873530      8.536226                           300 < T < 550 ns
+      //                    num_crystals_cut   NaN           34187      1.453818     50.593441                        1 < N(crystals) < 6
+      //                         disk_id_cut   NaN           17381      0.739135     50.840963                                  Disk ID 0
+      //                  cluster_radius_cut   NaN            3596      0.152922     20.689258           500 mm < Cluster radius < 580 mm
+      //           cluster_second_moment_cut   NaN             883      0.037550     24.555061    Cluster energy second moment < 1000 MeV
+      //     max_crystal_energy_fraction_cut   NaN             135      0.005741     15.288788 Ei / E > 0.6 (max crystal energy fraction)
+      // top_two_crystal_energy_fraction_cut   NaN             130      0.005528     96.296296                            (E1+E2)/E > 0.8
+      //        high_z_time_cluster_hits_cut   NaN              64      0.002722     49.230769            N(high z time cluster hits) < 3
+      //            e5x5_energy_fraction_cut   NaN              58      0.002466     90.625000                         (E5x5-E1)/E > 7.5%
+      //  second_crystal_energy_fraction_cut   NaN              31      0.001318     53.448276                                 E2/E < 30%
+      if(energy > rpc_energy_min && energy < rpc_energy_max) {
+        cut_flow_rpc_.Increment("cluster_energy");
+        if(time > rpc_time_min && time < rpc_time_max) {
+          cut_flow_rpc_.Increment("cluster_time");
+          if(ncr >= min_cr && ncr <= max_cr) {
+            cut_flow_rpc_.Increment("num_crystals");
+            if(disk == 0) {
+              cut_flow_rpc_.Increment("disk_id");
+              if(second_moment < max_sec_mom) {
+                cut_flow_rpc_.Increment("second_moment");
+                if(e1_r > min_e1_r) {
+                  cut_flow_rpc_.Increment("frac_e1");
+                  if(e2_r > min_e2_r) {
+                    cut_flow_rpc_.Increment("frac_e1+2");
+                    if(n_e_hits_high <= max_e_tc_hits_high) {
+                      cut_flow_rpc_.Increment("high_z_hits");
+                      if(e24_r > 0.075) {
+                        cut_flow_rpc_.Increment("frac_e24");
+                        if(e2p_r < 0.3) {
+                          cut_flow_rpc_.Increment("frac_e2p");
+                          if(e_line == nullptr) {
+                            cut_flow_rpc_.Increment("no_ele_line");
+                            if(c_line == nullptr) {
+                              cut_flow_rpc_.Increment("no_cosmic_line");
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // fill histograms
+      if(!mc_veto &&
+         energy > rpc_energy_min && energy < rpc_energy_max &&
+         time > rpc_time_min && time < rpc_time_max &&
          pu_veto && pu_r_veto) {
         FillCaloClusterHist(cls_hists_[90], cluster);
         FillTimeClusterHist(tcs_hists_[90], e_tc);
@@ -532,6 +613,15 @@ namespace Mu2eEvtAna {
   // After the processing loop
   void Run1BAna::EndJob() {
     printf("Run1BAna::%s\n", __func__);
-    cut_flow_.Print();
+    printf("  CE cut-flow:\n");
+    cut_flow_ce_.Print();
+    printf("  RMC cut-flow:\n");
+    cut_flow_rmc_.Print();
+    printf("  RPC cut-flow:\n");
+    cut_flow_rpc_.Print();
+    printf("  Proton cut-flow:\n");
+    cut_flow_proton_.Print();
+    printf("  Neutron cut-flow:\n");
+    cut_flow_neutron_.Print();
   }
 }
