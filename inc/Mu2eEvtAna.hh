@@ -93,6 +93,10 @@ namespace Mu2eEvtAna {
     virtual void InitCaloCluster(const rooutil::CaloCluster* calo, CaloCluster_t& cls_par);
     virtual void InitCRVCluster(const rooutil::CrvCoinc* stub, CRVCluster_t& stub_par);
     virtual void FillOutput();
+
+    // Generated momentum of the event primary with the given |PDG| ID, or -1 if not found. Uses the primary branch when
+    // the ntuple has it, else the calo/track sim particle entries that are the primary (prirel == same).
+    float PrimaryMomentum(int pdg) const;
     virtual void EndJob();
 
     virtual int InitializeInput();

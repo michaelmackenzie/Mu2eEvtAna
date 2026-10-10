@@ -1065,6 +1065,29 @@ namespace Mu2eEvtAna {
   }
 
   //------------------------------------------------------------------------------------
+  // Generated momentum of the event primary with the given |PDG| ID
+  float Mu2eEvtAna::PrimaryMomentum(int pdg) const {
+    if(!event_) return -1.f;
+    auto is_primary = [&](const mu2e::SimInfo& sim, const bool check_rel) {
+      if(std::abs(sim.pdg) != std::abs(pdg)) return false;
+      return !check_rel || (sim.prirel.relationship() == mu2e::MCRelationship::same && sim.prirel.removal() == 0);
+    };
+    if(event_->primary && !event_->primary->empty()) {
+      for(const auto& sim : *event_->primary) if(is_primary(sim, false)) return sim.mom.R();
+      return -1.f;
+    }
+    if(event_->calomcsim) {
+      for(const auto& sim : *event_->calomcsim) if(is_primary(sim, true)) return sim.mom.R();
+    }
+    if(event_->trkmcsim) {
+      for(const auto& sims : *event_->trkmcsim) {
+        for(const auto& sim : sims) if(is_primary(sim, true)) return sim.mom.R();
+      }
+    }
+    return -1.f;
+  }
+
+  //------------------------------------------------------------------------------------
   // Initialize event information
   void Mu2eEvtAna::InitializeEvent() {
 

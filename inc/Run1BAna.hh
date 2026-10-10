@@ -21,6 +21,7 @@
 #include "Mu2eEvtAna/inc/TimeClusterHist_t.hh"
 #include "Mu2eEvtAna/inc/LineSeedHist_t.hh"
 #include "Mu2eEvtAna/inc/CutFlow.hh"
+#include "Mu2eEvtAna/inc/SpectrumWeight.hh"
 
 using namespace mu2e;
 namespace Mu2eEvtAna {
@@ -31,7 +32,7 @@ namespace Mu2eEvtAna {
   class Run1BAna : public Mu2eEvtAna {
   public:
     Run1BAna(int verbose = 0);
-    ~Run1BAna() {};
+    ~Run1BAna() { delete spectrum_weight_; }
 
     void InitHistSelections();
     void BookHistograms(TDirectory* dir);
@@ -110,6 +111,34 @@ namespace Mu2eEvtAna {
     CutFlow cut_flow_rpc_    ; // RPC selection
     CutFlow cut_flow_proton_ ; // Proton selection
     CutFlow cut_flow_neutron_; // Neutron selection
+
+    // Physics weights, chosen from the sample name (name_ contains the dataset tag) in InitializeInput(). A sample whose
+    // weight information is missing or invalid is an error: no average weight is substituted.
+    //   fele* (flat e-, Al stops): DIO leading-log spectrum (Offline czarnecki_szafron_Al_2016.tbl). The weight is the
+    //     spectrum's momentum density at the primary's generated momentum (from the primary branch), so the sample
+    //     normalization is rate * (pmax - pmin) / N(gen), with the rate integrated over the full spectrum.
+    //   rpce*/rpci* (RPC, pion decay off): pion survival probability exp(-proper time), the RPCGun EventWeight stored as
+    //     evtwt.generate. Needs an EventNtuple version that fills evtwt from the current event.
+    //   fgam*/pgam* (flat photons): not weighted -- the RMC phase-space model weights are not available
+    void SetEventWeight();
+    SpectrumWeight* spectrum_weight_ = nullptr;
+    int    spectrum_pdg_    = 0  ; // primary particle the spectrum applies to
+    double spectrum_pmin_   = 0. ; // generated momentum range (informational: the normalization uses it)
+    double spectrum_pmax_   = 0. ;
+    Long64_t n_no_primary_  = 0  ; // events without a primary of spectrum_pdg_ (given zero weight)
+
+    // evtwt branch buffer, laid out as EventNtuple's EventWeightInfo (the count, then one float per EventWeight module)
+    struct EvtWt_t {
+      static const int kMaxWeights = 50;
+      Int_t   nwts = 0;
+      Float_t weights[kMaxWeights] = {};
+    };
+    static constexpr const char* kEvtWtBranch   = "evtwt.";
+    static constexpr const char* kRPCWeightLeaf = "generate"; // RPCGun module label
+    EvtWt_t evtwt_          ;
+    bool    rpc_weight_ = false  ;
+    TTree*  wt_tree_    = nullptr; // input tree wt_index_ was found for
+    int     wt_index_   = -1     ; // index of kRPCWeightLeaf in evtwt_.weights
 
   };
 }

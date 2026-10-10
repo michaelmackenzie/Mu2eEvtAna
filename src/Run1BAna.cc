@@ -82,7 +82,78 @@ namespace Mu2eEvtAna {
       printf("Run1BAna::%s: WARNING: the \"%s\" hit lists were not stored (timeclusters.fillHitsFor)\n",
              __func__, kSpeciesTimeClusters[kElectron]);
     }
+
+    // Physics weights for flat-spectrum samples
+    delete spectrum_weight_;
+    spectrum_weight_ = nullptr;
+    n_no_primary_ = 0;
+    if(name_.Contains("fele")) { // flat e- from Al stops, generated flat in momentum over 50-110 MeV/c
+      spectrum_weight_ = new SpectrumWeight("Offline/EventGenerator/data/czarnecki_szafron_Al_2016.tbl", 0.51099895);
+      spectrum_pdg_  = 11;
+      spectrum_pmin_ = 50.;
+      spectrum_pmax_ = 110.;
+      // The stored events are filtered (calo energy, reco), so their generated momenta are not flat: each event needs
+      // its own primary momentum, from the primary branch (EventNtuple versions without it, e.g. Run1Baw, can't be weighted)
+      if(!ntuple_->FindBranch("primary"))
+        throw std::runtime_error(Form("Run1BAna::%s: %s needs DIO weights, but the ntuple has no primary branch", __func__, name_.Data()));
+      printf("Run1BAna::%s: Weighting %s to the DIO spectrum (%s), generated flat over [%.0f, %.0f] MeV/c\n",
+             __func__, name_.Data(), spectrum_weight_->File().Data(), spectrum_pmin_, spectrum_pmax_);
+    } else if(name_.Contains("fgam") || name_.Contains("pgam")) {
+      printf("Run1BAna::%s: WARNING: %s is generated with a flat photon spectrum and is not weighted: "
+             "the RMC phase-space model weights are not available\n", __func__, name_.Data());
+    }
+
+    // Pion survival weights for RPC samples generated with pion decay off
+    rpc_weight_ = name_.Contains("rpce") || name_.Contains("rpci");
+    wt_tree_  = nullptr;
+    wt_index_ = -1;
+    if(rpc_weight_) {
+      if(!ntuple_->FindBranch(kEvtWtBranch))
+        throw std::runtime_error(Form("Run1BAna::%s: %s needs the pion survival weight, but the ntuple has no %s branch",
+                                      __func__, name_.Data(), kEvtWtBranch));
+      ntuple_->SetBranchAddress(kEvtWtBranch, &evtwt_);
+      printf("Run1BAna::%s: Weighting %s by the pion survival probability (%s%s)\n", __func__, name_.Data(), kEvtWtBranch, kRPCWeightLeaf);
+    }
     return 0;
+  }
+
+  //------------------------------------------------------------------------------------
+  // Physics weight of the event: spectrum weights for flat-spectrum samples, survival weights for RPC
+  void Run1BAna::SetEventWeight() {
+    if(spectrum_weight_) {
+      const float p = PrimaryMomentum(spectrum_pdg_);
+      if(p > 0.f) {
+        evt_.weight_ *= spectrum_weight_->Weight(p);
+      } else { // no primary with this PDG ID: not expected for these samples, counted and reported in EndJob()
+        evt_.weight_ = 0.;
+        ++n_no_primary_;
+      }
+    }
+
+    if(rpc_weight_) {
+      // The evtwt leaves follow the input's EventWeight module labels, so find the generator's leaf in each input tree
+      TTree* tree = ntuple_->GetTree();
+      if(tree != wt_tree_) {
+        wt_tree_  = tree;
+        wt_index_ = -1;
+        TBranch* branch = (tree) ? tree->GetBranch(kEvtWtBranch) : nullptr;
+        TObjArray* leaves = (branch) ? branch->GetListOfLeaves() : nullptr;
+        for(int ileaf = 1; leaves && ileaf < leaves->GetEntries(); ++ileaf) { // leaf 0 is the weight count
+          if(TString(leaves->At(ileaf)->GetName()) == kRPCWeightLeaf) { wt_index_ = ileaf - 1; break; }
+        }
+        if(wt_index_ < 0 || wt_index_ >= EvtWt_t::kMaxWeights)
+          throw std::runtime_error(Form("Run1BAna::%s: No %s%s weight in %s", __func__, kEvtWtBranch, kRPCWeightLeaf,
+                                        (ntuple_->GetCurrentFile()) ? ntuple_->GetCurrentFile()->GetName() : "the input"));
+      }
+      // The weight is exp(-pion proper time), in [0, 1]. Anything else (-1 for an event without weights, inf, or stale
+      // values from EventNtuple versions that filled evtwt from the previous event's handles) can't be used.
+      const float w = evtwt_.weights[wt_index_];
+      if(!std::isfinite(w) || w < 0.f || w > 1.f)
+        throw std::runtime_error(Form("Run1BAna::%s: Invalid pion survival weight %g in event %i:%i:%i -- this EventNtuple "
+                                      "version may fill evtwt from the previous event (fixed in EventNtupleMaker)",
+                                      __func__, w, evt_.run_, evt_.subrun_, evt_.event_));
+      evt_.weight_ *= w;
+    }
   }
 
   //------------------------------------------------------------------------------------
@@ -201,6 +272,8 @@ namespace Mu2eEvtAna {
     // last: it needs tracks_, crv_clusters_ (both filled by Mu2eEvtAna::InitializeEvent() above)
     // and time_clusters_/line_seeds_ (just filled above) all populated for this event.
     MatchCaloClusters();
+
+    SetEventWeight();
   }
 
   //------------------------------------------------------------------------------------
@@ -613,6 +686,8 @@ namespace Mu2eEvtAna {
   // After the processing loop
   void Run1BAna::EndJob() {
     printf("Run1BAna::%s\n", __func__);
+    if(spectrum_weight_ && n_no_primary_ > 0)
+      printf("  WARNING: %lld events had no primary with PDG ID %i and were given zero weight\n", n_no_primary_, spectrum_pdg_);
     printf("  CE cut-flow:\n");
     cut_flow_ce_.Print();
     printf("  RMC cut-flow:\n");
