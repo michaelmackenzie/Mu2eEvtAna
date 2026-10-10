@@ -197,6 +197,7 @@ namespace Mu2eEvtAna {
     Tree_t*            trs_hists_ [kMaxHists];
 
     TString name_; //name for output file
+    bool require_calo_prirel_ = false; //stop if a veto needs calomcsim prirel and the ntuple doesn't fill it
 
     Long64_t report_rate_; //reporting rate for events processed
     Int_t verbose_; //verbose level

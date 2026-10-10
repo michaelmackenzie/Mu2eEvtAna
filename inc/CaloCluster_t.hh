@@ -17,6 +17,9 @@
 #include "EventNtuple/inc/CaloClusterInfo.hh"
 #include "EventNtuple/inc/CaloHitInfo.hh"
 
+// local includes
+#include "Mu2eEvtAna/inc/PrimaryAssociation.hh"
+
 namespace Mu2eEvtAna {
   // Forward declarations only: CaloCluster_t just holds pointers to these (set by whichever
   // analysis module does the matching, e.g. Run1BAna), so it doesn't need their full definitions.
@@ -316,6 +319,10 @@ namespace Mu2eEvtAna {
       }
       return nullptr;
     }
+
+    // Whether the cluster's main MC particle (most energy) is the event primary or one of its descendants. Needs an
+    // EventNtuple version that fills calomcsim prirel; otherwise it is false for every cluster.
+    bool IsPrimaryAssociated() const { return IsPrimaryRelated(MCSim()); }
 
     int MCPDG() const {
       const auto sim = MCSim();

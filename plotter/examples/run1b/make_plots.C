@@ -31,7 +31,7 @@ namespace run1b {
       {"rmc"   , {70, 71, 72, 73, 74}, {"rmc"}             , {"ce", "ce_nomix"}},
       // 90: 60 < E < 140 MeV, 300 < t < 550 ns, pileup and radius vetoes; 93: + no electron line; 94: + no line seed, high-z hits
       {"rpc"   , {90, 93, 94}        , {"rpc", "rpc_int"}  , {"ce", "ce_nomix"}},
-      // 80: set 72 with a matched electron line and time cluster, 10 < N(hits) < 40, N(active) > 0, |cos(theta)| > 0.985
+      // 80: set 71 (no radius cut) with a matched electron line and time cluster, 10 < N(hits) < 40, N(active) > 0, |cos(theta)| > 0.985
       {"ce"    , {80}                , {ce_sample}         , {other_ce}},
       // 40: base selection with a proton line and time cluster; 43: + average hit E(dep) > 2.8 keV; 44: + disk 0, N(cr) < 4, |cos(theta)| > 0.985
       {"proton", {40, 43, 44}        , {"protons"}         , {"ce", "ce_nomix"}},
@@ -47,7 +47,7 @@ namespace run1b {
   inline void plot_set(Plotter& plotter, const int set, const bool has_line, const bool proton, int& status) {
     std::vector<plot_t> plots = {
       //     hist              type   set  rebin  xmin   xmax  ymin ymax logy  logx  xtitle                        unit
-      plot_t("energy"        , "cls", set,  4,   50.,  150.,  1., -1., false, false, "Cluster energy"            , "MeV"),
+      plot_t("energy"        , "cls", set,  4,   60.,  100.,  1., -1., false, false, "Cluster energy"            , "MeV"),
       plot_t("t0"            , "cls", set,  2,  250., 1750.,  1., -1., false, false, "Cluster time"              , "ns" ),
       plot_t("r"             , "cls", set,  1,  350.,  700.,  1., -1., false, false, "Cluster radius"            , "mm" ),
       plot_t("ncr0"          , "cls", set,  1,    0.,   15.,  1., -1., false, false, "N(crystals)"               , ""   ),
@@ -84,11 +84,10 @@ namespace run1b {
 // ce_sample    : "ce" (mixed with pileup) or "ce_nomix"
 // ce_rate      : R(mue) for the CE signal
 // stacked      : stack the signal on the other samples (and draw it in front), otherwise overlay it
-// wall_time_cosmics: normalize cosmic rays to the wall time, as the older Run1BAna/scripts macros do
 int make_plots(TString hist_dir = ".", TString figdir = "figures/run1b",
                std::vector<TString> names = {"rmc", "rpc", "ce", "proton", "neutron"},
-               double days = 7., TString ce_sample = "ce_nomix", double ce_rate = 1.e-9,
-               bool stacked = true, bool wall_time_cosmics = false, int mode = 1) {
+               double days = 7., TString ce_sample = "ce", double ce_rate = 1.e-8,
+               bool stacked = true, int mode = 1) {
   using namespace mu2eplot;
   int status = 0;
   for(const auto& sel : run1b::selections(ce_sample)) {
@@ -102,7 +101,7 @@ int make_plots(TString hist_dir = ".", TString figdir = "figures/run1b",
     Plotter plotter;
     plotter.figdir_          = figdir + "/" + sel.name;
     plotter.layout_          = Layout_t::evtana();
-    plotter.exposure_        = run1b::exposure(days, run1b::npot_per_event, wall_time_cosmics);
+    plotter.exposure_        = run1b::exposure(days, run1b::npot_per_event);
     plotter.require_signals_ = false; // a missing signal sample still gives the background plots
     plotter.use_offsets_     = false;
     plotter.legend_columns_  = 3;

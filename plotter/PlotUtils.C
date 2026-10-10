@@ -81,7 +81,8 @@ namespace mu2eplot {
     TString extra_        = ""          ; // appended to the exposure text, e.g. "R_{#mue} = 10^{-13}"
     bool    show_power_   = true        ;
     bool    show_pot_     = false       ;
-    bool    show_livetime_= true        ;
+    bool    show_running_ = true        ; // running time (livetime / duty cycle) in days, or years above a year
+    bool    show_livetime_= false       ; // on-spill livetime in seconds
     bool    show_muons_   = true        ;
 
     TString exposure_text(const Exposure_t& exp) const {
@@ -91,6 +92,10 @@ namespace mu2eplot {
       if(power <= 0.) power = mu2e_physics::beam_power_kw(exp.npot, exp.livetime, exp.duty_cycle);
       if(show_power_    && power        > 0.) parts.push_back(Form("%.3g kW beam", power));
       if(show_pot_      && exp.npot     > 0.) parts.push_back(format_sci(exp.npot) + " POT");
+      if(show_running_  && exp.livetime > 0. && exp.duty_cycle > 0.) {
+        const double days = exp.livetime/exp.duty_cycle/(24.*60.*60.);
+        parts.push_back((days > 365.) ? Form("%.3g years running", days/365.) : Form("%.3g days running", days));
+      }
       if(show_livetime_ && exp.livetime > 0.) parts.push_back(format_sci(exp.livetime) + " s On-Spill");
       if(show_muons_    && exp.nmuons   > 0.) parts.push_back(format_sci(exp.nmuons) + " muon stops");
       if(extra_ != "") parts.push_back(extra_);

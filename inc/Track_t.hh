@@ -26,6 +26,7 @@
 #include "Mu2eEvtAna/inc/GlobalConstants.h"
 #include "Mu2eEvtAna/inc/CutID.hh"
 #include "Mu2eEvtAna/inc/CRVCluster_t.hh"
+#include "Mu2eEvtAna/inc/PrimaryAssociation.hh"
 
 namespace Mu2eEvtAna {
   struct Track_t {
@@ -220,6 +221,8 @@ namespace Mu2eEvtAna {
       return sim_info;
     }
 
+    // Whether the track's main MC particle (most active hits) is the event primary or one of its descendants
+    bool IsPrimaryAssociated() const { return IsPrimaryRelated(SimInfo()); }
     int MCPDG    () const { auto sim_info = SimInfo(); return (sim_info) ? sim_info->pdg            : 0; }
     int MCHits   () const { auto sim_info = SimInfo(); return (sim_info) ? sim_info->nhits          : 0; }
     int MCActive () const { auto sim_info = SimInfo(); return (sim_info) ? sim_info->nactive        : 0; }

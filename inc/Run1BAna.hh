@@ -22,6 +22,7 @@
 #include "Mu2eEvtAna/inc/LineSeedHist_t.hh"
 #include "Mu2eEvtAna/inc/CutFlow.hh"
 #include "Mu2eEvtAna/inc/SpectrumWeight.hh"
+#include "Mu2eEvtAna/inc/PhysicsWeights.hh"
 
 using namespace mu2e;
 namespace Mu2eEvtAna {
@@ -119,13 +120,29 @@ namespace Mu2eEvtAna {
     //     normalization is rate * (pmax - pmin) / N(gen), with the rate integrated over the full spectrum.
     //   rpce*/rpci* (RPC, pion decay off): pion survival probability exp(-proper time), the RPCGun EventWeight stored as
     //     evtwt.generate. Needs an EventNtuple version that fills evtwt from the current event.
-    //   fgam*/pgam* (flat photons): not weighted -- the RMC phase-space model weights are not available
+    //   fgam*/pgam* (flat photons, Al/C stops): Plestid phase-space RMC spectrum at the primary photon's generated energy
+    //     (from the primary branch), normalized above 57 MeV: the sample normalization is R(RMC, E > 57) * (emax - emin) / N(gen)
+    //   all MC with N(POT) per microbunch: re-weighted from the simulated to the target beam intensity (beam_weight_)
     void SetEventWeight();
     SpectrumWeight* spectrum_weight_ = nullptr;
     int    spectrum_pdg_    = 0  ; // primary particle the spectrum applies to
     double spectrum_pmin_   = 0. ; // generated momentum range (informational: the normalization uses it)
     double spectrum_pmax_   = 0. ;
     Long64_t n_no_primary_  = 0  ; // events without a primary of spectrum_pdg_ (given zero weight)
+
+    // RMC spectrum and beam intensity weights
+    bool                rmc_weight_       = false;
+    PlestidRMCWeight    rmc_spectrum_     = PlestidRMCWeight::Aluminum();
+    Long64_t            n_no_rmc_primary_ = 0    ; // events without a primary photon (given zero weight)
+    bool                apply_beam_weight_= true ; // re-weight to beam_weight_.mu_goal (set before Process)
+    BeamIntensityWeight beam_weight_             ;
+    bool                beam_scales_with_pot_ = true; // false for pileup-only and cosmic-ray samples
+
+    // Primary cluster veto, for primary (non-pileup) samples: see InitializeInput()
+    void CheckCaloPrimaryRelations();
+    bool     apply_primary_veto_ = true ; // set false (before Process) only for inputs without calomcsim prirel, e.g. comparisons
+    bool     primary_veto_     = false;
+    Long64_t n_prirel_checked_ = 0    ; // primary calomcsim entries whose prirel was checked
 
     // evtwt branch buffer, laid out as EventNtuple's EventWeightInfo (the count, then one float per EventWeight module)
     struct EvtWt_t {

@@ -57,6 +57,12 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
   const bool is_run1b = TString(function) == "run1b_ana";
 
   vector<TString> logs;
+  // processes > 1: one sub-process per dataset, tracked by PID (each waits for its own threads and merges their output)
+  std::vector<int> pids;
+  auto n_running = [&]() {
+    pids.erase(std::remove_if(pids.begin(), pids.end(), [](int pid) { return gSystem->AccessPathName(Form("/proc/%i", pid)); }), pids.end());
+    return (int) pids.size();
+  };
   for(auto config : datasets) {
     if(dataset == "") {
       if(!config.process_) continue;
@@ -77,12 +83,14 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
     }
 
     if(processes > 1) { // note: analyzers registered by other packages are not known to these sub-processes
-      while(CountAnalyzerProcesses() >= processes) sleep(10);
-      TString command = Form("root.exe -q -b \"${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/make_histograms.C(0, \\\"%s\\\", %i, \\\"%s\\\", %i)\" >| log/out_%s.log 2>&1 &",
-                             config.name_.Data(), mode, function, n_threads, config.name_.Data());
+      while(n_running() >= processes) sleep(10);
+      TString command = Form("(root.exe -q -b \"${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/make_histograms.C(0, \\\"%s\\\", %i, \\\"%s\\\", %i, %lld)\" >| log/out_%s.log 2>&1) & echo $!",
+                             config.name_.Data(), mode, function, n_threads, max_entries, config.name_.Data());
       printf(" Submitting %-20s histogramming (%i threads)...\n", config.name_.Data(), n_threads);
       logs.push_back(Form("log/out_%s.log", config.name_.Data()));
-      gSystem->Exec(command.Data());
+      const int pid = TString(gSystem->GetFromPipe(command.Data())).Atoi();
+      if(pid > 0) pids.push_back(pid);
+      else        printf(" Failed to submit %s!\n", config.name_.Data());
     } else {
       if(IsRegisteredAnalyzer(function)) {
         ProcessWithThreads(function, config.name_, mode, max_entries, 0, n_threads, out_tag);
@@ -94,7 +102,7 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
   }
 
   if(processes > 1) {
-    while(CountAnalyzerProcesses() > 0) sleep(10);
+    while(n_running() > 0) sleep(10);
   }
   printf("Finished histogramming!\n");
 

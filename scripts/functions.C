@@ -12,11 +12,12 @@ int debug_level_ = 0;
 
 // Global flags
 bool use_xrootd_ = true;
+bool require_calo_prirel_ = false; // stop if the ntuple doesn't fill calomcsim prirel (needed by the Run1BAna primary cluster veto)
 
 //------------------------------------------------------------------------------------
 // Analyzer registry: analyzer function name (e.g. "cnv_ana") --> analyzer class and the libraries it needs.
 // The built-in Mu2eEvtAna analyzers are registered by default; analyzers in other packages register with
-//   RegisterAnalyzer("bnv_ana", "Mu2eEvtAna::BNVAna", "$MUSE_BUILD_DIR/BNVAna/lib/libbnvana.so");
+//   RegisterAnalyzer("my_ana", "Mu2eEvtAna::MyAna", "$MUSE_BUILD_DIR/MyPackage/lib/libmypackage.so");
 // The class must derive from Mu2eEvtAna::Mu2eEvtAna and have a constructor taking the verbosity.
 struct AnalyzerInfo_t {
   TString class_name_; // analyzer class, including the namespace
@@ -91,6 +92,7 @@ int RunAnalyzer(Mu2eEvtAna::Mu2eEvtAna* ana, TString input, TString ana_name, Lo
   ana->report_rate_ = 5000;
   ana->use_xrootd_ = use_xrootd_;
   ana->verbose_ = debug_level_;
+  ana->require_calo_prirel_ = require_calo_prirel_;
   return ana->Process(max_entries);
 }
 

@@ -151,10 +151,9 @@ namespace mu2eplot {
   struct Layout_t {
     // Histogram path, with {type}, {set}, and {hist} replaced
     TString hist_format_ = "Ana/Hist/{type}_{set}/{hist}";
-    // Normalization object: a TTree whose norm_branch_ is summed, or a TH1 (entries or integral)
+    // Normalization TTree, whose norm_branch_ is summed over entries to give N(events seen)
     TString norm_path_   = "Ana/data/Norm";
     TString norm_branch_ = "nseen";
-    bool    norm_hist_integral_ = false; // for a TH1 norm object, use the integral instead of the entries
 
     TString hist_path(const TString& hist, const TString& type, const int set) const {
       TString path(hist_format_);
@@ -164,24 +163,12 @@ namespace mu2eplot {
       return path;
     }
 
-    // Mu2eEvtAna (ConvAna, RMCAna, BNVAna, ...) outputs
+    // Mu2eEvtAna analyzer outputs (ConvAna, RMCAna, Run1BAna, ...)
     static Layout_t evtana() { return Layout_t(); }
-    // Stntuple-based ConvAna outputs (mumep_ana .hist files)
-    static Layout_t convana() {
-      Layout_t l; l.hist_format_ = "Ana/ConvAna_ConvAna/Hist/{type}_{set}/{hist}"; l.norm_path_ = "Ana/ConvAna_ConvAna/data/Norm"; return l;
-    }
-    // Run1BAna module outputs (Run1BAna/analysis)
-    static Layout_t run1bana() {
-      Layout_t l; l.hist_format_ = "Run1BAna/{type}_{set}/{hist}"; l.norm_path_ = "Run1BAna/data/norm"; l.norm_branch_ = ""; return l;
-    }
-    // Run1BAna calorimeter histogram files (Run1BAna/scripts/plot*FromNtuple.C)
-    static Layout_t run1bana_calo() {
-      Layout_t l; l.hist_format_ = "hist_{set}/{hist}"; l.norm_path_ = "norm"; l.norm_branch_ = ""; l.norm_hist_integral_ = true; return l;
-    }
   };
 
   //--------------------------------------------------------------------------------------------------
-  // A plot. The constructor signature matches the analysis plot_t this replaces.
+  // A plot
   struct plot_t {
     TString hist_      = ""   ;
     TString type_      = ""   ;

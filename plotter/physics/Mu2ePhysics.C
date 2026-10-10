@@ -81,7 +81,7 @@ namespace mu2e_physics {
   //--------------------------------------------------------------------------------------------------
   // Campaign normalizations shared by several analyses
 
-  namespace run1a { // MDC2025 Run 1A simulation (mumep_ana, BNVAna)
+  namespace run1a { // MDC2025 Run 1A simulation
     const double nmuons_per_pot     = 0.000767114        ; // stopped muons per POT
     const double pion_stops_per_pot = 0.0018801*0.51656  ; // pion stops in the target (infinite lifetime)
     const double pion_survive_frac  = 2393.60487 / 1e10  ; // sum of sampled pion survival weights / N(sampled pions)

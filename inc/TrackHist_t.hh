@@ -12,7 +12,7 @@
 namespace Mu2eEvtAna {
   struct TrackHist_t {
     TH1*    fP[2];
-    TH1*    fPWide; // extended momentum range, e.g. for BNV signals above the conversion energy
+    TH1*    fPWide; // extended momentum range, e.g. for signals above the conversion energy
     TH1*    fObs; // observable being fit
     TH1*    fPt;
     TH1*    fPCorr;

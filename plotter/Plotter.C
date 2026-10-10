@@ -2,9 +2,9 @@
 #define __MU2EEVTANA_PLOTTER_PLOTTER__
 // General signal/background/data histogram plotter.
 //
-// Merges the Plotters of mumep_ana/analysis/plotter and BNVAna/analysis/plotter (several signals, each with its own
-// rate) with the signal stacking of Run1BAna/scripts/plotSigvsBkgFromNtuple.C (signal added to the background stack and
-// drawn alone in front of it, S/sqrt(B) lower pad, shape-normalized comparisons).
+// Stacked backgrounds with any number of signals, each with its own rate, overlaid or added to the stack and drawn alone
+// in front of it; data; and a ratio, difference, or S/sqrt(B) lower pad. Also shape-normalized comparisons, component,
+// systematic-shift, and ROC plots.
 //
 // The Plotter holds no physics: each Process_t gives its histogram file, its expected events per MC event per unit
 // exposure, which exposure that is (POT, livetime, ...), and any extra scale (e.g. a signal rate). The analysis computes
@@ -62,6 +62,7 @@ public:
   int     legend_columns_    = 3                     ;
   double  legend_text_size_  = 0.045                 ;
   int     bkg_line_color_    = kBlack                ; // outline of stacked histograms
+  bool    draw_stat_band_    = false                 ; // draw the stack's MC statistical uncertainty band
   int     stat_band_color_   = kGray+1               ; // model statistical uncertainty band
   double  log_span_          = 5.                    ; // maximum orders of magnitude shown on log-y plots
   TString data_label_        = "Data"                ; // data legend label
@@ -164,8 +165,7 @@ public:
       }
       return sum;
     }
-    if(auto h = dynamic_cast<TH1*>(o)) return (layout_.norm_hist_integral_) ? h->Integral() : h->GetEntries();
-    printf("Plotter::%s: %s is neither a TTree nor a TH1\n", __func__, layout_.norm_path_.Data());
+    printf("Plotter::%s: %s is not a TTree\n", __func__, layout_.norm_path_.Data());
     return 0.;
   }
 
@@ -667,12 +667,14 @@ public:
     haxis->Draw("hist");
     haxis->GetXaxis()->SetRangeUser(xmin, xmax);
 
-    // Draw the stack and its statistical uncertainty
+    // Draw the stack, and optionally its statistical uncertainty
     double max_val = 0.;
     TH1* stat_band = nullptr;
     if(stack_total) {
       stack->Draw("hist noclear same");
       max_val = max_in_range(stack_total, xmin, xmax);
+    }
+    if(stack_total && draw_stat_band_) {
       stat_band = (TH1*) stack_total->Clone(Form("stat_%s_%s_%i_%i", hist.Data(), type.Data(), selection, ++uid_));
       stat_band->SetDirectory(0);
       stat_band->SetFillStyle(3001);

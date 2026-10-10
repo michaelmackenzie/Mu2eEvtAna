@@ -98,9 +98,51 @@ namespace Mu2eEvtAna {
         throw std::runtime_error(Form("Run1BAna::%s: %s needs DIO weights, but the ntuple has no primary branch", __func__, name_.Data()));
       printf("Run1BAna::%s: Weighting %s to the DIO spectrum (%s), generated flat over [%.0f, %.0f] MeV/c\n",
              __func__, name_.Data(), spectrum_weight_->File().Data(), spectrum_pmin_, spectrum_pmax_);
-    } else if(name_.Contains("fgam") || name_.Contains("pgam")) {
-      printf("Run1BAna::%s: WARNING: %s is generated with a flat photon spectrum and is not weighted: "
-             "the RMC phase-space model weights are not available\n", __func__, name_.Data());
+    }
+
+    // RMC spectrum weights for flat photon samples: Al (fgam) or C (pgam, polyethylene target) stops
+    rmc_weight_ = name_.Contains("fgam") || name_.Contains("pgam");
+    n_no_rmc_primary_ = 0;
+    if(rmc_weight_) {
+      rmc_spectrum_ = (name_.Contains("pgam")) ? PlestidRMCWeight::Carbon() : PlestidRMCWeight::Aluminum();
+      if(!ntuple_->FindBranch("primary"))
+        throw std::runtime_error(Form("Run1BAna::%s: %s needs RMC spectrum weights, but the ntuple has no primary branch", __func__, name_.Data()));
+      printf("Run1BAna::%s: Weighting %s to the Plestid RMC spectrum (kmax = %.3f/%.3f MeV, BR(0n/1n | E > %.0f MeV) = %.3f/%.3f)\n",
+             __func__, name_.Data(), rmc_spectrum_.kmax_0, rmc_spectrum_.kmax_1, rmc_spectrum_.ref_energy, rmc_spectrum_.br_0, rmc_spectrum_.br_1);
+    }
+
+    // Beam intensity re-weighting, for MC with N(POT) per microbunch
+    beam_scales_with_pot_ = !(name_.Contains("mnbs") || name_.Contains("csms"));
+    if(apply_beam_weight_ && beam_weight_.Active() && ntuple_->FindBranch("evtinfomc")) {
+      printf("Run1BAna::%s: Re-weighting the beam intensity from <N(POT)> = %.3g (SDF %.2f) to %.3g (SDF %.2f), %s\n",
+             __func__, beam_weight_.mu_nominal, beam_weight_.sdf_nominal, beam_weight_.mu_goal, beam_weight_.sdf_goal,
+             (beam_scales_with_pot_) ? "rate proportional to N(POT)" : "rate independent of N(POT)");
+    }
+
+    // Primary samples (all but pileup) veto clusters not associated with the event primary. This needs the primary branch
+    // and calomcsim prirel, which only some EventNtuple versions fill: whether it is filled is checked on the first entries.
+    // Without it the veto is skipped with a warning, or, with require_calo_prirel_, processing stops.
+    // Inputs without MC are not vetoed.
+    primary_veto_ = apply_primary_veto_ && !name_.Contains("mnbs") && ntuple_->FindBranch("calomcsim");
+    if(!apply_primary_veto_) printf("Run1BAna::%s: WARNING: the primary cluster veto is disabled\n", __func__);
+    n_prirel_checked_ = 0;
+    if(primary_veto_) {
+      const Long64_t n_check = 5000;
+      const Long64_t n_filled = ntuple_->Draw("calomcsim.prirel._rel", "calomcsim.prirel._rel >= 0", "goff", n_check);
+      if(n_filled <= 0) {
+        if(require_calo_prirel_)
+          throw std::runtime_error(Form("Run1BAna::%s: %s: calomcsim prirel is not filled in the first %lld entries -- this EventNtuple "
+                                        "version doesn't fill it, needed for the primary cluster veto", __func__, name_.Data(), n_check));
+        printf("Run1BAna::%s: WARNING: calomcsim prirel is not filled in this ntuple, so clusters not from the primary are NOT "
+               "vetoed in %s (pileup clusters are double counted)\n", __func__, name_.Data());
+        primary_veto_ = false;
+      }
+    }
+    if(primary_veto_) {
+      if(!ntuple_->FindBranch("primary"))
+        throw std::runtime_error(Form("Run1BAna::%s: %s vetoes clusters not from the primary, but the ntuple has no primary branch",
+                                      __func__, name_.Data()));
+      printf("Run1BAna::%s: Vetoing clusters not associated with the primary in %s\n", __func__, name_.Data());
     }
 
     // Pion survival weights for RPC samples generated with pion decay off
@@ -118,6 +160,24 @@ namespace Mu2eEvtAna {
   }
 
   //------------------------------------------------------------------------------------
+  // Check that calomcsim prirel is filled: if the event primary deposited in the calorimeter, its calomcsim entry (the same
+  // SimParticle: id, PDG, process, and creation time) must have prirel == same. EventNtuple versions that don't fill calo
+  // prirel leave it none, which would veto every cluster.
+  void Run1BAna::CheckCaloPrimaryRelations() {
+    if(!event_->primary || !event_->calomcsim) return;
+    for(const auto& prim : *event_->primary) {
+      for(const auto& sim : *event_->calomcsim) {
+        if(sim.id != prim.id || sim.pdg != prim.pdg || sim.startCode != prim.startCode || sim.time != prim.time) continue;
+        if(sim.prirel.relationship() != mu2e::MCRelationship::same)
+          throw std::runtime_error(Form("Run1BAna::%s: The primary's calomcsim entry has no prirel in event %i:%i:%i -- this "
+                                        "EventNtuple version doesn't fill calomcsim prirel, needed for the primary cluster veto",
+                                        __func__, evt_.run_, evt_.subrun_, evt_.event_));
+        ++n_prirel_checked_;
+      }
+    }
+  }
+
+  //------------------------------------------------------------------------------------
   // Physics weight of the event: spectrum weights for flat-spectrum samples, survival weights for RPC
   void Run1BAna::SetEventWeight() {
     if(spectrum_weight_) {
@@ -129,6 +189,18 @@ namespace Mu2eEvtAna {
         ++n_no_primary_;
       }
     }
+
+    if(rmc_weight_) {
+      const float e = PrimaryMomentum(22); // photon: E = p
+      if(e > 0.f) {
+        evt_.weight_ *= rmc_spectrum_.Weight(e);
+      } else { // no primary photon: not expected for these samples, counted and reported in EndJob()
+        evt_.weight_ = 0.;
+        ++n_no_rmc_primary_;
+      }
+    }
+
+    if(apply_beam_weight_ && event_->evtinfomc) evt_.weight_ *= beam_weight_.Weight(evt_.inst_lum_, beam_scales_with_pot_);
 
     if(rpc_weight_) {
       // The evtwt leaves follow the input's EventWeight module labels, so find the generator's leaf in each input tree
@@ -413,6 +485,7 @@ namespace Mu2eEvtAna {
 
     // Identify the sample type
     const bool is_pu = name_.Contains("mnbs");
+    if(primary_veto_) CheckCaloPrimaryRelations();
 
 
     FillEventHist(evt_hists_[0]); // all events with well defined inputs
@@ -467,6 +540,15 @@ namespace Mu2eEvtAna {
       if(is_pu) {
         // skip high energy tail RMC/protons/neutrons
         mc_veto |= (sim_pdg == 22 || sim_pdg == 2212 || sim_pdg == 2112) && sim_edep > 60.f;
+        // skip DIO electrons above 60 MeV, which the flat DIO electron sample covers: the main particle is a muon
+        // decay-in-orbit electron that deposited most (> 80%) of the cluster's true energy
+        const auto sim = cluster->MCSim();
+        const float mc_edep = cluster->MCEDep();
+        mc_veto |= sim && sim_pdg == 11 && sim->startCode == mu2e::ProcessCode::mu2eMuonDecayAtRest
+          && energy > 60.f && mc_edep > 0.f && sim_edep/mc_edep > 0.80f;
+      } else if(primary_veto_) {
+        // primary samples: skip clusters not from the primary (e.g. pileup), which the pileup sample covers
+        mc_veto |= !cluster->IsPrimaryAssociated();
       }
 
       if(!mc_veto) {
@@ -631,7 +713,7 @@ namespace Mu2eEvtAna {
       // Electron selection
       //------------------------------------------------
 
-      if(base_id && pu_veto && pu_r_veto && e_tc && e_line) {
+      if(base_id && pu_veto && e_tc && e_line) { // no cluster radius cut for the CE selection
         const int tc_nhits = e_tc->NHits();
         bool ce_id = tc_nhits > 10 && tc_nhits < 40;
         ce_id &= e_line->NActive() > 0;
@@ -686,6 +768,11 @@ namespace Mu2eEvtAna {
   // After the processing loop
   void Run1BAna::EndJob() {
     printf("Run1BAna::%s\n", __func__);
+    if(primary_veto_ && n_prirel_checked_ == 0)
+      printf("  WARNING: the primary never deposited in the calorimeter, so calomcsim prirel (used by the primary cluster "
+             "veto) could not be checked\n");
+    if(rmc_weight_ && n_no_rmc_primary_ > 0)
+      printf("  WARNING: %lld events had no primary photon and were given zero weight\n", n_no_rmc_primary_);
     if(spectrum_weight_ && n_no_primary_ > 0)
       printf("  WARNING: %lld events had no primary with PDG ID %i and were given zero weight\n", n_no_primary_, spectrum_pdg_);
     printf("  CE cut-flow:\n");
