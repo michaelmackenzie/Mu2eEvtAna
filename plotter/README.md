@@ -18,6 +18,7 @@ MC event stands for, and the plotter multiplies. Constants that several analyses
 | `PlotUtils.C` | range helpers, `format_sci`, the Mu2e stamp (`Stamp_t`), `handle_canvas` |
 | `physics/Mu2ePhysics.C` | shared constants in `namespace mu2e_physics` (plus Run 1A/Run 2 campaign numbers) |
 | `physics/Exposures.C` | `Exposure_t` presets: `run1a_exposure()`, `run2_exposure()`, `exposure_1bb(livetime, ...)` |
+| `examples/run1a/` | Run 1A μ⁻ → e⁻ and μ⁻ → e⁺ stack plots from the Mu2eEvtAna `ConvAna` outputs (see its README) |
 | `examples/run1b/` | Run 1B stack plots of the selection variables from the Mu2eEvtAna `Run1BAna` outputs (see its README) |
 | `test/test_plotter.C` | toy-file test of the normalization arithmetic and every drawing mode |
 

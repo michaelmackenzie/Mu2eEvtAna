@@ -79,6 +79,7 @@ shared constants are in `plotter/physics/Mu2ePhysics.C`. See [plotter/README.md]
 
 | Example | What it makes |
 |---|---|
+| [plotter/examples/run1a/](plotter/examples/run1a/README.md) | Run 1A μ⁻ → e⁻ and μ⁻ → e⁺ stack plots of the track variables |
 | [plotter/examples/run1b/](plotter/examples/run1b/README.md) | Run 1B stack plots of every selection's variables (RMC, RPC, CE, protons, neutrons) |
 
 ```bash
