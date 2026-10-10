@@ -838,7 +838,7 @@ namespace Mu2eEvtAna {
         }
 
 
-        bool base_test_id = true; // As of 2026-10-07 from Natalie
+        bool base_test_id = true; // As of 2026-10-08 from Natalie
         // base_test_id &= track_->Charge() < 0;
         base_test_id &= (trigger_.FiredAPR() || trigger_.FiredCPR());
         base_test_id &= upstream_veto;
@@ -847,16 +847,16 @@ namespace Mu2eEvtAna {
         base_test_id &= track_->OPAInter() == 0;
         base_test_id &= track_->TSDAInter() == 0;
         if(base_test_id) { // base for all test selections
-          // nactive >= 17, t0err < 0.82, d0min bound: -60, d0max bound: 94, tandip min bound: 0.56, tandip max bound: 0.88, trkquality > 0.15, trkpid score > 0.59
+          // trkquality > 0.145 ; trkpid_score > 0.574 ; t0err < 0.81 ; lh_tandip in (0.56,0.8787) ; nactive >= 17 ; lh_d0 in (-60,94) ; NOPA == 0 ; NST > 0 ; TSDA == 0 ; st_boundary > 0
           {
             bool test_id = true;
-            test_id &= track_->D0Front() <  94.;
+            test_id &= track_->TrkQual() > 0.145;
+            test_id &= track_->PID() > 0.574 && track_->ECluster() > 0.;
+            test_id &= track_->TErrMiddle() < 0.81;
+            test_id &= track_->TanDipFront() > 0.56 && track_->TanDipFront() < 0.8787;
             test_id &= track_->D0Front() > -60.;
-            test_id &= track_->PID() > 0.59 && track_->ECluster() > 0.;
-            test_id &= track_->TanDipFront() > 0.56 && track_->TanDipFront() < 0.88;
-            test_id &= track_->TrkQual() > 0.15;
+            test_id &= track_->D0Front() <  94.;
             test_id &= track_->NActive() >= 17;
-            test_id &= track_->TErrMiddle() < 0.82;
             test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
             test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
             if(test_id) {
