@@ -7,7 +7,7 @@
 #define __MU2EEVTANA_PLOTTER_EXAMPLES_RUN1B_SAMPLES__
 
 #include "../../Plotter.C"
-#include "../../physics/Mu2ePhysics.C"
+#include "../../physics/Exposures.C"
 
 namespace run1b {
 
@@ -15,30 +15,16 @@ namespace run1b {
   namespace phys = mu2e_physics;
 
   //----------------------------------------------------------------------------------------------------
-  // Run 1B running conditions (v40 simulation)
+  // Run 1B running conditions (v40 simulation), from the shared campaign constants
 
-  const double nmuons_per_pot      = 5.066e-04; // stopped muons per POT
-  const double poly_nmuons_per_pot = 1.967e-03; // muon stops in the polyethylene (carbon) target per POT
-  const double duty_cycle          = 0.322    ; // 4 spills * 107.3 ms / 1333 ms
-  const double npot_per_event      = 6.14e6   ; // mean N(POT) per microbunch of the 1BB mixing, as used by Run1BAna
-
-  // RPC: pion stops per POT, from the v40 PiBeam/PiTargetStops stages
-  const double pibeam_rate         = 11978542. / 1000000000.; // PiBeam efficiency
-  const double pi_target_rate      = 8145497. / 250000000.  ; // pion stops in the target per beam pion
-  const double pi_select_eff       = 0.999968               ; // pion stop selection efficiency
-  const double rpc_per_pot         = pibeam_rate*pi_target_rate*pi_select_eff*phys::rpc_br*phys::rpc_frac_above_50;
+  const double nmuons_per_pot      = phys::run1b::nmuons_per_pot;
+  const double poly_nmuons_per_pot = phys::run1b::poly_nmuons_per_pot;
+  const double npot_per_event      = phys::run1b::npot_per_pulse; // mean N(POT) per microbunch, as reweighted by Run1BAna
+  const double rpc_per_pot         = phys::run1b::pion_stops_per_pot*phys::rpc_br*phys::rpc_frac_above_50;
 
   // Exposure: <days> of 1BB running. Cosmic rays are normalized to the on-spill livetime.
   inline Exposure_t exposure(const double days = 7., const double pot_per_event = npot_per_event) {
-    Exposure_t e;
-    const double walltime = days*phys::seconds_per_day;
-    e.nevents    = walltime*duty_cycle/phys::microbunch_period_s;
-    e.npot       = e.nevents*pot_per_event;
-    e.nmuons     = e.npot*nmuons_per_pot;
-    e.livetime   = e.nevents*phys::microbunch_period_s;
-    e.duty_cycle = duty_cycle;
-    e.label      = Form("Run 1B, %.3g days", days);
-    return e;
+    return phys::run1b_exposure(days, pot_per_event);
   }
 
   //----------------------------------------------------------------------------------------------------

@@ -26,6 +26,15 @@ namespace mu2e_physics {
     return make_exposure(run1a::npot, run1a::livetime, run1a::nmuons_per_pot, duty_cycle_1bb, npot_per_pulse_1bb, "Run 1A");
   }
 
+  // Run 1B: <days> of 1BB running at full uptime. N(events) = on-spill time / microbunch period, N(POT) from the mean
+  // N(POT) per microbunch. Cosmic rays are normalized to the on-spill livetime.
+  inline mu2eplot::Exposure_t run1b_exposure(const double days = 7., const double npot_per_pulse = run1b::npot_per_pulse) {
+    const double livetime = days*seconds_per_day*run1b::duty_cycle;
+    const double nevents  = livetime/microbunch_period_s;
+    return make_exposure(nevents*npot_per_pulse, livetime, run1b::nmuons_per_pot, run1b::duty_cycle, npot_per_pulse,
+                         Form("Run 1B, %.3g days", days));
+  }
+
   // Run 2: 3e20 POT of 2BB running
   inline mu2eplot::Exposure_t run2_exposure() {
     return make_exposure(run2::npot, run2::livetime, run2::nmuons_per_pot, duty_cycle_2bb, npot_per_pulse_2bb, "Run 2");

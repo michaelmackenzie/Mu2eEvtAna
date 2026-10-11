@@ -91,6 +91,19 @@ namespace mu2e_physics {
     const double npot               = livetime*npot_rate_1bb;
   }
 
+  namespace run1b { // Run 1B field-off simulation (v40 geometry, Run1Ban mixing)
+    const double nmuons_per_pot      = 5.066e-04; // stopped muons per POT (v06 geometry: 9.561e-04)
+    const double poly_nmuons_per_pot = 1.967e-03; // muon stops in the polyethylene (carbon) target per POT
+    const double duty_cycle          = 0.322    ; // 4 spills * 107.3 ms / 1333 ms
+    const double npot_per_pulse_sim  = 5.92e6   ; // simulated mean N(POT) per microbunch of the Run1Ban 1BB mixing
+    const double npot_per_pulse      = 6.14e6   ; // target mean N(POT) per microbunch (1.5 kW); the mixing is reweighted to this
+    // Pion stops in the target per POT, from the v40 PiBeam/PiTargetStops stages
+    const double pibeam_rate         = 11978542. / 1000000000.; // beam pions per POT
+    const double pi_target_rate      = 8145497.  / 250000000. ; // pion stops in the target per beam pion
+    const double pi_select_eff       = 0.999968               ; // pion stop selection efficiency
+    const double pion_stops_per_pot  = pibeam_rate*pi_target_rate*pi_select_eff; // infinite pion lifetime
+  }
+
   namespace run2 { // Run 2 (2BB) projections, using the Run 1A stopping rate
     const double nmuons_per_pot = run1a::nmuons_per_pot;
     const double npot           = 3.e20;
