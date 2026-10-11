@@ -2,6 +2,7 @@
 #define __MU2E_EVT_ANA_FUNCTIONS_C__
 #include "Mu2eEvtAna/scripts/datasets.C"
 #include "Mu2eEvtAna/scripts/utils.C"
+#include "Mu2eEvtAna/inc/PhysicsWeights.hh"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -83,10 +84,19 @@ TString AnalyzerOutputPrefix(Mu2eEvtAna::Mu2eEvtAna* ana) {
   return (index > 0) ? TString(prefix(0, index)) : TString("EvtAna");
 }
 
+// Beam intensity target for a histogramming mode: mode 2 re-weights all but the Run 1B samples to 2BB (<N(POT)> = 3.93e7),
+// other modes keep the analyzer's default (Run1BAna: 6.14e6, others: off). The sample is identified by the dataset tag in ana_name.
+void ConfigureBeamWeight(Mu2eEvtAna::Mu2eEvtAna* ana, TString ana_name, int Mode) {
+  if(Mode != 2) return;
+  Mu2eEvtAna::DatasetTag_t tag;
+  if(Mu2eEvtAna::ParseDatasetTag(ana_name.Data(), tag) && !Mu2eEvtAna::IsRun1BSample(tag)) ana->beam_mu_goal_ = 3.93e7;
+}
+
 // Configure and run an analyzer on an input file list
-int RunAnalyzer(Mu2eEvtAna::Mu2eEvtAna* ana, TString input, TString ana_name, Long64_t max_entries, Long64_t first_entry) {
+int RunAnalyzer(Mu2eEvtAna::Mu2eEvtAna* ana, TString input, TString ana_name, Long64_t max_entries, Long64_t first_entry, int Mode) {
   ana->AddFile(input, max_entries, first_entry);
   ana->SetName(ana_name);
+  ConfigureBeamWeight(ana, ana_name, Mode);
   ana->cache_size_ = 200000000U;
   ana->load_baskets_ = false;
   ana->report_rate_ = 5000;
@@ -112,7 +122,7 @@ int functions(TString ana_func, TString class_name, TString libraries, TString n
   auto ana = CreateAnalyzer(class_name, libraries);
   if(!ana) return -1;
   const int status = RunAnalyzer(ana, input_file, Form("%s.%s.m%i.thread_%i", ana_func.Data(), name_tag.Data(), Mode, thread_id),
-                                 max_entries, first_entry);
+                                 max_entries, first_entry, Mode);
   cout << "Thread " << thread_id << " status = " << status << endl;
   return status;
 }
@@ -145,7 +155,7 @@ int ProcessWithThreads(TString ana_func, TString input, int Mode,
   if(n_threads <= 1) {
     auto ana = CreateAnalyzer(info.class_name_, info.libraries_);
     if(!ana) return -1;
-    const int status = RunAnalyzer(ana, file_list, Form("%s.%s.m%i", analyzer_name.Data(), dataset.Data(), Mode), max_entries, first_entry);
+    const int status = RunAnalyzer(ana, file_list, Form("%s.%s.m%i", analyzer_name.Data(), dataset.Data(), Mode), max_entries, first_entry, Mode);
     cout << "Status code = " << status << endl;
     return status;
   }

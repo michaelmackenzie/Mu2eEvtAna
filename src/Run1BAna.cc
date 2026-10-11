@@ -7,6 +7,9 @@ namespace Mu2eEvtAna {
   //------------------------------------------------------------------------------------
   // Constructor
   Run1BAna::Run1BAna(int verbose) : Mu2eEvtAna(verbose) {
+    // Re-weight the beam intensity to 1.5 kW by default
+    beam_mu_goal_ = 6.14e6;
+
     // Run1B tracks are KinematicLine fits: keep trksegpars_kl, which the base class disables by
     // default (Run-1A tracks are LoopHelix and don't need it).
     disabled_branches_.erase(
@@ -111,14 +114,6 @@ namespace Mu2eEvtAna {
              __func__, name_.Data(), rmc_spectrum_.kmax_0, rmc_spectrum_.kmax_1, rmc_spectrum_.ref_energy, rmc_spectrum_.br_0, rmc_spectrum_.br_1);
     }
 
-    // Beam intensity re-weighting, for MC with N(POT) per microbunch
-    beam_scales_with_pot_ = !(name_.Contains("mnbs") || name_.Contains("csms"));
-    if(apply_beam_weight_ && beam_weight_.Active() && ntuple_->FindBranch("evtinfomc")) {
-      printf("Run1BAna::%s: Re-weighting the beam intensity from <N(POT)> = %.3g (SDF %.2f) to %.3g (SDF %.2f), %s\n",
-             __func__, beam_weight_.mu_nominal, beam_weight_.sdf_nominal, beam_weight_.mu_goal, beam_weight_.sdf_goal,
-             (beam_scales_with_pot_) ? "rate proportional to N(POT)" : "rate independent of N(POT)");
-    }
-
     // Primary samples (all but pileup) veto clusters not associated with the event primary. This needs the primary branch
     // and calomcsim prirel, which only some EventNtuple versions fill: whether it is filled is checked on the first entries.
     // Without it the veto is skipped with a warning, or, with require_calo_prirel_, processing stops.
@@ -199,8 +194,6 @@ namespace Mu2eEvtAna {
         ++n_no_rmc_primary_;
       }
     }
-
-    if(apply_beam_weight_ && event_->evtinfomc) evt_.weight_ *= beam_weight_.Weight(evt_.inst_lum_, beam_scales_with_pot_);
 
     if(rpc_weight_) {
       // The evtwt leaves follow the input's EventWeight module labels, so find the generator's leaf in each input tree

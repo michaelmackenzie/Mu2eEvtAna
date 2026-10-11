@@ -69,6 +69,7 @@
 #include "Mu2eEvtAna/inc/CaloClusterHist_t.hh"
 #include "Mu2eEvtAna/inc/CRVHist_t.hh"
 #include "Mu2eEvtAna/inc/Tree_t.hh"
+#include "Mu2eEvtAna/inc/PhysicsWeights.hh"
 
 using namespace mu2e;
 namespace Mu2eEvtAna {
@@ -100,6 +101,7 @@ namespace Mu2eEvtAna {
     virtual void EndJob();
 
     virtual int InitializeInput();
+    void InitializeBeamWeight(); // called by InitializeInput()
     virtual int InitializeOutput();
     virtual void AddOutputBranches(TTree* t);
     virtual void BookEventHist(EventHist_t* Hist, const char* Folder);
@@ -198,6 +200,14 @@ namespace Mu2eEvtAna {
 
     TString name_; //name for output file
     bool require_calo_prirel_ = false; //stop if a veto needs calomcsim prirel and the ntuple doesn't fill it
+
+    // Beam intensity re-weighting of MC with N(POT) per microbunch (evtinfomc), applied to evt_.weight_ in InitEvent().
+    // The simulated intensity comes from the dataset tag in name_ (see NominalBeamIntensity()), and the target is
+    // beam_mu_goal_, set before Process(): <= 0 turns the re-weighting off (the default; Run1BAna uses 6.14e6).
+    // Cosmic-ray and no-primary samples follow a log-normal intensity, all others x * log-normal (BeamRateScalesWithPOT()).
+    double              beam_mu_goal_         = 0.  ;
+    BeamIntensityWeight beam_weight_                ; // set by InitializeBeamWeight()
+    bool                beam_scales_with_pot_ = true;
 
     Long64_t report_rate_; //reporting rate for events processed
     Int_t verbose_; //verbose level

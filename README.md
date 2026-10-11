@@ -40,6 +40,10 @@ root.exe -q -b 'Mu2eEvtAna/scripts/make_histograms.C(1, "my_files.txt", 1, "run1
 - **Output** is `<Analyzer>.<function>.<tag>.m<mode>.root` in the current directory, e.g.
   `Run1BAna.run1b_ana.fele0b1s51r0204.m1.root`. Threads write per-thread files that are merged
   (`scripts/merge_hist_files.sh`).
+- **Beam intensity:** MC is re-weighted from its simulated N(POT) per microbunch, read from the dataset tag (Run 1B
+  `b1r02XX`: 5.92e6, `b1r00XX`/`b1r01XX`: 1.58e7, `b2`: 3.93e7), to the analyzer's `beam_mu_goal_` (Run1BAna: 6.14e6,
+  others: off). Mode 2 re-weights every sample but Run 1B to 2BB (3.93e7). Cosmic-ray and no-primary samples follow a
+  log-normal intensity distribution, all others x * log-normal. A name without a dataset tag is not re-weighted.
 - **Remote files:** file lists are read over xrootd, which needs a token (`getToken`). A single local `/pnfs` file is
   read directly.
 - Keep threads plus any other jobs within the node's shared core budget.
@@ -59,7 +63,7 @@ Other packages register their own analyzers with `RegisterAnalyzer(function, cla
 `Run1BAna` applies the per-event physics weights and MC vetoes described in its header (`inc/Run1BAna.hh`):
 - DIO and Plestid RMC spectrum weights for the flat-spectrum samples,
 - the pion survival weight for RPC,
-- beam-intensity re-weighting,
+- beam-intensity re-weighting to 1.5 kW (6.14e6 POT per microbunch),
 - a veto of non-primary clusters in primary samples, and of the RMC/proton/neutron/DIO tails in pileup.
 
 It stops with an error when an ntuple lacks the information a weight or veto needs.

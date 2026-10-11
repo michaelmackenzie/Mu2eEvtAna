@@ -135,8 +135,36 @@ namespace Mu2eEvtAna {
 
     trigger_.trig_ = &(event_->trigger);
 
+    InitializeBeamWeight();
+
     if(verbose_ > 1) printf("Mu2eEvtAna::%s: Initialized input data\n", __func__);
     return 0;
+  }
+
+  //------------------------------------------------------------------------------------
+  // Beam intensity re-weighting: simulated intensity and N(POT) dependence from the dataset tag in name_
+  void Mu2eEvtAna::InitializeBeamWeight() {
+    beam_weight_          = BeamIntensityWeight();
+    beam_scales_with_pot_ = true;
+    if(beam_mu_goal_ <= 0. || !ntuple_->FindBranch("evtinfomc")) return; // off, or no MC N(POT)
+    DatasetTag_t tag;
+    if(!ParseDatasetTag(name_.Data(), tag)) {
+      printf("Mu2eEvtAna::%s: WARNING: no dataset tag in \"%s\", so the simulated beam intensity is unknown: "
+             "the beam intensity is NOT re-weighted\n", __func__, name_.Data());
+      return;
+    }
+    if(!NominalBeamIntensity(tag, beam_weight_.mu_nominal, beam_weight_.max)) {
+      printf("Mu2eEvtAna::%s: No simulated beam intensity for %s (b%i, r%04i): the beam intensity is not re-weighted\n",
+             __func__, name_.Data(), tag.batches, tag.version);
+      return;
+    }
+    beam_weight_.mu_goal  = beam_mu_goal_;
+    beam_scales_with_pot_ = BeamRateScalesWithPOT(tag);
+    if(beam_weight_.Active()) {
+      printf("Mu2eEvtAna::%s: Re-weighting the beam intensity from <N(POT)> = %.3g (SDF %.2f, cut-off %.3g) to %.3g (SDF %.2f), %s\n",
+             __func__, beam_weight_.mu_nominal, beam_weight_.sdf_nominal, beam_weight_.max, beam_weight_.mu_goal, beam_weight_.sdf_goal,
+             (beam_scales_with_pot_) ? "x * log-normal (rate proportional to N(POT))" : "log-normal (rate independent of N(POT))");
+    }
   }
 
   //------------------------------------------------------------------------------------
@@ -1250,6 +1278,7 @@ namespace Mu2eEvtAna {
     if(event_->evtinfomc) {
       evt.inst_lum_ = event_->evtinfomc->nprotons;
       evt.pb_time_  = event_->evtinfomc->pbtime  ;
+      if(beam_weight_.Active()) evt.weight_ *= beam_weight_.Weight(evt.inst_lum_, beam_scales_with_pot_);
     }
     if(event_->hitcount) {
       evt.ndigis_   = event_->hitcount->nsd;

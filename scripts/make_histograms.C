@@ -8,7 +8,9 @@
    dataset  : Specific dataset to process, if empty it will process all enabled datasets.
               Can also be a single ntuple file (*.root) or a file list of ntuples, in which
               case only that input is processed
-   mode     : Histogramming mode
+   mode     : Histogramming mode, used in the output name. Mode 2 also re-weights the beam intensity of all but the Run 1B
+              (b1r02XX) samples to 2BB (<N(POT)> = 3.93e7); other modes use the analyzer's default target
+              (Run1BAna: 6.14e6, others: none). See Mu2eEvtAna::beam_mu_goal_
    function : analyzer function name, registered in Mu2eEvtAna/scripts/functions.C (mu2e_ana, rmc_ana, cnv_ana) or by
               another package with RegisterAnalyzer(), or else a function defined in the interpreter
    n_threads: Number of threads per process to split file lists (default 1)

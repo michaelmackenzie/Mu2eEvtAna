@@ -122,7 +122,8 @@ namespace Mu2eEvtAna {
     //     evtwt.generate. Needs an EventNtuple version that fills evtwt from the current event.
     //   fgam*/pgam* (flat photons, Al/C stops): Plestid phase-space RMC spectrum at the primary photon's generated energy
     //     (from the primary branch), normalized above 57 MeV: the sample normalization is R(RMC, E > 57) * (emax - emin) / N(gen)
-    //   all MC with N(POT) per microbunch: re-weighted from the simulated to the target beam intensity (beam_weight_)
+    //   all MC with N(POT) per microbunch: re-weighted from the simulated to the target beam intensity, by default 6.14e6
+    //     (1.5 kW; see Mu2eEvtAna::beam_mu_goal_)
     void SetEventWeight();
     SpectrumWeight* spectrum_weight_ = nullptr;
     int    spectrum_pdg_    = 0  ; // primary particle the spectrum applies to
@@ -134,9 +135,6 @@ namespace Mu2eEvtAna {
     bool                rmc_weight_       = false;
     PlestidRMCWeight    rmc_spectrum_     = PlestidRMCWeight::Aluminum();
     Long64_t            n_no_rmc_primary_ = 0    ; // events without a primary photon (given zero weight)
-    bool                apply_beam_weight_= true ; // re-weight to beam_weight_.mu_goal (set before Process)
-    BeamIntensityWeight beam_weight_             ;
-    bool                beam_scales_with_pot_ = true; // false for pileup-only and cosmic-ray samples
 
     // Primary cluster veto, for primary (non-pileup) samples: see InitializeInput()
     void CheckCaloPrimaryRelations();

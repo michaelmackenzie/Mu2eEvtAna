@@ -10,6 +10,8 @@
 // standard includes
 #include <algorithm>
 #include <cmath>
+#include <regex>
+#include <string>
 
 namespace Mu2eEvtAna {
 
@@ -96,13 +98,13 @@ namespace Mu2eEvtAna {
   // Processes whose rate scales with N(POT) (beam-induced signals) follow x * log-normal; pileup-only and cosmic-ray
   // samples follow the log-normal.
   struct BeamIntensityWeight {
-    double mu_nominal  = 5.92e6; // simulated mean N(POT) per microbunch (Run1Ban mixing)
-    double sdf_nominal = 0.8   ;
-    double mu_goal     = 6.14e6; // target mean N(POT) per microbunch (1.5 kW)
-    double sdf_goal    = 0.8   ;
-    double max         = 35.5e6; // simulated cut-off
+    double mu_nominal  = 0.  ; // simulated mean N(POT) per microbunch
+    double sdf_nominal = 0.8 ;
+    double mu_goal     = 0.  ; // target mean N(POT) per microbunch
+    double sdf_goal    = 0.8 ;
+    double max         = 0.  ; // simulated cut-off
 
-    bool Active() const { return mu_nominal != mu_goal || sdf_nominal != sdf_goal; }
+    bool Active() const { return mu_nominal > 0. && mu_goal > 0. && max > 0. && (mu_nominal != mu_goal || sdf_nominal != sdf_goal); }
 
     double Weight(const double npot, const bool scales_with_pot) const {
       if(npot <= 1. || !Active()) return 1.;
@@ -118,6 +120,44 @@ namespace Mu2eEvtAna {
       return (p_2/c_2)/(p_1/c_1);
     }
   };
+
+  //------------------------------------------------------------------------------------
+  // Dataset tag: <process (5 characters)>b<booster batches>s<stream>r<version>, e.g. cele0b1s51r0204, found anywhere in a name
+  struct DatasetTag_t {
+    std::string process ; // e.g. cele0
+    int         batches = -1; // 0: no pileup, 1: 1BB, 2: 2BB
+    int         version = -1; // e.g. 204 for r0204
+  };
+
+  inline bool ParseDatasetTag(const std::string& name, DatasetTag_t& tag) {
+    static const std::regex pattern("([a-z0-9]{5})b([0-9])s[0-9]+r([0-9]{4})");
+    std::smatch match;
+    if(!std::regex_search(name, match, pattern)) return false;
+    tag.process = match[1].str();
+    tag.batches = std::stoi(match[2].str());
+    tag.version = std::stoi(match[3].str());
+    return true;
+  }
+
+  // Run 1B pileup samples (b1, r02XX), simulated at a reduced 1BB intensity
+  inline bool IsRun1BSample(const DatasetTag_t& tag) { return tag.batches == 1 && tag.version / 100 == 2; }
+
+  // Simulated beam intensity (production mixing PBISim.extendedMean, .cutMax) of a sample: false if unknown or without pileup
+  //   Run 1B (b1r02XX): 5.92e6, 1BB (b1r00XX/b1r01XX): 1.58e7, 2BB (b2): 3.93e7, each cut off at 6x the mean
+  inline bool NominalBeamIntensity(const DatasetTag_t& tag, double& mu, double& max) {
+    mu = max = 0.;
+    if     (IsRun1BSample(tag))                          { mu = 5.92e6; max = 35.5e6; }
+    else if(tag.batches == 1 && tag.version / 100 <= 1) { mu = 1.58e7; max = 9.48e7; }
+    else if(tag.batches == 2)                            { mu = 3.93e7; max = 2.36e8; }
+    return mu > 0.;
+  }
+
+  // Whether a sample's rate scales with N(POT) (x * log-normal intensity): all but cosmic-ray (cry*, csms) and
+  // no-primary pileup (mnbs) samples
+  inline bool BeamRateScalesWithPOT(const DatasetTag_t& tag) {
+    const std::string p = tag.process.substr(0, 4);
+    return !(p.rfind("cry", 0) == 0 || p == "csms" || p == "mnbs");
+  }
 }
 
 #endif
