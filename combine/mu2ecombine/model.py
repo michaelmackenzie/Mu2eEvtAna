@@ -143,6 +143,7 @@ class Model:
         self.params = {}             # name -> (mean, sigma)
         self.groups = {}             # name -> [nuisances]
         self.mcstats = {"enabled": True, "auto": False, "threshold": 10., "min_rel": 1e-4}
+        self.free = set()            # unconstrained (flat-prior) nuisances
 
     # -- definition ---------------------------------------------------------------------------------------------------
     def channel(self, name, obs, data=None, blind=None, title=None, workspace=None):
@@ -177,6 +178,13 @@ class Model:
         """A Gaussian constraint on a parameter of your own PDFs (Combine 'param'). A Fit keeps such parameters at
         their values instead of fitting them."""
         self.params[name] = (float(mean), float(sigma))
+
+    def unconstrained(self, *names):
+        """Give nuisances a flat prior (no constraint term), e.g. a shape uncertainty whose size the data should
+        determine: shape nuisances are written as 'shapeU', nuisances only inside workspaces as 'flatParam'. The
+        up/down variations then only set the scale of the parameter (theta = +-1). Log-normal nuisances cannot be
+        unconstrained."""
+        self.free.update(names)
 
     def group(self, name, nuisances):
         self.groups.setdefault(name, []).extend([nuisances] if isinstance(nuisances, str) else nuisances)
@@ -360,13 +368,15 @@ class Model:
             if e["lnN"] and e["shape"]:
                 raise ModelError(f"nuisance '{name}' is both a log-normal and a shape uncertainty: use different names")
             kind = "lnN" if e["lnN"] else "shape" if e["shape"] else None
+            if kind == "lnN" and name in self.free:
+                raise ModelError(f"nuisance '{name}' is a log-normal rate uncertainty: it cannot be unconstrained")
             if kind:
                 declared.add(name)
                 for (ch, p), text in e[kind].items():
-                    card.add_systematic(name, kind, ch, p, text)
+                    card.add_systematic(name, "shapeU" if name in self.free else kind, ch, p, text)
         for name, e in effects.items():
             if name not in declared and e["ws"] and name not in self.params:
-                card.extra.append(f"{name} param 0 1")
+                card.extra.append(f"{name} flatParam" if name in self.free else f"{name} param 0 1")
         for name, procs, chans, init, (lo, hi) in self.rate_params:
             for r in results:
                 for p in r.processes:

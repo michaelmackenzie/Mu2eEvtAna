@@ -267,6 +267,30 @@ class ModelTests(unittest.TestCase):
         toys.Close()
         f.Close()
 
+    def test_unconstrained_nuisances(self):
+        model = mc.Model("free", workspace=True)
+        ch = model.channel("sr", mc.observable("p_free", 100, 110, bin_width=0.5))
+        ch.add("signal", mc.Fit("gauss", self.sig, nuisances={"pres": {"sigma": "10%"}}), signal=True)
+        ch.add("bkg", mc.Template(self.bkg, variations={"bshape": (scaled(self.bkg, 1.1), scaled(self.bkg, 0.95))}))
+        model.lnN("lumi", 1.1)
+        model.unconstrained("bshape", "pres")
+        out = os.path.join(self.tmp, "free")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            model.write(out)
+        card = open(os.path.join(out, "combined.txt")).read()
+        self.assertRegex(card, r"(?m)^bshape shapeU ")
+        self.assertIn("pres flatParam", card)
+        self.assertNotIn("pres param", card)
+        self.assertRegex(card, r"(?m)^lumi lnN ")
+        model.unconstrained("lumi")
+        with self.assertRaises(mc.ModelError):
+            model.write(os.path.join(self.tmp, "free_lnn"))
+        if shutil.which("text2workspace.py"):
+            proc = subprocess.run("text2workspace.py combined.txt -o model.root", shell=True, cwd=out,
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            self.assertEqual(proc.returncode, 0, proc.stdout[-2000:])
+
     def test_fit_process_alone(self):
         model = mc.Model("fitonly", workspace=True)
         ch = model.channel("sr", mc.observable("p_fo", 100, 110, bin_width=0.5))

@@ -124,6 +124,7 @@ of the same channel fits with `--toysFile`.
 | `model.shape_shift(name, shift=, stretch=)` | Generated up/down shapes (x shifted, or stretched about the peak) for every selected Template and Fit process. |
 | `model.rate_param(name, processes, channels)` | A free normalization shared across channels, e.g. constrained by a control region. |
 | `model.param(name, mean, sigma)` | Gaussian constraint on a parameter of your own PDF. |
+| `model.unconstrained(name)` | A flat prior for a nuisance (`shapeU`, or `flatParam` inside workspaces): the data determine it, and its up/down variations only set the scale of the parameter. |
 | `model.mc_stats(enabled=True)` | MC statistics, on by default: one log-normal per process (the MC uncertainty of its yield). `auto=True` uses `autoMCStats` in binned channels instead; it is off because it stalls fits in some Combine builds. |
 | `group=` on `lnN`/`shape_shift`, `model.group(name, [...])` | Nuisance groups, for `--freezeNuisanceGroups`. |
 
