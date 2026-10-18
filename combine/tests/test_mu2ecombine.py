@@ -1,7 +1,9 @@
 """mu2ecombine tests on synthetic inputs: python3 -m unittest discover -s tests (from combine/)."""
 
 import itertools
+import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -264,6 +266,74 @@ class ModelTests(unittest.TestCase):
         self.assertTrue(observables <= names, (observables, names))
         toys.Close()
         f.Close()
+
+    def test_fit_process_alone(self):
+        model = mc.Model("fitonly", workspace=True)
+        ch = model.channel("sr", mc.observable("p_fo", 100, 110, bin_width=0.5))
+        ch.add("signal", mc.Fit("gauss", self.sig), signal=True)
+        ch.add("bkg", mc.Fit("exponential", self.bkg))
+        figdir = os.path.join(self.tmp, "fitonly")
+        r = model.fit_process("sr", "signal", figdir=figdir)
+        self.assertEqual(list(r.fits), ["signal"])                  # the other process is not built
+        self.assertAlmostEqual(r.fits["signal"].values()["sr_signal_mean"], 105., delta=0.05)
+        self.assertTrue(os.path.exists(os.path.join(figdir, "sr_signal_fit.png")))
+        self.assertFalse(os.path.exists(os.path.join(figdir, "combined.txt")))
+        with self.assertRaises(mc.ModelError):
+            model.fit_process("sr", "nothing")
+
+    def _narrow_pair(self, name, fit):
+        model = mc.Model(name, workspace=True)
+        ch = model.channel("sr", mc.observable(f"p_{name}", 100, 110, bin_width=0.5))
+        ch.add("signal", mc.Fit("gauss", self.sig) if fit else self.sig, signal=True)
+        ch.add("bkg", mc.Fit("exponential", self.bkg) if fit else self.bkg)
+        model.lnN("lumi", 1.1)
+        full = os.path.join(self.tmp, name)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            model.write(full)
+        narrow = os.path.join(self.tmp, f"{name}_narrow")
+        used = mc.narrow_model(full, narrow, {"sr": (102.1, 107.)})
+        return full, narrow, used
+
+    def test_narrow_templates(self):
+        full, narrow, used = self._narrow_pair("narrow_t", fit=False)
+        self.assertEqual(used, {"sr": (102., 107.)})                  # moved to the nearest bin edges
+        info = json.load(open(os.path.join(narrow, "model.json")))["channels"]["sr"]
+        self.assertEqual(info["observable"]["bins"], 10)
+        expected = integral(mc.rebin_to(self.bkg, np.linspace(100, 110, 21)).Clone())
+        h = mc.rebin_to(self.bkg, np.linspace(100, 110, 21))
+        inside = sum(h.GetBinContent(i) for i in range(5, 15))
+        self.assertAlmostEqual(info["processes"]["bkg"]["rate"], inside, places=6)
+        self.assertLess(inside, expected)
+        card = open(os.path.join(narrow, "combined.txt")).read()
+        self.assertRegex(card, rf"(?m)^rate\s+\S+\s+{float(f'{inside:.6g}')}")
+        self.assertIn("lumi lnN", card)
+        f = ROOT.TFile(os.path.join(narrow, "shapes", "sr.root"))
+        w = f.Get("w")
+        self.assertAlmostEqual(w.var("p_narrow_t").getMin(), 102.)
+        self.assertAlmostEqual(w.data("sr_bkg").sumEntries(), inside, places=6)
+        self.assertAlmostEqual(w.data("sr_data_obs").sumEntries(), inside, places=6)
+        f.Close()
+
+    def test_narrow_pdfs(self):
+        full, narrow, _ = self._narrow_pair("narrow_p", fit=True)
+        before = json.load(open(os.path.join(full, "model.json")))["channels"]["sr"]["processes"]["signal"]["rate"]
+        after = json.load(open(os.path.join(narrow, "model.json")))["channels"]["sr"]["processes"]["signal"]["rate"]
+        self.assertGreater(after, 0.8 * before)                       # the peak at 105 is inside 102-107
+        self.assertLess(after, before)
+        f = ROOT.TFile(os.path.join(narrow, "shapes", "sr.root"))
+        w = f.Get("w")
+        card = open(os.path.join(narrow, "combined.txt")).read()
+        name = re.search(r"(?m)^shapes signal sr \S+ w:(\S+)", card).group(1)
+        pdf = w.pdf(name)
+        self.assertTrue(pdf)
+        self.assertTrue(pdf.dependsOn(w.var("p_narrow_p")))           # attached to the narrowed observable
+        self.assertAlmostEqual(w.var("p_narrow_p").getMax(), 107.)
+        f.Close()
+        if shutil.which("text2workspace.py"):
+            proc = subprocess.run("text2workspace.py combined.txt -o model.root", shell=True, cwd=narrow,
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            self.assertEqual(proc.returncode, 0, proc.stdout[-2000:])
 
     @unittest.skipUnless(shutil.which("text2workspace.py"), "Combine is not set up")
     def test_text2workspace(self):

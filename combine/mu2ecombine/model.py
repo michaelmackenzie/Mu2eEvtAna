@@ -398,6 +398,37 @@ class Model:
             raise ModelError("the model has no channels")
         return card
 
+    # -- development -----------------------------------------------------------------------------------------------
+    def fit_process(self, channel, process, figdir=None):
+        """Build one process of one channel alone, to develop or debug its shape: a Fit is fit (and its variations
+        refit), a Template is built, an Envelope is fit (after the channel's other processes, which it needs). Prints
+        the result, draws the fit (or, for an envelope, the channel) to figdir if given, and returns the ChannelResult.
+        Writes no model."""
+        if channel not in self.channels:
+            raise ModelError(f"no channel '{channel}' (channels: {', '.join(self.channels)})")
+        ch = self.channels[channel]
+        if process not in ch.processes:
+            raise ModelError(f"channel {channel} has no process '{process}' (processes: {', '.join(ch.processes)})")
+        r = _ChannelBuilder(self, ch, only=[process]).build()
+        info = {"rate": r.card_rates.get(process), "mc_rel_error": r.mc_rel.get(process)}
+        if process in r.fits:
+            info["fit"] = r.fits[process].info
+        if process in r.envelope_info:
+            info["envelope"] = {k: v for k, v in r.envelope_info[process].items() if k != "tested"}
+        print(f"{channel}/{process}: {json.dumps(info, indent=2, default=float)}")
+        if figdir:
+            from . import plots as plotlib
+            os.makedirs(figdir, exist_ok=True)
+            plotlib._style()
+            if process in r.fits:
+                path = os.path.join(figdir, f"{channel}_{process}_fit.png")
+                plotlib.plot_fit(r, process, r.fits[process], path)
+            else:
+                path = os.path.join(figdir, f"{channel}_{process}_prefit.png")
+                plotlib.plot_channel(r, path)
+            print(f"  figure: {path}")
+        return r
+
     # -- summary -------------------------------------------------------------------------------------------------------
     def _summary(self, results, ids):
         out = {"name": self.name, "pois": {k: list(v) for k, v in self.pois.items()},
@@ -430,8 +461,9 @@ def _shift_size(value, nominal):
 class _ChannelBuilder:
     """Builds one channel: nominal shapes, variations, data, and the card entries."""
 
-    def __init__(self, model, channel):
+    def __init__(self, model, channel, only=None):
         self.model, self.channel = model, channel
+        self.only = set(only) if only is not None else None   # build only these processes (see Model.fit_process)
         self.edges = channel.edges
         self.model_params = model.nuisance_names()
 
@@ -440,7 +472,10 @@ class _ChannelBuilder:
         r = ChannelResult(ch)
         if not ch.processes:
             raise ModelError(f"channel {ch.name} has no processes")
-        envelopes = {n: p for n, p in ch.processes.items() if isinstance(p.shape, Envelope)}
+        envelopes = {n: p for n, p in ch.processes.items() if isinstance(p.shape, Envelope)
+                     and (self.only is None or n in self.only)}
+        # an envelope is fit with the channel's other backgrounds held fixed, so it needs all of them
+        build_all = self.only is None or bool(envelopes)
         absorbed = set()
         for n, p in envelopes.items():
             absorbed |= {o for o in ch.processes if o not in envelopes and not ch.processes[o].signal
@@ -457,7 +492,7 @@ class _ChannelBuilder:
 
         for name, proc in ch.processes.items():
             shape = proc.shape
-            if isinstance(shape, Envelope):
+            if isinstance(shape, Envelope) or not (build_all or name in self.only):
                 continue
             my_shifts = [s for s in shifts if s.applies(ch.name, name)]
             prefix = f"{ch.name}_{name}"

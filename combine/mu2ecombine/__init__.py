@@ -18,9 +18,10 @@ from .physics import mu2e_physics
 from .shapes import Fit, Pdf, Template
 from .envelope import Envelope, ALL_FAMILIES, DEFAULT_FAMILIES
 from .model import Model, ModelError, observable
+from .narrow import narrow_model
 
 __version__ = "0.3.0"
 
 __all__ = ["convolved", "rebin_to", "replace_tail", "total", "transformed", "InputError", "Mu2eEvtAnaFile", "Sample",
            "mu2eevtana_systematics", "mu2e_physics", "Fit", "Pdf", "Template", "Envelope", "ALL_FAMILIES",
-           "DEFAULT_FAMILIES", "Model", "ModelError", "observable"]
+           "DEFAULT_FAMILIES", "Model", "ModelError", "observable", "narrow_model"]

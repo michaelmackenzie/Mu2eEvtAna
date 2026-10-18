@@ -157,6 +157,23 @@ data/prediction ratios (in `figures/postfit`, with `postfit_yields.json`).
 
 To scan a parameter (e.g. a signal mass), loop in Python and write one model per point.
 
+To scan the observable range without refitting, narrow a written model:
+
+```python
+mc.narrow_model("output/search", "output/search_102_105", {"sr": (102., 105.)})
+```
+
+Templates keep the bins inside the range. PDFs (fits, your own PDFs, and an envelope with all its functions) are
+renormalized over the range, with their yields scaled to the fraction inside it. Only the range changes, and nothing
+is refit. Rate and MC statistical uncertainties stay as evaluated over the full range.
+
+## Developing a process shape
+
+`model.fit_process(channel, process, figdir="debug")` builds one process alone: it fits a `Fit` (and refits its
+variations), builds a `Template`, or fits an `Envelope` after the channel's other processes. It prints the result, draws
+the fit to `figdir`, and returns the built channel without writing a model. Use it to iterate on one component's
+function, starting values, or fit range.
+
 ## Examples
 
 - [examples/toy_model.py](examples/toy_model.py): synthetic, self-contained. It covers every process kind, a control
@@ -177,6 +194,7 @@ To scan a parameter (e.g. a signal mass), loop in Python and write one model per
 | `datacard.py` | Datacard and shape file writing |
 | `plots.py` | Expected stacks, fit QA, and post-fit figures from FitDiagnostics |
 | `combine.py` | Loading the Combine library and reading limit outputs |
+| `narrow.py` | `narrow_model`: a written model restricted to narrower observable ranges |
 
 ## Limitations
 
