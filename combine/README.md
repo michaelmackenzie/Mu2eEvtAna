@@ -104,7 +104,10 @@ ROOT.RooArgList(p, x0, a, l))`. `Fit` fits its non-constant parameters to the hi
 parameters stay as you set them.
 
 A channel whose processes are all binned is written as TH1 shapes. Any other channel becomes a `RooWorkspace`, with its
-templates stored as `RooDataHist` on the channel observable.
+templates stored as `RooDataHist` on the channel observable. `Model(..., workspace=True)` (or `channel(...,
+workspace=True)`) writes template channels as workspaces too. Combine maps TH1 shapes to its own observable
+(`CMS_th1x`), so only a workspace model can generate data, e.g. `combine -M GenerateOnly --saveToys`, that a PDF model
+of the same channel fits with `--toysFile`.
 
 ## Uncertainties
 

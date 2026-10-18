@@ -3,6 +3,7 @@
 import itertools
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -216,6 +217,53 @@ class ModelTests(unittest.TestCase):
         text = model.commands({})
         self.assertNotIn("--expectSignal", text)
         self.assertIn("--redefineSignalPOIs r2 --setParameters r2=0,r=0 --freezeParameters r", text)
+
+    def test_template_channel_as_workspace(self):
+        model = mc.Model("tmplws", workspace=True)
+        ch = model.channel("sr", mc.observable("p_tw", 100, 110, bin_width=0.5))
+        ch.add("signal", self.sig, signal=True)
+        ch.add("bkg", mc.Template(self.bkg, variations={"bscale": (scaled(self.bkg, 1.1), scaled(self.bkg, 0.95))}))
+        out = os.path.join(self.tmp, "tmplws")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            summary = model.write(out)
+        with open(os.path.join(out, "combined.txt")) as f:
+            card = f.read()
+        self.assertEqual(summary["channels"]["sr"]["mode"], "workspace")
+        self.assertIn("shapes bkg sr shapes/sr.root w:sr_bkg w:sr_bkg_$SYSTEMATIC", card)
+        f = ROOT.TFile(os.path.join(out, "shapes", "sr.root"))
+        w = f.Get("w")
+        self.assertTrue(w.var("p_tw"))
+        self.assertAlmostEqual(w.data("sr_bkg").sumEntries(), integral(mc.rebin_to(self.bkg, np.linspace(100, 110, 21))),
+                               places=6)
+        self.assertTrue(w.data("sr_bkg_bscaleUp"))
+        f.Close()
+
+    @unittest.skipUnless(shutil.which("combine"), "Combine is not set up")
+    def test_template_model_generates_for_pdf_model(self):
+        """Toys of a template model written as a workspace live on the observable of a PDF model of the channel."""
+        def write(name, fit):
+            model = mc.Model(name, workspace=True)
+            ch = model.channel("sr", mc.observable("p_gen", 100, 110, bin_width=0.5))
+            ch.add("signal", mc.Fit("gauss", self.sig) if fit else self.sig, signal=True)
+            ch.add("bkg", mc.Fit("exponential", self.bkg) if fit else self.bkg)
+            out = os.path.join(self.tmp, name)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                model.write(out, text2workspace=True)
+            return out
+        gen, fit = write("gen_tmpl", False), write("gen_pdf", True)
+        proc = subprocess.run("combine -M GenerateOnly model.root -t -1 --saveToys -n .gen", shell=True, cwd=gen,
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stdout[-2000:])
+        toys = ROOT.TFile(os.path.join(gen, "higgsCombine.gen.GenerateOnly.mH120.123456.root"))
+        names = {v.GetName() for v in toys.Get("toys/toy_asimov").get()}
+        f = ROOT.TFile(os.path.join(fit, "model.root"))
+        observables = {v.GetName() for v in f.Get("w").set("observables")}
+        self.assertIn("p_gen", names)
+        self.assertTrue(observables <= names, (observables, names))
+        toys.Close()
+        f.Close()
 
     @unittest.skipUnless(shutil.which("text2workspace.py"), "Combine is not set up")
     def test_text2workspace(self):

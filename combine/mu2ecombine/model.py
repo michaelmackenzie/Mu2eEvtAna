@@ -11,7 +11,9 @@
     model.write("output/bnv")
 
 A channel whose processes are all binned templates is written as TH1 shapes; a channel with any PDF is written as a
-RooWorkspace, with its templates as RooDataHist on the channel observable.
+RooWorkspace, with its templates as RooDataHist on the channel observable. workspace=True (Model or channel) writes a
+template channel as a workspace too, so that its data sets, e.g. toys generated from it, live on the channel observable
+and can be fit by a PDF model of the same channel.
 
 Process selections (processes=, channels=) are a name, a glob, or a list of them; '!pattern' excludes.
 """
@@ -84,7 +86,7 @@ class Process:
 
 
 class Channel:
-    def __init__(self, model, name, obs, data=None, blind=None, title=None):
+    def __init__(self, model, name, obs, data=None, blind=None, title=None, workspace=None):
         try:
             ok = bool(obs.InheritsFrom("RooRealVar"))
         except AttributeError:
@@ -96,6 +98,7 @@ class Channel:
         self.data = as_th1(data, f"channel {name} data") if data is not None else None
         self.blind = tuple(blind) if blind is not None else None
         self.title = title or name
+        self.workspace = workspace
         self.processes = {}
 
     def add(self, name, shape, signal=False, poi=None, title=None):
@@ -129,8 +132,9 @@ class _Nuisance:
 
 
 class Model:
-    def __init__(self, name="model", poi="r", poi_range=(0., 20.)):
+    def __init__(self, name="model", poi="r", poi_range=(0., 20.), workspace=False):
         self.name = name
+        self.workspace = workspace   # write template-only channels as workspaces too
         self.default_poi = poi
         self.pois = {poi: tuple(poi_range)}
         self.channels = {}
@@ -141,12 +145,13 @@ class Model:
         self.mcstats = {"enabled": True, "auto": False, "threshold": 10., "min_rel": 1e-4}
 
     # -- definition ---------------------------------------------------------------------------------------------------
-    def channel(self, name, obs, data=None, blind=None, title=None):
+    def channel(self, name, obs, data=None, blind=None, title=None, workspace=None):
         """Add a channel on the RooRealVar obs (its binning is the channel binning). data: a TH1 (default: the Asimov
-        background expectation); blind: (lo, hi) window excluded from envelope fits."""
+        background expectation); blind: (lo, hi) window excluded from envelope fits; workspace: write the channel as a
+        RooWorkspace even if all its processes are templates (default: the Model's setting)."""
         if name in self.channels:
             raise ModelError(f"channel '{name}' already defined")
-        ch = Channel(self, name, obs, data, blind, title)
+        ch = Channel(self, name, obs, data, blind, title, workspace)
         self.channels[name] = ch
         return ch
 
@@ -442,7 +447,9 @@ class _ChannelBuilder:
                          and any(matches(o, pat) for pat in p.shape.absorbs)}
         r.absorbed = sorted(absorbed)
         kinds = {n: p.shape.kind if not isinstance(p.shape, Envelope) else "envelope" for n, p in ch.processes.items()}
-        r.mode = "binned" if all(kinds[n] == "template" for n in ch.processes if n not in absorbed) else "workspace"
+        workspace = model.workspace if ch.workspace is None else ch.workspace
+        templates_only = all(kinds[n] == "template" for n in ch.processes if n not in absorbed)
+        r.mode = "binned" if templates_only and not workspace else "workspace"
         shifts = [n for n in model.nuisances if n.kind == "shift"]
         self.thetas = {}   # nuisance name -> RooRealVar, one per channel workspace
         r.keep.append(self.thetas)
