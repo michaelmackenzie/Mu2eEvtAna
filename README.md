@@ -91,6 +91,24 @@ root.exe -q -b 'Mu2eEvtAna/plotter/examples/run1b/make_plots.C(".", "figures/run
 root.exe -q -b -l 'Mu2eEvtAna/plotter/test/test_plotter.C("<scratch dir>")'   # plotter self-test
 ```
 
+## Statistical models (Combine)
+
+`combine/` holds `mu2ecombine`, a Python package that turns the histogram files (or any ROOT TH1s and RooFit PDFs) into
+[Combine](https://cms-analysis.github.io/HiggsAnalysis-CombinedLimit/) datacards and shape files. A short script
+declares the channels, processes, and uncertainties. The package writes ordinary cards and a `commands.sh`, and you run
+Combine yourself for the limits, fits, and post-fit figures. See [combine/README.md](combine/README.md).
+
+```python
+import mu2ecombine as mc
+p = mc.observable("p", 100, 110, bin_width=0.2, title="p [MeV/c]")
+model = mc.Model("my_search", poi_range=(0, 50))
+sr = model.channel("sr", p)
+sr.add("signal", mc.Fit("dscb", signal_th1), signal=True)
+sr.add("dio", dio_th1)
+model.lnN("lumi", 1.1)
+model.write("output/my_search")        # then run Combine there, e.g. the commands in commands.sh
+```
+
 ## Python
 
 `python/` produces the same histogram files from EventNtuples with
@@ -107,3 +125,4 @@ root.exe -q -b -l 'Mu2eEvtAna/plotter/test/test_plotter.C("<scratch dir>")'   # 
 | `test/` | Test macros |
 | `plotter/` | Plotting tool and examples |
 | `python/` | Python histogramming |
+| `combine/` | Combine model building (`mu2ecombine`) |
