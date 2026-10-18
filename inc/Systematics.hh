@@ -104,8 +104,8 @@ namespace Mu2eEvtAna {
       case kScaleDown      : return Data_t(isys, kScale   , "Scale"      , false);
       case kRMCPowerUp     : return Data_t(isys, kRMCPower, "RMCPower"   , true );
       case kRMCPowerDown   : return Data_t(isys, kRMCPower, "RMCPower"   , false);
-      case kRMCEndpointUp  : return Data_t(isys, kRMCPower, "RMCEndpoint", true );
-      case kRMCEndpointDown: return Data_t(isys, kRMCPower, "RMCEndpoint", false);
+      case kRMCEndpointUp  : return Data_t(isys, kRMCEndpoint, "RMCEndpoint", true );
+      case kRMCEndpointDown: return Data_t(isys, kRMCEndpoint, "RMCEndpoint", false);
       default: break;
       }
 
