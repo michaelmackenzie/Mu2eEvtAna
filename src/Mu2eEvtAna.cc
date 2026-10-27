@@ -527,6 +527,12 @@ namespace Mu2eEvtAna {
     Tree->tree->Branch("trk_upstream_dt"        , &Tree->trk_upstream_dt         );
     Tree->tree->Branch("trk_crv_dt"             , &Tree->trk_crv_dt              );
     Tree->tree->Branch("trk_crv_raw_dt"         , &Tree->trk_crv_raw_dt          );
+    Tree->tree->Branch("trk_crv_cal_dt"         , &Tree->trk_crv_cal_dt          );
+    Tree->tree->Branch("trk_crv_st_dt"          , &Tree->trk_crv_st_dt           );
+    Tree->tree->Branch("trk_crv_x"              , &Tree->trk_crv_x               );
+    Tree->tree->Branch("trk_crv_y"              , &Tree->trk_crv_y               );
+    Tree->tree->Branch("trk_crv_z"              , &Tree->trk_crv_z               );
+    Tree->tree->Branch("trk_crv_sector"         , &Tree->trk_crv_sector          );
   }
 
   //------------------------------------------------------------------------------------
@@ -1002,18 +1008,30 @@ namespace Mu2eEvtAna {
       Tree->trk_id = Track->ID(hist_track_id_).ID(0xffffffff);
 
       // For CRV deadtime estimates
-      float min_crv_time(-10000.f), min_crv_raw_time(-10000.f);
+      float min_crv_time(-10000.f), min_crv_raw_time(-10000.f), min_crv_cal_time(-10000.f), min_crv_st_time(-10000.f);
+      CRVCluster_t* raw_stub(nullptr); // cluster closest in raw time
       for(int icrv = 0; icrv < evt_.ncrv_clusters_; ++icrv) {
         CRVCluster_t* stub = &crv_clusters_[icrv];
         const float raw_dt = Track->TFront() - stub->Time();
-        if(std::fabs(raw_dt) < std::fabs(min_crv_raw_time)) min_crv_raw_time = raw_dt;
+        if(std::fabs(raw_dt) < std::fabs(min_crv_raw_time)) {
+          min_crv_raw_time = raw_dt;
+          raw_stub = stub;
+        }
         const float dt_cal = Track->TFront() - stub->TimeViaCaloFront();
         const float dt_st  = Track->TFront() - stub->TimeViaSTBack();
+        if(std::fabs(dt_cal) < std::fabs(min_crv_cal_time)) min_crv_cal_time = dt_cal; // each path hypothesis separately
+        if(std::fabs(dt_st ) < std::fabs(min_crv_st_time )) min_crv_st_time  = dt_st;
         const float dt = (std::fabs(dt_cal) < std::fabs(dt_st)) ? dt_cal : dt_st;
         if(std::fabs(dt) < std::fabs(min_crv_time)) min_crv_time = dt;
       }
       Tree->trk_crv_raw_dt = min_crv_raw_time;
       Tree->trk_crv_dt = min_crv_time;
+      Tree->trk_crv_cal_dt = min_crv_cal_time;
+      Tree->trk_crv_st_dt = min_crv_st_time;
+      Tree->trk_crv_x = (raw_stub) ? raw_stub->Position().x() : -10000.f;
+      Tree->trk_crv_y = (raw_stub) ? raw_stub->Position().y() : -10000.f;
+      Tree->trk_crv_z = (raw_stub) ? raw_stub->Position().z() : -10000.f;
+      Tree->trk_crv_sector = (raw_stub) ? raw_stub->SectorType() : -1;
 
       // Upstream and Multi-track associations
       float min_multitrk_dt(-10000.f), min_upstream_dt(-10000.f);

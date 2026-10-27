@@ -56,6 +56,12 @@ namespace DATA {
     datasets.emplace_back(false,  "mds3cb1s5r0101", "nts.mu2e.ensembleMDS3cMix1BB.MDC2025au_best_v1_1-001.root"          , 4926941, 1. /*data-ish*/);
     datasets.emplace_back(false,  "mds3db0s5r0101", "nts.mu2e.ensembleMDS3dOnSpill.MDC2025au_best_v1_1-001-001.root"     , 9837962, 1. /*data-ish*/);
 
+    // Flat-spectrum e-/e+/mu- samples for PID performance studies (TrkPID v1 in the trkpid branch)
+    datasets.emplace_back(false,  "fele0b1s5r0101", "nts.mu2e.FlateMinusMix1BB.MDC2025au_best_v1_1-001.root"            , 2276505,    7500000);
+    datasets.emplace_back(false,  "fele0b0s5r0101", "nts.mu2e.FlateMinusOnSpill.MDC2025au_best_v1_5-001.root"           , 2282410,    7500000);
+    datasets.emplace_back(false,  "fpos0b0s5r0101", "nts.mu2e.FlatePlusOnSpill.MDC2025au_best_v1_5-001.root"            , 2291243,    7500000);
+    datasets.emplace_back(false,  "fmum0b0s5r0101", "nts.mu2e.FlatMuMinusOnSpill.MDC2025au_best_v1_5-001.root"          , 2022034,    7500000);
+
     //---------------------------------------
     // Run 1B datasets
     //---------------------------------------

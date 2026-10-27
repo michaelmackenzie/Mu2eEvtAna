@@ -62,6 +62,12 @@ namespace Mu2eEvtAna {
     float trk_upstream_dt;
     float trk_crv_dt;
     float trk_crv_raw_dt;
+    float trk_crv_cal_dt; // CRV time propagated via the calorimeter front
+    float trk_crv_st_dt;  // CRV time propagated via the stopping target
+    float trk_crv_x; // position and sector type of the CRV cluster closest in raw time (trk_crv_raw_dt)
+    float trk_crv_y;
+    float trk_crv_z;
+    int   trk_crv_sector;
 
     // CRV information
     float crv_z;

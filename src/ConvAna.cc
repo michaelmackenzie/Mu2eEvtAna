@@ -115,6 +115,7 @@ namespace Mu2eEvtAna {
     hist_sets[ 40] = new hist_info_t("e+: full window"                  ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 41] = new hist_info_t("e+: narrow window"                ,  true,  true,  true,  true, false, false,  true, false);
     hist_sets[ 42] = new hist_info_t("e+: broad window"                 ,  true,  true,  true,  true, false, false,  true, false);
+    hist_sets[ 43] = new hist_info_t("e+: full window, no veto"         ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 45] = new hist_info_t("e+: loose ID for opt"             ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 50] = new hist_info_t("e+: no CRV veto"                  ,  true, false, false, false,  true, false,  true, false);
     hist_sets[ 60] = new hist_info_t("e-: Run 1A ID"                    ,  true,  true,  true,  true,  true,  true,  true, false);
@@ -952,6 +953,11 @@ namespace Mu2eEvtAna {
           }
           FillAllHistograms(42 + pos_set_offset); // broad momentum window
         }
+
+        // Full window without the CRV, upstream, and multi-track vetoes, to study them
+        const int id_p_no_veto = ID_p.ID(~((1 << kCRV) | (1 << kUpstream)));
+        if(id_p_no_veto == 0 && triggered && track_->Charge() > 0 &&
+           track_->PFront() > 80.f && track_->PFront() < 100.f) FillAllHistograms(43);
 
       } // end De selection
 
