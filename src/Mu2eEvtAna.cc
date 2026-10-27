@@ -717,7 +717,7 @@ namespace Mu2eEvtAna {
       }
     }
 
-    auto stub = Track->stub_;
+    auto stub = Track->BestCRVStub(0);
     if(stub) {
       const float deltat_st     = Track->TFront() - stub->TimeViaSTBack();
       const float deltat_calo   = Track->TFront() - stub->TimeViaCaloFront();
@@ -1317,10 +1317,8 @@ namespace Mu2eEvtAna {
     trk_par.EvaluateTZSlope();
 
     // Check for matching CRV clusters
-    CRVCluster_t* match(nullptr);
     const float max_match_time(250.f); // time window to consider matching within
     const float trk_time(trk_par.TFront());
-    float match_min_time(1.e10);
     for(int icrv = 0; icrv < evt_.ncrv_clusters_; ++icrv) {
       CRVCluster_t* stub = &crv_clusters_[icrv];
       // approximate track time assuming path through the calo
@@ -1328,14 +1326,11 @@ namespace Mu2eEvtAna {
       // approximate track time assuming path through the ST (with rebounding added on if needed)
       const float time_st (stub->TimeViaSTBack());
       const float min_time = std::min(std::fabs(time_cal - trk_time), std::fabs(time_st - trk_time));
-      if(min_time < max_match_time) {
-        if(!match || min_time < match_min_time) {
-          match = stub;
-          match_min_time = min_time;
-        }
+      const float raw_dt = std::fabs(trk_time - stub->Time());
+      if(min_time < max_match_time || (raw_dt > -150.f && raw_dt < 350.f)) {
+        trk_par.AddCRVStub(stub);
       }
     }
-    trk_par.stub_ = match;
 
     // Initial track ID
     SetTrackIDs(&trk_par);
@@ -1425,15 +1420,20 @@ namespace Mu2eEvtAna {
 
 
       // CRV rejection
-      if(track->stub_) {
-        auto stub = track->stub_;
-        const float deltat_st     = track->TFront() - stub->TimeViaSTBack();
-        const float deltat_calo   = track->TFront() - stub->TimeViaCaloFront();
-        const float deltat_crv    = track->TFront() - stub->Time();
-        const float min_extrap_dt(-50.f), max_extrap_dt(60.f);
-        if((deltat_st   > min_extrap_dt && deltat_st   < max_extrap_dt) ||
-           (deltat_calo > min_extrap_dt && deltat_calo < max_extrap_dt) ||
-           (deltat_crv > -25.f && deltat_crv < 0.f))               ID.SetBit(kCRV);
+      const int method = 0; // 0: raw CRV dt; 1: use ToF information
+      const auto stub = track->BestCRVStub(method);
+      if(stub) {
+        const float dt_st     = track->TFront() - stub->TimeViaSTBack();
+        const float dt_calo   = track->TFront() - stub->TimeViaCaloFront();
+        const float dt_crv    = track->TFront() - stub->Time();
+        if(method == 0) {
+          if(dt_crv > 0.f && dt_crv < 150.f)                       ID.SetBit(kCRV);
+        } else {
+          const float min_extrap_dt(-50.f), max_extrap_dt(60.f);
+          if((dt_st   > min_extrap_dt && dt_st   < max_extrap_dt) ||
+             (dt_calo > min_extrap_dt && dt_calo < max_extrap_dt) ||
+             (dt_crv > -25.f && dt_crv < 0.f))                     ID.SetBit(kCRV);
+        }
       }
     }
     track->SetID(ID_n, 0);

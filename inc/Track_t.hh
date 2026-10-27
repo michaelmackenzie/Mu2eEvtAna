@@ -32,7 +32,8 @@ namespace Mu2eEvtAna {
   struct Track_t {
 
     const rooutil::Track* track_ = nullptr; // pointer to the EventNtuple::Track object
-    CRVCluster_t* stub_          = nullptr; // best matched CRV cluster
+    CRVCluster_t* stubs_[kMaxCRVMatches];   // matched CRV clusters
+    int           nstubs_        = 0;       // number of matched CRV clusters
     Track_t*      upstream_      = nullptr; // pointer to a matched upstream track
 
     // Local MVA scores
@@ -498,6 +499,41 @@ namespace Mu2eEvtAna {
     }
 
     //----------------------------------------------
+    // Matched objects
+    void AddCRVStub(CRVCluster_t* stub) {
+      if(nstubs_ >= kMaxCRVMatches) throw std::runtime_error("[Track_t::AddStub] Too many matched CRV clusters!");
+      stubs_[nstubs_] = stub;
+      ++nstubs_;
+    }
+    CRVCluster_t* CRVStub(int index = 0) const {
+      if(nstubs_ <= index) return nullptr;
+      return stubs_[index];
+    }
+    CRVCluster_t* BestCRVStub(const int method = 0) const {
+      if(!track_) return nullptr;
+      if(nstubs_ <= 0) return nullptr;
+      CRVCluster_t* stub = stubs_[0];
+      const float t = TFront();
+      for(int istub = 1; istub < nstubs_; ++istub) {
+        CRVCluster_t* test = stubs_[istub];
+        if(method == 0) {
+          const float dt   = std::fabs(t - stub->Time() + 75.f); // center on the 0-150 ns window
+          const float dt_i = std::fabs(t - test->Time() + 75.f);
+          stub = (dt_i < dt) ? test : stub;
+        } else {
+          const float dt_st     = std::fabs(t - stub->TimeViaSTBack());
+          const float dt_calo   = std::fabs(t - stub->TimeViaCaloFront());
+          const float dt_st_i   = std::fabs(t - test->TimeViaSTBack());
+          const float dt_calo_i = std::fabs(t - test->TimeViaCaloFront());
+          const float dt   = std::min(dt_st  , dt_calo);
+          const float dt_i = std::min(dt_st_i, dt_calo_i);
+          stub = (dt_i < dt) ? test : stub;
+        }
+      }
+      return stub;
+    }
+
+    //----------------------------------------------
     // Accessing/setting the track IDs
     void SetID(const CutID ID, const int index = 0) {
       if(index < 0 || index >= kMaxTrackIDs) throw std::runtime_error(Form("Accessing a track ID index (%i) out of bounds!", index));
@@ -527,7 +563,8 @@ namespace Mu2eEvtAna {
     // Reset the input info
     void Reset() {
       track_               = nullptr;
-      stub_                = nullptr;
+      for(int i = 0; i < kMaxCRVMatches; ++i) stubs_[i] = nullptr;
+      nstubs_              = 0;
       upstream_            = nullptr;
       trkqual_             = -1000.f;
       pid_                 = -1000.f;

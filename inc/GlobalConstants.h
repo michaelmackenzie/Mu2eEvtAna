@@ -10,7 +10,10 @@
 #include "TString.h"
 
 namespace Mu2eEvtAna {
-  enum {kMaxTracks = 500, kMaxCaloClusters = 500, kMaxCRVClusters = 100, kMaxSimps = 1000, kMaxHists = 10000, kMaxObservables = 10, kMaxSystematics = 100};
+  enum {
+    kMaxTracks = 500, kMaxCaloClusters = 500, kMaxCRVClusters = 100, kMaxSimps = 1000,
+    kMaxHists = 10000, kMaxObservables = 10, kMaxSystematics = 100, kMaxCRVMatches = 30
+  };
 
   // Run1B: time cluster / line seed collections (a job can fill several of each, under different
   // output branch names -- see rooutil::Event::TimeClusterCollectionNames()/LineSeedCollectionNames())
