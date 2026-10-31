@@ -80,9 +80,10 @@ def binning(obs):
 
 
 class Process:
-    def __init__(self, name, shape, signal=False, poi=None, title=None):
+    def __init__(self, name, shape, signal=False, poi=None, title=None, color=None):
         self.name, self.shape, self.signal, self.poi = name, shape, signal, poi
         self.title = title or name
+        self.color = color   # figure color: a ROOT color index or "#rrggbb" (default: the figure palette)
 
 
 class Channel:
@@ -101,8 +102,9 @@ class Channel:
         self.workspace = workspace
         self.processes = {}
 
-    def add(self, name, shape, signal=False, poi=None, title=None):
-        """Add a process. shape: a TH1 or list of TH1s (a binned template), Template, Fit, Pdf, or Envelope."""
+    def add(self, name, shape, signal=False, poi=None, title=None, color=None):
+        """Add a process. shape: a TH1 or list of TH1s (a binned template), Template, Fit, Pdf, or Envelope.
+        color: its figure color, a ROOT color index or "#rrggbb" (default: the figure palette)."""
         if name in self.processes:
             raise ModelError(f"channel {self.name}: process '{name}' already defined")
         if not name.replace("_", "").isalnum():
@@ -114,7 +116,7 @@ class Channel:
                 raise ModelError(str(err)) from None
         if isinstance(shape, Envelope) and signal:
             raise ModelError(f"channel {self.name}: an envelope cannot be the signal")
-        p = Process(name, shape, signal, poi, title)
+        p = Process(name, shape, signal, poi, title, color)
         self.processes[name] = p
         return p
 
@@ -144,6 +146,8 @@ class Model:
         self.groups = {}             # name -> [nuisances]
         self.mcstats = {"enabled": True, "auto": False, "threshold": 10., "min_rel": 1e-4}
         self.free = set()            # unconstrained (flat-prior) nuisances
+        self.figure_label = None     # (left, right) TLatex header of the stack figures, e.g. an experiment label and
+                                     # the exposure; either may be None
 
     # -- definition ---------------------------------------------------------------------------------------------------
     def channel(self, name, obs, data=None, blind=None, title=None, workspace=None):
@@ -219,16 +223,21 @@ class Model:
                                  "ranges or binnings: give each its own RooRealVar name")
             seen.setdefault(name, (ch.name, ch.edges))
 
-    def write(self, outdir, plots=False, text2workspace=False):
+    def write(self, outdir, plots=False, text2workspace=False, shapes=True):
         """Write the Combine model to outdir: combined.txt and <channel>.txt cards (paths relative to outdir), shapes/,
-        model.json, and commands.sh. Returns the summary dict."""
-        os.makedirs(os.path.join(outdir, "shapes"), exist_ok=True)
+        model.json, and commands.sh. shapes=False writes counting cards, without shapes/ or shapes lines: every channel
+        must then have one bin and only log-normal uncertainties. Returns the summary dict."""
         results = self.build()
-        for r in results.values():
-            r.write_shapes(outdir)
+        if shapes:
+            os.makedirs(os.path.join(outdir, "shapes"), exist_ok=True)
+            for r in results.values():
+                r.write_shapes(outdir)
+        else:
+            self._check_counting(results)
+            os.makedirs(outdir, exist_ok=True)
         ids = self._process_ids(results)
-        cards = {name: self._card([r], ids) for name, r in results.items()}
-        cards["combined"] = self._card(list(results.values()), ids)
+        cards = {name: self._card([r], ids, shapes) for name, r in results.items()}
+        cards["combined"] = self._card(list(results.values()), ids, shapes)
         for name, card in cards.items():
             card.write(os.path.join(outdir, f"{name}.txt"))
         summary = self._summary(results, ids)
@@ -239,7 +248,7 @@ class Model:
         self.print_summary(summary)
         if plots:
             from . import plots as plotlib
-            plotlib.plot_model(results, os.path.join(outdir, "figures"))
+            plotlib.plot_model(results, os.path.join(outdir, "figures"), self.figure_label)
         if text2workspace:
             self.text2workspace(outdir)
         print(f"Wrote {os.path.join(outdir, 'combined.txt')} (see commands.sh)")
@@ -348,13 +357,29 @@ class Model:
                     ids[p] = nbkg
         return ids
 
-    def _card(self, results, ids):
+    def _check_counting(self, results):
+        """A counting card has one bin per channel and only log-normal rate uncertainties."""
+        if self.mcstats["enabled"] and self.mcstats["auto"]:
+            raise ModelError("counting cards cannot use autoMCStats: use mc_stats(auto=False)")
+        for r in results.values():
+            ch = r.channel.name
+            if len(r.channel.edges) != 2:
+                raise ModelError(f"channel {ch} has {len(r.channel.edges) - 1} bins: a counting card needs one")
+            if r.envelopes or r.pdfs:
+                raise ModelError(f"channel {ch} has PDF or envelope processes: a counting card needs templates")
+            shaped = sorted({name for name, kind, _, _ in r.effects if kind != "lnN"})
+            if shaped:
+                raise ModelError(f"channel {ch}: {', '.join(shaped)} are shape uncertainties; a counting card needs "
+                                 "rate (lnN) uncertainties")
+
+    def _card(self, results, ids, shapes=True):
         card = Datacard(f"Combine model '{self.name}' written by mu2ecombine; paths are relative to this file")
         effects = {}   # nuisance -> {"lnN": {(ch, p): text}, "shape": {(ch, p): text}, "ws": set}
         for r in results:
             ch = r.channel.name
             card.add_bin(ch, integral(r.data))
-            r.add_shapes(card)
+            if shapes:
+                r.add_shapes(card)
             for p in r.processes:
                 card.add_process(ch, p, ids[p], r.card_rates[p])
             for (name, kind, p, text) in r.effects:
@@ -430,13 +455,17 @@ class Model:
             from . import plots as plotlib
             os.makedirs(figdir, exist_ok=True)
             plotlib._style()
-            if process in r.fits:
-                path = os.path.join(figdir, f"{channel}_{process}_fit.png")
-                plotlib.plot_fit(r, process, r.fits[process], path)
-            else:
-                path = os.path.join(figdir, f"{channel}_{process}_prefit.png")
-                plotlib.plot_channel(r, path)
-            print(f"  figure: {path}")
+            for logy, suffix in ((False, ""), (True, "_log")):
+                if process in r.fits:
+                    path = os.path.join(figdir, f"{channel}_{process}_fit{suffix}.png")
+                    plotlib.plot_fit(r, process, r.fits[process], path, logy, self.figure_label)
+                elif plotlib.is_template(r, process):
+                    path = os.path.join(figdir, f"{channel}_{process}_template{suffix}.png")
+                    plotlib.plot_template(r, process, path, logy, self.figure_label)
+                else:
+                    path = os.path.join(figdir, f"{channel}_{process}_prefit{suffix}.png")
+                    plotlib.plot_channel(r, path, logy, self.figure_label)
+                print(f"  figure: {path}")
         return r
 
     # -- summary -------------------------------------------------------------------------------------------------------

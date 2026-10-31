@@ -153,6 +153,26 @@ class ModelTests(unittest.TestCase):
         self.assertTrue(f.Get("signal_pscaleUp"))
         f.Close()
 
+    def test_counting_card(self):
+        model = mc.Model("counting", poi_range=(0, 10), workspace=True)
+        ch = model.channel("sr", mc.observable("p_counting", 104, 105, bins=1))
+        ch.add("signal", mc.hist.make([104, 105], [1.5], [0.01], "signal"), signal=True)
+        ch.add("bkg", mc.hist.make([104, 105], [0.2], [0.0004], "bkg"))
+        model.lnN("bscale", (1.2, 0.9), processes="bkg")
+        out = os.path.join(self.tmp, "counting")
+        model.write(out, shapes=False)
+        with open(os.path.join(out, "combined.txt")) as f:
+            card = f.read()
+        self.assertNotIn("shapes", card)
+        self.assertFalse(os.path.exists(os.path.join(out, "shapes")))
+        self.assertIn("0.9000/1.2000", card)
+        self.assertIn("mcstat_sr_bkg lnN", card)
+        ch.add("other", mc.Template(mc.hist.make([104, 105], [0.1], None, "other"),
+                                    variations={"oshape": (mc.hist.make([104, 105], [0.12], None, "u"),
+                                                           mc.hist.make([104, 105], [0.09], None, "d"))}))
+        with self.assertRaises(mc.ModelError):
+            model.write(os.path.join(self.tmp, "counting_shape"), shapes=False)
+
     def test_workspace_channel_links_nuisances(self):
         _, out, card = self.build("workspace", fit=True)
         self.assertIn("shapes signal sr shapes/sr.root w:sr_signal", card)

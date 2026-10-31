@@ -109,6 +109,10 @@ workspace=True)`) writes template channels as workspaces too. Combine maps TH1 s
 (`CMS_th1x`), so only a workspace model can generate data, e.g. `combine -M GenerateOnly --saveToys`, that a PDF model
 of the same channel fits with `--toysFile`.
 
+`model.write(outdir, shapes=False)` writes counting cards (no `shapes/` directory or `shapes` lines) for a model of
+one-bin channels with only log-normal uncertainties, e.g. a cut-and-count version of a shape model. Convert its shape
+uncertainties to `lnN` (k_up, k_down) from the up/down yields in the bin first.
+
 ## Uncertainties
 
 | Call | Effect |
