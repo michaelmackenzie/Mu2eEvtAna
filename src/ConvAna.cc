@@ -117,6 +117,8 @@ namespace Mu2eEvtAna {
     hist_sets[ 42] = new hist_info_t("e+: broad window"                 ,  true,  true,  true,  true, false, false,  true, false);
     hist_sets[ 43] = new hist_info_t("e+: full window, no veto"         ,  true,  true,  true,  true,  true,  true,  true,  true);
     hist_sets[ 45] = new hist_info_t("e+: loose ID for opt"             ,  true,  true,  true,  true,  true,  true,  true,  true);
+    hist_sets[ 46] = new hist_info_t("e+: calo cluster"                 ,  true, false, false, false, false,  true,  true, false);
+    hist_sets[ 47] = new hist_info_t("e+: no calo cluster"              ,  true, false, false, false, false,  true,  true, false);
     hist_sets[ 50] = new hist_info_t("e+: no CRV veto"                  ,  true, false, false, false,  true, false,  true, false);
     hist_sets[ 60] = new hist_info_t("e-: Run 1A ID"                    ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 62] = new hist_info_t("e-: Run 1A ID + upstream veto"    ,  true,  true,  true,  true,  true,  true,  true, false);
@@ -448,20 +450,24 @@ namespace Mu2eEvtAna {
   CutID ConvAna::Run1ATrackID(Track_t* track) {
     if(!track || !track->track_) return 0;
     CutID ID;
-    const float pmin = (track->Charge() < 0) ?  97.f :  85.f;
+    const float pmin = (track->Charge() < 0) ? 100.f :  87.f;
     const float pmax = (track->Charge() < 0) ? 110.f : 110.f;
-    if(track->PFront() < pmin || track->PFront() > pmax)          ID.SetBit(kP);        // Loose momentum window
-    if(track->OPAInter())                                         ID.SetBit(kRMax);     // Cosmic rejection
+    if(track->PFront() <= pmin || track->PFront() >= pmax)        ID.SetBit(kP);        // Loose momentum window
+    if(track->OPAInter() != 0)                                    ID.SetBit(kOPA);      // Cosmic rejection
+    if(track->TSDAInter() != 0)                                   ID.SetBit(kTSDA);     // Cosmic rejection
     if(std::abs(track->FitPDG()) != 11 || track->PZFront() < 0.f) ID.SetBit(kFitHyp);   // Downstream electron fit
-    if(track->TrkQual() > -10. && track->TrkQual() < 0.2)         ID.SetBit(kTrkQual);  // Track quality
-    else if(track->TErrFront() > 0.9)                             ID.SetBit(kTrkQual);  // FIXME: Give a label
-    else if(track->NActive() < 20)                                ID.SetBit(kTrkQual);  // FIXME: Give a label
-    if(track->TFront() < 475. || track->TFront() > 1650.)         ID.SetBit(kT0);       // FIXME: Check selection
-    if(track->NSTInter() == 0)                                    ID.SetBit(kD0);       // Consistent with stopping target
-    if(track->TanDipFront() < 0.5 || track->TanDipFront() > 0.95) ID.SetBit(kTDip);     // Tan(dip) = pz / pt here
-    if(track->TFront() < 475. || track->TFront() > 1650.)         ID.SetBit(kT0Loose);  // For RPC control regions
+    if(track->TrkQual() <= 0.145)                                 ID.SetBit(kTrkQual);  // Track quality
+    if(track->TErrMiddle() >= 0.81)                               ID.SetBit(kT0Err);    //
+    if(track->NActive() < 17)                                     ID.SetBit(kNActive);  //
+    if(track->TFront() <= 475. || track->TFront() >= 1650.)       ID.SetBit(kT0);       // shape-based time
+    if(!track->STBoundary())                                      ID.SetBit(kSTBoundary);// Consistent with stopping target
+    if(track->NSTInter() <= 0)                                    ID.SetBit(kSTInter);  // Consistent with stopping target
+    if(track->TanDipFront() <= 0.56)                              ID.SetBit(kTDip);     // Tan(dip) = pz / pt here
+    if(track->TanDipFront() >= 0.8787)                            ID.SetBit(kTDip);     // Tan(dip) = pz / pt here
+    if(track->D0Front() <= -60. || track->D0Front() >= 94.)       ID.SetBit(kD0);       // Cosmic rejection
+    if(track->TFront() <= 475. || track->TFront() >= 1650.)       ID.SetBit(kT0Loose);  // For RPC control regions
     if(track->ECluster() <= 0.)                                   ID.SetBit(kClusterE); // Require a cluster
-    else if(track->PID() < 0.67f)                                 ID.SetBit(kPID);      // PID requirement
+    else if(track->PID() <= 0.574)                                ID.SetBit(kPID);      // PID requirement
 
     // CRV rejection
     bool fail_crv = false;
@@ -476,10 +482,76 @@ namespace Mu2eEvtAna {
     }
     if(fail_crv)                                                  ID.SetBit(kCRV);
 
-    // Upstream track rejection
-    // FIXME: Add the standard matching logic
-
     return ID;
+  }
+
+  //------------------------------------------------------------------------------------
+  // Evaluate a cut-flow
+  bool ConvAna::SetCutFlow(const CutID& ID, CutFlow& cut_flow, bool eminus) {
+    if(!track_) return false;
+    cut_flow.Increment("a_track");
+    if(!track_->IsGood()) return false;
+    cut_flow.Increment("a_converged_track");
+    if(track_->PFront() <= 0.) return false;
+    cut_flow.Increment("has_front_seg");
+    if(std::abs(track_->FitPDG()) != 11) return false;
+    cut_flow.Increment("is_electron");
+    if(track_->PZFront() <= 0.f) return false;
+    cut_flow.Increment("is_downstream");
+    if(track_->Charge() > 0) return false;
+    cut_flow.Increment("charge");
+    if(!trigger_.FiredAPR() && !trigger_.FiredCPR()) return false;
+    cut_flow.Increment("trigger");
+    if(ID.CheckBit(kUpstream)) return false;
+    cut_flow.Increment("upstream_reflection");
+    if(ID.CheckBit(kMultiTrk)) return false;
+    cut_flow.Increment("multi_trk");
+    if(ID.CheckBit(kClusterE)) return false;
+    cut_flow.Increment("cluster_energy");
+    if(ID.CheckBit(kPID)) return false;
+    cut_flow.Increment("PID");
+    if(ID.CheckBit(kTDip)) return false;
+    cut_flow.Increment("tan_dip");
+    if(ID.CheckBit(kD0)) return false;
+    cut_flow.Increment("d0");
+    if(ID.CheckBit(kSTBoundary)) return false;
+    cut_flow.Increment("st_boundary");
+    if(ID.CheckBit(kSTInter)) return false;
+    cut_flow.Increment("st_inter");
+    if(ID.CheckBit(kOPA)) return false;
+    cut_flow.Increment("opa_inter");
+    if(ID.CheckBit(kTSDA)) return false;
+    cut_flow.Increment("tsda_inter");
+    if(ID.CheckBit(kTrkQual)) return false;
+    cut_flow.Increment("trkqual");
+    if(ID.CheckBit(kNActive)) return false;
+    cut_flow.Increment("nactive");
+    if(ID.CheckBit(kT0Err)) return false;
+    cut_flow.Increment("t0_err");
+    if(ID.CheckBit(kCRV)) return false;
+    cut_flow.Increment("crv_veto");
+    if(track_->PFront() <= 100.f || track_->PFront() >= 110.f) return false;
+    cut_flow.Increment("momentum");
+    if(ID.CheckBit(kT0)) return false;
+    cut_flow.Increment("t_475");
+    if(track_->TFront() > 540.f) {
+      cut_flow.Increment("t_540");
+      if(track_->TFront() > 640.f) {
+        cut_flow.Increment("t_640");
+        if(track_->PFront() > 103.34f && track_->PFront() < 104.74f) {
+          cut_flow.Increment("sr_momentum");
+        }
+      }
+    }
+    if(ID != 0) {
+      std::cout << "[ConvAna::" << __func__ << "] "
+                << evt_.run_ << ":" << evt_.subrun_ << ":" << evt_.event_
+                << " Event passes cuts but fails ID = "
+                << std::hex << ID.ID() << std::dec
+                << std::endl;
+    }
+
+    return true;
   }
 
   //------------------------------------------------------------------------------------
@@ -493,6 +565,8 @@ namespace Mu2eEvtAna {
                           2*(!trigger_.FiredAPR() && !trigger_.FiredCPR())
                           );
 
+    if((ID.CheckBit(kMC))) return false;
+    cut_flow.Increment("mc_cut");
     if(track_->PFront() <= 0.f) return false;
     cut_flow.Increment("has_front_seg");
 
@@ -510,8 +584,15 @@ namespace Mu2eEvtAna {
 
     if((ID.CheckBit(kUpstream))) return false;
     cut_flow.Increment("upstream_veto");
-    cut_flow.Increment("trk_front_seg");
+    if((ID.CheckBit(kMultiTrk))) return false;
+    cut_flow.Increment("multi_track");
+    if((ID.CheckBit(kFitHyp))) return false;
+    cut_flow.Increment("fit_hypothesis");
+    if((ID.CheckBit(kTZSlope))) return false;
+    cut_flow.Increment("tz_slope");
     if((ID.CheckBit(kPID))) return false;
+    cut_flow.Increment("good_pid");
+    if((ID.CheckBit(kTrkPID))) return false;
     cut_flow.Increment("good_trkpid");
     if((ID.CheckBit(kClusterE))) return false;
     cut_flow.Increment("good_cluster");
@@ -519,17 +600,30 @@ namespace Mu2eEvtAna {
     cut_flow.Increment("good_trkqual");
     if((ID.CheckBit(kFitCon))) return false;
     cut_flow.Increment("fitcon");
-    cut_flow.Increment("has_hits");
-    if((ID.CheckBit(kD0))) return false;
-    cut_flow.Increment("has_st");
-    if((ID.CheckBit(kRMax))) return false;
+    if((ID.CheckBit(kNActive))) return false;
+    cut_flow.Increment("active_hits");
+    if((ID.CheckBit(kT0Err))) return false;
+    cut_flow.Increment("t0_err");
+    if((ID.CheckBit(kSTBoundary))) return false;
+    cut_flow.Increment("st_boundary");
+    if((ID.CheckBit(kSTInter))) return false;
+    cut_flow.Increment("st_inter");
+    if((ID.CheckBit(kOPA))) return false;
     cut_flow.Increment("no_opa");
+    if((ID.CheckBit(kTSDA))) return false;
+    cut_flow.Increment("no_tsda");
     if((ID.CheckBit(kCRV))) return false;
     cut_flow.Increment("no_crv_quality");
     cut_flow.Increment("no_crv_timewindow");
     cut_flow.Increment("no_crv_veto");
     if((ID.CheckBit(kTDip))) return false;
     cut_flow.Increment("pz_over_pt");
+    if((ID.CheckBit(kCosTheta))) return false;
+    cut_flow.Increment("cos_theta");
+    if((ID.CheckBit(kRMax))) return false;
+    cut_flow.Increment("rmax");
+    if((ID.CheckBit(kD0))) return false;
+    cut_flow.Increment("d0");
     if((ID.CheckBit(kCosmicID)) != 0) return false;
     cut_flow.Increment("cosmic_id");
     if((event_id & (2)) != 0) return false;
@@ -617,26 +711,31 @@ namespace Mu2eEvtAna {
       track_ = &tracks_[itrk];
       cut_flow_ep_.Increment("a_track");
       cut_flow_ep_.Increment("a_track");
+      run1a_cut_flow_.Increment("a_track");
       dev_cut_flow_.Increment("a_track");
       if(!track_->IsGood()) continue; // if not a properly fit track, skip it
       dev_cut_flow_.Increment("a_converged_track");
+      run1a_cut_flow_.Increment("a_converged_track");
       if(track_->PFront() <= 0.) continue;
       dev_cut_flow_.Increment("has_front_seg");
+      run1a_cut_flow_.Increment("has_front_seg");
       StandardCutFlow(true);
       StandardCutFlow(false);
       if(std::abs(track_->FitPDG()) != 11) continue; // skip muon fits for now due to rooutil bug
       dev_cut_flow_.Increment("is_electron");
+      run1a_cut_flow_.Increment("is_electron");
 
       // Downstream electron sets
       if(std::abs(track_->FitPDG()) == 11 && track_->PZFront() > 0.f) {
         dev_cut_flow_.Increment("is_downstream");
+        run1a_cut_flow_.Increment("is_downstream");
         // All high momentum electron tracks
         if(track_->PFront() > 95.f && track_->Charge() < 0) FillAllHistograms(4);
 
         // Standard IDs
         const auto ID_n    = track_->ID(0);
         const auto ID_p    = track_->ID(1);
-        const auto Run1AID = track_->ID(2);
+        auto       Run1AID = track_->ID(2);
 
         // Cosmic multiplicity/reflection vetos
         bool multi_trk(true), upstream_veto(true);
@@ -659,6 +758,10 @@ namespace Mu2eEvtAna {
             multi_trk &= std::fabs(dt) > 150.; // veto events with tracks coincident with the main track
           }
         }
+
+        if(!multi_trk)     Run1AID.SetBit(kMultiTrk);
+        if(!upstream_veto) Run1AID.SetBit(kUpstream);
+        SetCutFlow(Run1AID, run1a_cut_flow_, true);
 
         // Offset to control regions
         int neg_set_offset(0), pos_set_offset(0);
@@ -838,12 +941,12 @@ namespace Mu2eEvtAna {
           if(track_->TFront() > 475.f) FillAllHistograms(80 + cut_opt_offset);
         }
 
-
         bool base_test_id = true; // As of 2026-10-08 from Natalie
         // base_test_id &= track_->Charge() < 0;
         base_test_id &= (trigger_.FiredAPR() || trigger_.FiredCPR());
         base_test_id &= upstream_veto;
         base_test_id &= multi_trk;
+        base_test_id &= track_->STBoundary();
         base_test_id &= track_->NSTInter() > 0;
         base_test_id &= track_->OPAInter() == 0;
         base_test_id &= track_->TSDAInter() == 0;
@@ -860,11 +963,42 @@ namespace Mu2eEvtAna {
             test_id &= track_->NActive() >= 17;
             test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
             test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
+            if(track_->Charge() < 0 && !test_id && Run1AID.ID() == 0 && track_->TFront() > 540.) {
+                std::cout << "[ConvAna::" << __func__ << "] "
+                          << evt_.run_ << ":" << evt_.subrun_ << ":" << evt_.event_
+                          << " Event fails set 79 cuts but passes ID"
+                          << std::endl
+                          << "  trigger = " << (trigger_.FiredAPR() || trigger_.FiredCPR()) << std::endl
+                          << "  TrkQual = " << track_->TrkQual() << std::endl
+                          << "  PID = " << track_->PID() << std::endl
+                          << "  ECluster = " << track_->ECluster() << std::endl
+                          << "  TErr = " << track_->TErrMiddle() << std::endl
+                          << "  TanDip = " << track_->TanDipFront() << std::endl
+                          << "  D0 = " << track_->D0Front() << std::endl
+                          << "  NActive = " << track_->NActive() << std::endl
+                          << "  PFront = " << track_->PFront() << std::endl
+                          << "  TFront = " << track_->TFront() << std::endl
+                          << "  N(OPA) = " << track_->OPAInter() << std::endl
+                          << "  N(TSdA) = " << track_->TSDAInter() << std::endl
+                          << "  N(ST inter) = " << track_->NSTInter() << std::endl
+                          << "  N(ST boundary) = " << track_->STBoundary() << std::endl
+                          << "  upstream = " << upstream_veto << std::endl
+                          << "  multi_trk = " << multi_trk << std::endl
+                          << "  ID = " << Run1AID.ID() << std::endl
+                          << std::endl;
+            }
             if(test_id) {
               int cut_opt_offset = 0;
               if(Run1AID.CheckBit(kCRV))    cut_opt_offset += kCRVVetoOffset;
               if(track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset;
               if(track_->Charge() > 0)      cut_opt_offset += kChargeOffset;
+              if(cut_opt_offset == 0 && Run1AID.ID() != 0) {
+                std::cout << "[ConvAna::" << __func__ << "] "
+                          << evt_.run_ << ":" << evt_.subrun_ << ":" << evt_.event_
+                          << " Event passes set 79 cuts but fails ID = "
+                          << std::hex << Run1AID.ID() << std::dec
+                          << std::endl;
+              }
               FillAllHistograms(79 + cut_opt_offset);
             }
           }
@@ -952,6 +1086,10 @@ namespace Mu2eEvtAna {
             if(track_->PFront() > 90.f && track_->PFront() < 93.f) FillAllHistograms(41 + pos_set_offset);
           }
           FillAllHistograms(42 + pos_set_offset); // broad momentum window
+
+          // splitting based on the calo cluster
+          if(track_->ECluster() > 0.f) FillAllHistograms(46 + pos_set_offset);
+          else                         FillAllHistograms(47 + pos_set_offset);
         }
 
         // Full window without the CRV, upstream, and multi-track vetoes, to study them
@@ -975,6 +1113,8 @@ namespace Mu2eEvtAna {
     cut_flow_em_.Print();
     printf("Nominal e+ cut-flow:\n");
     cut_flow_ep_.Print();
+    printf("Run 1A cut-flow:\n");
+    run1a_cut_flow_.Print();
     printf("Test cut-flow:\n");
     dev_cut_flow_.Print();
   }

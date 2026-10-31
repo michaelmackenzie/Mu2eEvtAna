@@ -17,8 +17,8 @@ namespace DATA {
   vector<Dataset_t> datasets() {
     vector<Dataset_t> datasets;
 
-    const bool ele = true ; // datasets for electron analysis
-    const bool pos = false; // datasets for positron analysis
+    const bool ele = false; // datasets for electron analysis
+    const bool pos = true ; // datasets for positron analysis
 
     //---------------------------------------
     // Run 1A datasets
@@ -41,6 +41,8 @@ namespace DATA {
     datasets.emplace_back(false,  "mds3db0s5r0100", "nts.mu2e.ensembleMDS3dOnSpill.MDC2025au_best_v1_1-001.root"         , 9837962, 1. /*data-ish*/);
 
     // MDC2025au-001 version, new PID (same mcs, so same counts)
+    datasets.emplace_back(false,  "cele0b0s5r0101", "nts.mu2e.CeEndpointOnSpill.MDC2025ba_best_v1_5.root"                , 4247008,   10000000);
+    datasets.emplace_back(false,  "dio00b0s5r0101", "nts.mu2e.DIOtail95OnSpill.MDC2025ba_best_v1_5.root"                 , 2995328,    8000000);
     datasets.emplace_back(ele  ,  "cele1b1s5r0101", "nts.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_1-001.root"          , 4141125,   10000000);
     datasets.emplace_back(pos  ,  "cpos1b1s5r0101", "nts.mu2e.CePLeadingLogMix1BB.MDC2025au_best_v1_1-001.root"          , 3235878,   10000000);
     datasets.emplace_back(true ,  "cry4ab1s5r0101", "nts.mu2e.CosmicSignalMix1BB.MDC2025au_best_v1_1-001.root"           , 4155435,    4437713. /*livetime*/);
@@ -61,6 +63,21 @@ namespace DATA {
     datasets.emplace_back(false,  "fele0b0s5r0101", "nts.mu2e.FlateMinusOnSpill.MDC2025au_best_v1_5-001.root"           , 2282410,    7500000);
     datasets.emplace_back(false,  "fpos0b0s5r0101", "nts.mu2e.FlatePlusOnSpill.MDC2025au_best_v1_5-001.root"            , 2291243,    7500000);
     datasets.emplace_back(false,  "fmum0b0s5r0101", "nts.mu2e.FlatMuMinusOnSpill.MDC2025au_best_v1_5-001.root"          , 2022034,    7500000);
+
+    // Nominal-target OnSpill (unmixed) references for the alternate target samples. There is no CeEndpointOnSpill at
+    // au_best_v1_5, so the signal reference is CeMLeadingLog. N(events) and N(gen) are from the mcs datasets; the
+    // DIO -001 ntuple holds 122 of the 125 mcs files
+    datasets.emplace_back(false,  "cele1b0s5r0101", "nts.mu2e.CeMLeadingLogOnSpill.MDC2025au_best_v1_5-001.root"       , 4144677,   10000000);
+    // datasets.emplace_back(false,  "dio00b0s5r0101", "nts.mu2e.DIOtail95OnSpill.MDC2025au_best_v1_5-001.root"          , 9386180,   25000000);
+
+    // Alternate target samples (OnSpill): 37 foils + 6 up/6 down (r0110), 49 foils with 1-5 mm (r0120) or 9-41 mm
+    // (r0130) holes. N(events) and N(gen) are from the mcs datasets (sum of gen.count); the DIO samples have 8e6 generated
+    datasets.emplace_back(false,  "cele0b0s5r0110", "nts.mu2e.CeEndpointOnSpill.MDC2025ba_st37plus6up6dn_best_v1_5.root", 4002040,   10000000);
+    datasets.emplace_back(false,  "dio00b0s5r0110", "nts.mu2e.DIOtail95OnSpill.MDC2025ba_st37plus6up6dn_best_v1_5.root" , 2764431,    8000000);
+    datasets.emplace_back(false,  "cele0b0s5r0120", "nts.mu2e.CeEndpointOnSpill.MDC2025ba_st49hole1to5_best_v1_5.root"  , 3967395,   10000000);
+    datasets.emplace_back(false,  "dio00b0s5r0120", "nts.mu2e.DIOtail95OnSpill.MDC2025ba_st49hole1to5_best_v1_5.root"   , 2717026,    8000000);
+    datasets.emplace_back(false,  "cele0b0s5r0130", "nts.mu2e.CeEndpointOnSpill.MDC2025ba_st49hole9to41_best_v1_5.root" , 3961096,   10000000);
+    datasets.emplace_back(false,  "dio00b0s5r0130", "nts.mu2e.DIOtail95OnSpill.MDC2025ba_st49hole9to41_best_v1_5.root"  , 2700249,    8000000);
 
     //---------------------------------------
     // Run 1B datasets

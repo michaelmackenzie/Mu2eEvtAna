@@ -246,7 +246,7 @@ namespace Mu2eEvtAna {
     Hist->fDPCenter      = new TH1F("dPCenter"    ,Form("%s: track p_reco - p_mc"                  ,Folder),  400,  -20.,   20.);
     Hist->fChi2NDof      = new TH1F("chi2NDof"    ,Form("%s: track chi2/ndof"                      ,Folder),  200,    0.,   10.);
     Hist->fFitCons[0]    = new TH1F("fitCons"     ,Form("%s: track p(chi2,ndof)"                   ,Folder),  200,    0.,    1.);
-    Hist->fFitCons[1]    = new TH1F("fitCons_log" ,Form("%s: track log10(p(chi2,ndof))"            ,Folder),  200,   -6.,    0.);
+    Hist->fFitCons[1]    = new TH1F("fitCons_log" ,Form("%s: track log10(p(chi2,ndof))"            ,Folder),  200,  -10.,    0.);
     Hist->fFitMomErr     = new TH1F("fitMomErr"   ,Form("%s: track momentum uncertainty"           ,Folder),  200,    0.,    5.);
     Hist->fTanDip        = new TH1F("tanDip"      ,Form("%s: track tanDip"                         ,Folder),  200,    0.,    2.);
     Hist->fTanDipWide    = new TH1F("tanDip_wide" ,Form("%s: track tanDip"                         ,Folder),  300,    0.,    6.);
@@ -274,8 +274,8 @@ namespace Mu2eEvtAna {
     Hist->fSTInters      = new TH1F("st_inters"   ,Form("%s: Stopping target intersections"        ,Folder),  30,    0.,   30.);
     Hist->fIPAInters     = new TH1F("ipa_inters"  ,Form("%s: IPA intersections"                    ,Folder),  10,    0.,   10.);
     Hist->fOPAInters     = new TH1F("opa_inters"  ,Form("%s: OPA intersections"                    ,Folder),  10,    0.,   10.);
-    Hist->fTrackID       = new TH1F("track_id"    ,Form("%s: Track ID bits"                        ,Folder),   33,    0.,   33.);
-    Hist->fExlTrackID    = new TH1F("track_exl_id",Form("%s: Track ID bits for exclusive rejection",Folder),   32,    0.,   32.);
+    Hist->fTrackID       = new TH1F("track_id"    ,Form("%s: Track ID bits"                        ,Folder),   35,    0.,   35.);
+    Hist->fExlTrackID    = new TH1F("track_exl_id",Form("%s: Track ID bits for exclusive rejection",Folder),   35,    0.,   35.);
 
     // Initialize bin labels for the Track ID histograms
     Hist->fTrackID   ->GetXaxis()->SetBinLabel(1, "Passed");
@@ -1386,14 +1386,14 @@ namespace Mu2eEvtAna {
 
         if(track->ECluster() <= 0.) { // no cluster associated
           if(track->TrkPID() < -100.f)                               ID.SetBit(kClusterE); // no score --> fail it
-          else if(track->TrkPID() < 0.15f)                           ID.SetBit(kPID); // tracker-only PID
+          else if(track->TrkPID() < 0.15f)                           ID.SetBit(kTrkPID); // tracker-only PID
         } else if(track->AltPID() < 0.10f)                           ID.SetBit(kPID); // full PID
       }
 
       // General selections
-      if(track->OPAInter())                                          ID.SetBit(kRMax);
-      if(track->TSDAInter())                                         ID.SetBit(kRMax);
-      if(!track->STBoundary())                                       ID.SetBit(kD0); // consistent with stopping target
+      if(track->OPAInter())                                          ID.SetBit(kOPA);
+      if(track->TSDAInter())                                         ID.SetBit(kTSDA);
+      if(!track->STBoundary())                                       ID.SetBit(kSTBoundary);
       if(track->TFront() < 475. || track->TFront() > 1650.)          ID.SetBit(kT0Loose); //for control regions
 
       // upstream and multi-track rejection
@@ -1416,7 +1416,7 @@ namespace Mu2eEvtAna {
         }
       }
       if(!upstream_veto)                                           ID.SetBit(kUpstream);
-      if(!multi_trk)                                               ID.SetBit(kUpstream); // FIXME: Add a bit
+      if(!multi_trk)                                               ID.SetBit(kMultiTrk);
 
 
       // CRV rejection

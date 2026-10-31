@@ -38,7 +38,10 @@ namespace Mu2eEvtAna {
     kP = 0, kRMax = 1, kTrkQual = 2, kT0 = 3, kFitCon = 4,
     kClusterE = 5, kD0 = 6, kTDip = 7, kT0Loose = 8, kCosTheta = 9,
     kUpstream = 10, kPID = 11, kFitHyp = 12, kCosmicID = 13, kTZSlope = 14,
-    kCRV = 15, kMC = 20 // note: CutID::Passes() and ID() default to masking bits 0-15
+    kCRV = 15, kMultiTrk = 16, kTrkPID = 17,
+    kOPA = 18, kTSDA = 19, kSTBoundary = 20, kSTInter = 21,
+    kT0Err = 22, kNActive = 23,
+    kMC = 30
   };
 
   // Set offsets

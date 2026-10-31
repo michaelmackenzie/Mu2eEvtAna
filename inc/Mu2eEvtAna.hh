@@ -136,6 +136,14 @@ namespace Mu2eEvtAna {
       case kFitHyp: return "Fit hyp.";
       case kCosmicID: return "Cosmic ID";
       case kCRV: return "CRV";
+      case kMultiTrk: return "Multi-track";
+      case kTrkPID: return "Trk-PID";
+      case kOPA: return "OPA";
+      case kTSDA: return "TSDA";
+      case kSTBoundary: return "ST boundary";
+      case kSTInter: return "ST inter";
+      case kT0Err: return "#sigma_{t}";
+      case kNActive: return "N(hits)";
       case kCosTheta: return "cos(#theta)";
       case kTZSlope: return "TZ slope";
       case kMC: return "MC";

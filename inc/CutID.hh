@@ -23,7 +23,7 @@ namespace Mu2eEvtAna {
     }
 
     // No bits are set
-    bool Passes(int mask = 0xffff) const { return (id_ & mask) == 0; }
+    bool Passes(int mask = 0xffffffff) const { return (id_ & mask) == 0; }
 
     // Check if a specific bit is set
     bool CheckBit(const int bit) const {
@@ -37,7 +37,7 @@ namespace Mu2eEvtAna {
       return CheckBit(bit) && ((id_ & ~(1 << bit)) == 0);
     }
 
-    int ID(const int mask = 0xffff) const { return id_ & mask; }
+    int ID(const int mask = 0xffffffff) const { return id_ & mask; }
 
     void Reset() { id_ = 0; }
 

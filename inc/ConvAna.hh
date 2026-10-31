@@ -69,6 +69,7 @@ namespace Mu2eEvtAna {
     void FillAllHistograms(const int index);
     void InitTreeData();
     CutID Run1ATrackID(Track_t* track);
+    bool SetCutFlow(const CutID& ID, CutFlow& cut_flow, bool eminus = true);
     bool Run1ACutFlow();
     bool StandardCutFlow(const bool eminus = true);
 
