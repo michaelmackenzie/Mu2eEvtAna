@@ -634,6 +634,91 @@ class TwoDimensionTests(unittest.TestCase):
         with self.assertRaisesRegex(NarrowError, "2D"):
             mc.narrow_model(out, out + "_narrow", {"sr": (102., 108.)})
 
+    def _plot_model(self, tag):
+        px, tx = self.axes(tag)
+        model = mc.Model(f"plot2d_{tag}", poi_range=(0, 10))
+        ch = model.channel("sr", (px, tx))
+        ch.add("signal", mc.Product(mc.Fit("gauss", self.hx), mc.Fit("exponential", self.hy)), signal=True)
+        ch.add("bkg", self.bkg)
+        return model, px, tx
+
+    def test_plots_2d(self):
+        model, px, tx = self._plot_model("plots")
+        out = os.path.join(self.tmp, "plots2d")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            model.write(out, plots=True)
+        names = set(os.listdir(os.path.join(out, "figures")))
+        p, t = px.GetName(), tx.GetName()
+        expected = {f"sr_prefit_{a}{s}.png" for a in (p, t) for s in ("", "_log")}
+        expected |= {f"sr_signal_{a}_fit{s}.png" for a in (p, t) for s in ("", "_log")}
+        expected |= {f"sr_{q}_2d.png" for q in ("signal", "bkg")}
+        self.assertEqual(expected - names, set())
+        self.assertFalse({n for n in names if n.startswith("sr_prefit.")})     # no unrolled stack
+
+    def test_fit_process_of_a_product(self):
+        model, px, tx = self._plot_model("fitproc")
+        figdir = os.path.join(self.tmp, "fitproc2d")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            r = model.fit_process("sr", "signal", figdir=figdir)
+        self.assertEqual(set(r.components["signal"]), {px.GetName(), tx.GetName()})
+        for a in (px.GetName(), tx.GetName()):
+            self.assertTrue(os.path.exists(os.path.join(figdir, f"sr_signal_{a}_fit.png")))
+        self.assertTrue(os.path.exists(os.path.join(figdir, "sr_signal_2d.png")))
+        r = model.fit_process("sr", "bkg", figdir=figdir)        # a TH2 template: its 2D figure only
+        self.assertTrue(os.path.exists(os.path.join(figdir, "sr_bkg_2d.png")))
+
+    def test_project_postfit(self):
+        from mu2ecombine.plots import project_postfit
+        nx, ny = 3, 2
+        edges = {"observable": {"title": "u", "edges": list(range(nx * ny + 1)), "axes": [
+            {"name": "x", "title": "x [a]", "bins": nx, "edges": [0., 1., 2., 3.]},
+            {"name": "y", "title": "y [b]", "bins": ny, "edges": [0., 1., 2.]}]}, "blind": [1, 2]}
+        v = np.arange(1., 7.)                                    # k = iy * nx + ix
+        e = np.full(6, 2.)
+        ch = {"edges": np.arange(7.), "processes": {"a": (v, e)}, "total": (v, e), "data": (v, v, v), "asimov": False}
+        px, info = project_postfit(ch, edges, 0)
+        np.testing.assert_allclose(px["processes"]["a"][0], [5., 7., 9.])
+        np.testing.assert_allclose(px["processes"]["a"][1], np.full(3, np.sqrt(8.)))
+        np.testing.assert_allclose(px["data"][1], np.sqrt([5., 7., 9.]))
+        self.assertEqual((info["observable"]["title"], info["blind"]), ("x [a]", None))
+        py, _ = project_postfit(ch, edges, 1)
+        np.testing.assert_allclose(py["processes"]["a"][0], [6., 15.])
+        np.testing.assert_allclose(py["edges"], [0., 1., 2.])
+
+    def test_postfit_figures_2d(self):
+        """The post-fit figures of a 2D channel from a synthetic FitDiagnostics-like file."""
+        from mu2ecombine.plots import plot_fitdiagnostics
+        model, px, tx = self._plot_model("postfit")
+        out = os.path.join(self.tmp, "postfit2d")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            summary = model.write(out)
+        n = summary["channels"]["sr"]["observable"]["bins"]
+        f = ROOT.TFile(os.path.join(out, "fitDiagnostics.test.root"), "RECREATE")
+        for fit in ("prefit", "fit_s"):
+            d = f.mkdir(f"shapes_{fit}").mkdir("sr")
+            d.cd()
+            for name, k in (("signal", 1.), ("bkg", 5.), ("total", 6.)):
+                h = ROOT.TH1D(name, "", n, 0., float(n))
+                for b in range(n):
+                    h.SetBinContent(b + 1, k * (1. + b % 4))
+                    h.SetBinError(b + 1, 0.1 * k)
+                h.Write()
+            g = ROOT.TGraphAsymmErrors(n)
+            for b in range(n):
+                g.SetPoint(b, b + 0.5, 6. * (1. + b % 4))
+            g.SetName("data")
+            g.Write()
+        f.Close()
+        plot_fitdiagnostics(os.path.join(out, "fitDiagnostics.test.root"), out)
+        names = set(os.listdir(os.path.join(out, "figures", "postfit")))
+        for fit in ("prefit", "fit_s"):
+            for a in (px.GetName(), tx.GetName()):
+                self.assertIn(f"sr_{fit}_{a}.png", names)
+
+
     @unittest.skipUnless(shutil.which("combine") and shutil.which("text2workspace.py"), "Combine is not set up")
     def test_combine_limit_on_2d_model(self):
         px, tx = self.axes("limit")

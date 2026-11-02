@@ -64,6 +64,7 @@ Ordinary TH1 methods (`Add`, `Scale`, `Rebin`) work as usual. A few helpers retu
 | `mc.rebin_to(h, edges)` | Bins merged into `edges`, which must be edges of `h` (an error otherwise, never an approximation). |
 | `mc.total([h1, h2])` | Sum. |
 | `mc.transformed(h, shift=, stretch=, about=)` | x -> about + (x - about)(1 + stretch) + shift, contents redistributed. |
+| `mc.rebin2_to(h2, xedges, yedges)`, `mc.unroll(h2)`, `mc.roll(h1, xedges, yedges)`, `mc.transformed2(h2, axis, ...)` | The 2D versions (see [2D observables](#2d-observables)). |
 | `mc.convolved(truth, response, edges)` | A truth spectrum smeared by a response histogram (x_reco - x_true). |
 | `mc.replace_tail(h, x, reference)` | Bins above x take the shape of `reference`, keeping h's content there. |
 
@@ -81,6 +82,39 @@ ch = model.channel(name, p, data=None, blind=None)
 - `data`: a TH1 of observed data. By default the data is the Asimov background expectation.
 - `blind`: a (lo, hi) window that envelope fits exclude. It is also drawn on the figures.
 
+## 2D observables
+
+A channel on two observables, e.g. momentum and time, takes a tuple of two `RooRealVar`s:
+
+```python
+p = mc.observable("p", 100, 110, bin_width=0.5, title="p [MeV/c]")
+t = mc.observable("t", 450, 1650, bin_width=100., title="t [ns]")
+ch = model.channel("sr", (p, t), data=None)        # data: a TH2
+```
+
+- The channel is binned and unrolled into one dimension: global bin `k = iy * nx + ix` (x fastest), so the templates in
+  `shapes/<channel>.root` are TH1s of `nx * ny` bins, and Combine sees an ordinary binned channel. `model.json` records the
+  axes and the unrolling of each 2D channel (`observable.axes`, `observable.unroll`).
+- A TH2 (or a list of TH2s, or a `Template` of TH2s with `variations=` and `shape=`) is a process template. It is
+  rebinned to the two binnings like a TH1 and keeps the correlation between the observables. The data may be a TH2.
+- `Product(x_shape, y_shape, rate=None)` builds a factorized shape, rate x outer(f_x, f_y), from two 1D shapes that are
+  each a TH1 (or a list), a `Template`, or a `Fit` on that axis's observable. A `Fit` is fit in 1D and used binned. The
+  rate is a number, a TH1/TH2 (its integral in the channel range), or by default the x component's rate. Variations of
+  a component (`Template` variations, `Fit` variations and `nuisances=`) vary that axis with the other nominal. The
+  figures show each `Fit` component (`ChannelResult.components`).
+- `model.shape_shift(..., axis="p")` shifts or stretches along one observable, for TH2 templates (every slice) and for the
+  `Product` component on that axis. `axis` is required in a 2D channel. In a 1D channel it must name the channel's
+  observable, or the shift is skipped there, so one `shape_shift(..., axis="p")` covers 1D `p` channels and 2D `(p, t)`
+  channels.
+- Figures (`write(..., plots=True)`, `fit_process`): the expected stack of each projection (`<channel>_prefit_<axis>`),
+  the 1D fit of each `Fit` component (`<channel>_<process>_<axis>_fit`), and the 2D template of each process
+  (`<channel>_<process>_2d`). The post-fit figures (`python3 -m mu2ecombine.plots fitDiagnostics.<name>.root`) draw the
+  projections of the unrolled shapes on each observable, with quadrature-summed bin errors (the bin-to-bin
+  correlations are not known) and no blind window.
+
+Not supported yet: a top-level `Fit`, `Pdf` or `Envelope` process in a 2D channel (use it as a `Product` component),
+`narrow_model` of a 2D channel, and workspace (unbinned or continuous) PDFs in two dimensions.
+
 ## Processes: shape and rate
 
 `ch.add(name, shape, signal=False, poi=None, title=None)`, where `shape` is one of:
@@ -92,6 +126,7 @@ ch = model.channel(name, p, data=None, blind=None)
 | `Fit(function, th1, rate=None, order=, params=, fit_range=)` | A PDF fit to the MC histogram, then frozen. `function` is any `RooAbsPdf` built on the channel observable, or a predefined name. The rate defaults to the histogram integral. |
 | `Fit(..., binned=True)` | The fitted function used as a binned template, to smooth sparse MC. The rate's MC uncertainty is kept. |
 | `Pdf(roo_pdf, rate, norm=None)` | Any `RooAbsPdf`, used as is. Its free parameters float in Combine; constrain them with `model.param`. |
+| `Product(x_shape, y_shape, rate=None)` | A factorized 2D shape for a channel on two observables (see [2D observables](#2d-observables)). |
 | `Envelope(families=, absorbs=[...])` | Data-driven background: function families fit to the data outside the blind window, then discrete profiling (`RooMultiPdf`). `absorbs` lists the MC processes it replaces. |
 
 Predefined names for `Fit` build ordinary RooFit PDFs: `gauss`, `cb`, `dscb` (`RooCrystalBall`), `exponential`, `power`,
@@ -176,23 +211,25 @@ is refit. Rate and MC statistical uncertainties stay as evaluated over the full 
 
 `model.fit_process(channel, process, figdir="debug")` builds one process alone: it fits a `Fit` (and refits its
 variations), builds a `Template`, or fits an `Envelope` after the channel's other processes. It prints the result, draws
-the fit to `figdir`, and returns the built channel without writing a model. Use it to iterate on one component's
+the fit to `figdir` (for a `Product` in a 2D channel, the fit of each component and the 2D template), and returns the built channel without writing a model. Use it to iterate on one component's
 function, starting values, or fit range.
 
 ## Examples
 
 - [examples/toy_model.py](examples/toy_model.py): synthetic, self-contained. It covers every process kind, a control
   region with a `rateParam`, hand-built RooFit PDFs (one with a nuisance inside), and two POIs.
+- [examples/toy_model_2d.py](examples/toy_model_2d.py): a 2D (p, t) channel with `Product` and TH2 processes and
+  shape shifts along each axis.
 - `python3 -m unittest discover -s tests` runs the tests. The text2workspace test is skipped when Combine is not set up.
 
 ## Layout
 
 | Module | Contents |
 |---|---|
-| `hist.py` | TH1 helpers (`rebin_to`, `total`, `transformed`, `convolved`, `replace_tail`) |
+| `hist.py` | TH1 and TH2 helpers (`rebin_to`, `total`, `transformed`, `convolved`, `replace_tail`, `unroll`, `roll`, ...) |
 | `inputs.py` | `Mu2eEvtAnaFile` and `Sample`: histograms and systematic variations from Mu2eEvtAna files |
 | `physics.py` | `mu2e_physics`: constants read from `plotter/physics/Mu2ePhysics.C` |
-| `shapes.py` | Process shapes: `Template`, `Fit`, `Pdf` |
+| `shapes.py` | Process shapes: `Template`, `Fit`, `Pdf`, `Product` |
 | `pdfs.py` | Predefined RooFit PDFs, fitting, and nuisance parameters on fitted PDFs |
 | `envelope.py` | Data-driven `Envelope` backgrounds (`RooMultiPdf`) |
 | `model.py` | `Model`, channels, uncertainties, and `commands.sh` |
@@ -209,4 +246,4 @@ function, starting values, or fit range.
   fluctuations in the shape.
 - The AsymptoticLimits results were validated against earlier, independent implementations of the same analyses. The
   toy-based `HybridNew` command in `commands.sh` has not been checked yet.
-- Not yet supported: 2D observables and unfolding (truth-bin signals with regularization).
+- Not yet supported: unfolding (truth-bin signals with regularization), and the 2D limitations listed in [2D observables](#2d-observables).
