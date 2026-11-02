@@ -37,6 +37,9 @@ def plot_model(results, figdir, label=None):
     os.makedirs(figdir, exist_ok=True)
     _style()
     for name, r in results.items():
+        if r.channel.dim == 2:
+            print(f"  (figures of the 2D channel {name} are not drawn yet)")
+            continue
         for logy, suffix in ((False, ""), (True, "_log")):
             plot_channel(r, os.path.join(figdir, f"{name}_prefit{suffix}.png"), logy, label)
             plot_inputs(r, os.path.join(figdir, f"{name}_inputs{suffix}.png"), logy, label)

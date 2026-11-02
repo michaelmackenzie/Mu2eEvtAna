@@ -8,6 +8,9 @@
   Pdf(roo_pdf, rate)                   a RooAbsPdf used as is; its free parameters float in the Combine fit
   Envelope(...)                        data-driven discrete profiling over function families (envelope.py)
 
+  Product(x_shape, y_shape)            2D (e.g. p x t) shape from two 1D shapes (TH1, Template, or Fit), each on its own
+                                       observable; for a channel on two observables (see Model.channel)
+
 Histograms may come in any binning whose edges include the channel's bin edges; they are rebinned automatically.
 
 Uncertainties from histogram variations, variations={name: (up, down)} or (up, down, mode):
@@ -19,7 +22,8 @@ For a Pdf process, (up, down) may also be rate factors (kappa_up, kappa_down).
 A nuisance with the same name in several processes/channels is one correlated parameter.
 """
 
-from .hist import arrays, as_th1, integral, is_th1, make, rebin_to, rel_error
+from .hist import (arrays, as_hist, as_th1, integral, is_th1, is_th2, make, rebin2_to, rebin_to, rel_error,
+                   unroll)
 
 MODES = ("shape", "shape_only", "rate")
 
@@ -40,7 +44,7 @@ def as_variations(variations, numbers=False):
         if numbers and all(isinstance(x, (int, float)) for x in v[:2]):
             out[name] = (float(v[0]), float(v[1]), mode)
         else:
-            out[name] = (as_th1(v[0], f"variation {name} up"), as_th1(v[1], f"variation {name} down"), mode)
+            out[name] = (as_hist(v[0], f"variation {name} up"), as_hist(v[1], f"variation {name} down"), mode)
     return out
 
 
@@ -62,14 +66,39 @@ def scaled(h, factor):
 
 
 class Template:
-    """A binned template: rate from `hist`, shape from `shape` (default `hist`)."""
+    """A binned template: rate from `hist`, shape from `shape` (default `hist`). The histograms are TH1s, or TH2s for
+    a channel on two observables (all of the same dimension). In a 2D channel the Template is converted to unrolled
+    TH1Ds (see `unrolled`) and `raw` keeps the source TH2 for shape shifts along an axis."""
 
     kind = "template"
 
     def __init__(self, hist, shape=None, variations=None):
-        self.hist = as_th1(hist, "Template")
-        self.shape_hist = as_th1(shape, "Template shape") if shape is not None else None
+        self.hist = as_hist(hist, "Template")
+        self.shape_hist = as_hist(shape, "Template shape") if shape is not None else None
         self.variations = as_variations(variations)
+        self.raw = None
+        dims = {2 if is_th2(h) else 1 for h in [self.hist, self.shape_hist] if h is not None}
+        dims |= {2 if is_th2(h) else 1 for v in self.variations.values() for h in v[:2]}
+        if len(dims) != 1:
+            raise ShapeError("Template: the histograms must be all TH1 or all TH2")
+        self.dim = dims.pop()
+
+    def unrolled(self, xedges, yedges):
+        """The 2D Template as a Template of unrolled TH1Ds in (xedges, yedges), with `raw` the source TH2."""
+        if self.dim != 2:
+            raise ShapeError("Template: expected 2D histograms for a 2D channel")
+
+        def flat(h, what):
+            try:
+                return unroll(rebin2_to(h, xedges, yedges))
+            except ValueError as err:
+                raise ShapeError(f"{what}: {err}") from None
+        variations = {n: (flat(up, f"variation {n} up"), flat(dn, f"variation {n} down"), mode)
+                      for n, (up, dn, mode) in self.variations.items()}
+        out = Template(flat(self.hist, "Template"), flat(self.shape_hist, "Template shape")
+                       if self.shape_hist is not None else None, variations)
+        out.raw = self.source()
+        return out
 
     def source(self):
         """The histogram that defines the shape (before rebinning)."""
@@ -247,6 +276,48 @@ class Pdf:
                 _ratio(integral(in_channel(up, edges, f"variation {name} up")), rate))
 
 
+class Product:
+    """A factorized 2D shape for a channel on two observables (x, y): the template is rate x outer(fx, fy), with fx and
+    fy the normalized bin fractions of two 1D shapes, each built in 1D on its own observable and binning, and unrolled.
+
+    x_shape, y_shape:  a TH1 (or list of TH1s), Template, or Fit on that axis's RooRealVar. A Fit is fit in 1D and
+                       used binned (a PDF component must depend on its own axis observable only); the fitted
+                       components are kept in ChannelResult.components for the fit QA figures.
+    rate:              a number, or a TH1/TH2 whose integral in the channel range is used; default the x component's
+                       rate. The MC relative uncertainty is that of the rate source (the x component by default).
+    Variations: those of each component (Template variations, Fit variations and `nuisances=`, and Model.shape_shift
+    along the component's axis). A nuisance is varied in every component that has it, the other axis staying
+    nominal; the rate effect of a variation (modes "shape" and "rate") stays with the component carrying it.
+    """
+
+    kind = "template"
+
+    def __init__(self, x_shape, y_shape, rate=None):
+        self.x, self.y = (self._component(c, a) for c, a in ((x_shape, "x"), (y_shape, "y")))
+        if rate is None or isinstance(rate, (int, float)):
+            self.rate_source = rate
+        else:
+            self.rate_source = as_hist(rate, "Product rate")
+
+    @staticmethod
+    def _component(obj, axis):
+        if is_th1(obj) or (isinstance(obj, (list, tuple)) and obj and all(is_th1(o) for o in obj)):
+            return Template(obj)
+        if isinstance(obj, (Template, Fit)):
+            if isinstance(obj, Template) and obj.dim != 1:
+                raise ShapeError(f"Product: the {axis} component is a 2D Template; give 1D histograms")
+            return obj
+        raise ShapeError(f"Product: the {axis} component must be a TH1, a list of TH1s, a Template, or a Fit, got "
+                         f"{type(obj).__name__}")
+
+    @property
+    def components(self):
+        return (self.x, self.y)
+
+    def nuisance_names(self):
+        return {n for c in self.components for n in list(c.variations) + list(getattr(c, "nuisances", {}))}
+
+
 def _is_pdf(obj):
     try:
         return bool(obj.InheritsFrom("RooAbsPdf"))
@@ -255,8 +326,8 @@ def _is_pdf(obj):
 
 
 def as_shape(obj, what):
-    """A Template from a TH1 or a list of TH1s; other shapes pass through."""
-    if is_th1(obj) or isinstance(obj, (list, tuple)):
+    """A Template from a TH1 or TH2 or a list of them; other shapes pass through."""
+    if is_th1(obj) or is_th2(obj) or isinstance(obj, (list, tuple)):
         return Template(obj)
-    raise ShapeError(f"{what}: expected a TH1, a list of TH1s, Template, Fit, Pdf, or Envelope, got "
+    raise ShapeError(f"{what}: expected a TH1, a list of TH1s, Template, Fit, Pdf, Envelope, or Product, got "
                      f"{type(obj).__name__}")

@@ -15,6 +15,10 @@ RooWorkspace, with its templates as RooDataHist on the channel observable. works
 template channel as a workspace too, so that its data sets, e.g. toys generated from it, live on the channel observable
 and can be fit by a PDF model of the same channel.
 
+A channel on two observables, model.channel("sr", (p, t)), is a unrolled 1D channel: its templates are TH1Ds on the bin
+index k = iy * nx + ix (x fastest, nx the bins of the first observable), made from TH2 inputs or a Product of two 1D
+shapes (shapes.py). Only binned templates are supported in 2D channels (so far).
+
 Process selections (processes=, channels=) are a name, a glob, or a list of them; '!pattern' excludes.
 """
 
@@ -29,8 +33,9 @@ import numpy as np
 
 from .datacard import Datacard, kappa_text
 from .envelope import Envelope
-from .hist import HistError, arrays, as_th1, clip_negative, integral, make, rebin_to, rel_error, transformed
-from .shapes import Fit, Pdf, ShapeError, Template, as_shape, in_channel, scaled
+from .hist import (HistError, arrays, as_th1, as_th2, clip_negative, integral, is_th1, is_th2, make, rebin2_to, rebin_to,
+                   rel_error, transformed, transformed2, unroll)
+from .shapes import Fit, Pdf, Product, ShapeError, Template, as_shape, in_channel, scaled
 
 
 class ModelError(ValueError):
@@ -87,41 +92,92 @@ class Process:
 
 
 class Channel:
+    """A channel on one RooRealVar, or on two (x, y): then `axes` are the two variables with their binnings in
+    `axis_edges`, `edges` is the unrolled bin-index binning 0..nx*ny (global bin k = iy * nx + ix), and `obs` is the
+    bin-index variable <name>_bin used in workspaces. For one observable, axes = (obs,) and edges = its binning."""
+
     def __init__(self, model, name, obs, data=None, blind=None, title=None, workspace=None):
-        try:
-            ok = bool(obs.InheritsFrom("RooRealVar"))
-        except AttributeError:
-            ok = False
-        if not ok:
-            raise ModelError(f"channel {name}: the observable must be a RooRealVar (see mu2ecombine.observable)")
-        self.model, self.name, self.obs = model, name, obs
-        self.edges = binning(obs)
-        self.data = as_th1(data, f"channel {name} data") if data is not None else None
+        axes = tuple(obs) if isinstance(obs, (tuple, list)) else (obs,)
+        for x in axes:
+            try:
+                ok = bool(x.InheritsFrom("RooRealVar"))
+            except AttributeError:
+                ok = False
+            if not ok:
+                raise ModelError(f"channel {name}: the observable must be a RooRealVar (see mu2ecombine.observable)")
+        if len(axes) not in (1, 2):
+            raise ModelError(f"channel {name}: give one RooRealVar, or a tuple of two for a 2D channel")
+        if len(axes) == 2 and axes[0].GetName() == axes[1].GetName():
+            raise ModelError(f"channel {name}: the two observables have the same name '{axes[0].GetName()}'")
+        self.model, self.name, self.axes = model, name, axes
+        self.axis_edges = tuple(binning(x) for x in axes)
+        self.dim = len(axes)
+        if self.dim == 2:
+            import ROOT
+            n = (len(self.axis_edges[0]) - 1) * (len(self.axis_edges[1]) - 1)
+            self.obs = ROOT.RooRealVar(f"{name}_bin", f"{name} bin", 0., float(n))
+            self.obs.setBins(n)
+            self.edges = np.arange(n + 1, dtype=float)
+        else:
+            self.obs, self.edges = axes[0], self.axis_edges[0]
+        self.data = self._hist(data, f"channel {name} data") if data is not None else None
         self.blind = tuple(blind) if blind is not None else None
         self.title = title or name
         self.workspace = workspace
         self.processes = {}
 
+    def _hist(self, h, what):
+        """A histogram on the channel binning as a detached TH1D: a TH1 (list) for 1D; a TH2 (list) rebinned to the
+        axes and unrolled for 2D."""
+        try:
+            if self.dim == 1:
+                if is_th2(h) or (isinstance(h, (list, tuple)) and h and is_th2(h[0])):
+                    raise ModelError(f"{what}: a TH2 was given to the 1D channel {self.name}")
+                return as_th1(h, what)
+            if is_th1(h) or (isinstance(h, (list, tuple)) and h and is_th1(h[0])):
+                raise ModelError(f"{what}: a TH1 was given to the 2D channel {self.name}; give a TH2")
+            return unroll(rebin2_to(as_th2(h, what), *self.axis_edges))
+        except HistError as err:
+            raise ModelError(f"{what}: {err}") from None
+
     def add(self, name, shape, signal=False, poi=None, title=None, color=None):
-        """Add a process. shape: a TH1 or list of TH1s (a binned template), Template, Fit, Pdf, or Envelope.
-        color: its figure color, a ROOT color index or "#rrggbb" (default: the figure palette)."""
+        """Add a process. shape: a TH1 or list of TH1s (a binned template), Template, Fit, Pdf, or Envelope; in a 2D
+        channel a TH2 (list), a Template of TH2s, or a Product of two 1D shapes. color: its figure color, a ROOT
+        color index or "#rrggbb" (default: the figure palette)."""
         if name in self.processes:
             raise ModelError(f"channel {self.name}: process '{name}' already defined")
         if not name.replace("_", "").isalnum():
             raise ModelError(f"process name '{name}': use letters, digits, and underscores")
-        if not isinstance(shape, (Template, Fit, Pdf, Envelope)):
+        if not isinstance(shape, (Template, Fit, Pdf, Envelope, Product)):
             try:
                 shape = as_shape(shape, f"{self.name}/{name}")
             except (ShapeError, HistError) as err:
                 raise ModelError(str(err)) from None
         if isinstance(shape, Envelope) and signal:
             raise ModelError(f"channel {self.name}: an envelope cannot be the signal")
+        where = f"channel {self.name}/{name}"
+        if self.dim == 2:
+            if isinstance(shape, (Fit, Pdf, Envelope)):
+                raise ModelError(f"{where}: a {type(shape).__name__} cannot be a process of a 2D channel by itself; "
+                                 "use Product(x_shape, y_shape) with it as a component")
+            if isinstance(shape, Template):
+                if shape.dim != 2:
+                    raise ModelError(f"{where}: a TH1 template was given to the 2D channel; give TH2s or a Product")
+                try:
+                    shape = shape.unrolled(*self.axis_edges)
+                except (ShapeError, HistError) as err:
+                    raise ModelError(f"{where}: {err}") from None
+        else:
+            if isinstance(shape, Product):
+                raise ModelError(f"{where}: a Product needs a 2D channel (give model.channel a tuple of two observables)")
+            if isinstance(shape, Template) and shape.dim == 2:
+                raise ModelError(f"{where}: a TH2 template was given to the 1D channel")
         p = Process(name, shape, signal, poi, title, color)
         self.processes[name] = p
         return p
 
     def set_data(self, hist):
-        self.data = as_th1(hist, f"channel {self.name} data")
+        self.data = self._hist(hist, f"channel {self.name} data")
 
 
 class _Nuisance:
@@ -151,8 +207,9 @@ class Model:
 
     # -- definition ---------------------------------------------------------------------------------------------------
     def channel(self, name, obs, data=None, blind=None, title=None, workspace=None):
-        """Add a channel on the RooRealVar obs (its binning is the channel binning). data: a TH1 (default: the Asimov
-        background expectation); blind: (lo, hi) window excluded from envelope fits; workspace: write the channel as a
+        """Add a channel on the RooRealVar obs (its binning is the channel binning), or on a tuple (x, y) of two for a
+        2D channel (see Channel). data: a TH1, or a TH2 for a 2D channel (default: the Asimov background
+        expectation); blind: (lo, hi) window excluded from envelope fits; workspace: write the channel as a
         RooWorkspace even if all its processes are templates (default: the Model's setting)."""
         if name in self.channels:
             raise ModelError(f"channel '{name}' already defined")
@@ -168,11 +225,14 @@ class Model:
         """Log-normal rate uncertainty: value is kappa (e.g. 1.1) or (kappa_up, kappa_down)."""
         self.nuisances.append(_Nuisance(name, "lnN", processes, channels, group, value=value))
 
-    def shape_shift(self, name, shift=0., stretch=0., about=None, processes="*", channels="*", group=None):
+    def shape_shift(self, name, shift=0., stretch=0., about=None, processes="*", channels="*", group=None, axis=None):
         """A generated shape uncertainty: up/down are the MC shapes transformed by x -> about + (x - about)(1 +- stretch)
-        +- shift (energy scale / resolution). Applies to Template and Fit processes (refit for fitted PDFs)."""
+        +- shift (energy scale / resolution). Applies to Template and Fit processes (refit for fitted PDFs).
+        axis: the name of the observable the shift acts on. Required in 2D channels, where it shifts the TH2 Templates
+        (every slice) and the Product component along that axis; a 1D channel whose observable has another name is
+        skipped, so one shift with axis="p" covers 1D p channels and 2D (p, t) channels."""
         self.nuisances.append(_Nuisance(name, "shift", processes, channels, group, shift=shift, stretch=stretch,
-                                        about=about))
+                                        about=about, axis=axis))
 
     def rate_param(self, name, processes, channels="*", init=1., range=(0., 10.)):
         """A free normalization factor shared by the selected processes (e.g. constrained by a control region)."""
@@ -204,6 +264,9 @@ class Model:
         names = {n.name for n in self.nuisances} | set(self.params)
         for ch in self.channels.values():
             for p in ch.processes.values():
+                if isinstance(p.shape, Product):
+                    names |= p.shape.nuisance_names()
+                    continue
                 names |= set(getattr(p.shape, "variations", {}))
                 names |= set(getattr(p.shape, "nuisances", {}))
         return names
@@ -217,11 +280,12 @@ class Model:
     def _check_observables(self):
         seen = {}
         for ch in self.channels.values():
-            name = ch.obs.GetName()
-            if name in seen and (len(seen[name][1]) != len(ch.edges) or not np.allclose(seen[name][1], ch.edges)):
-                raise ModelError(f"channels {seen[name][0]} and {ch.name} use observables named '{name}' with different "
-                                 "ranges or binnings: give each its own RooRealVar name")
-            seen.setdefault(name, (ch.name, ch.edges))
+            for obs, edges in zip(ch.axes, ch.axis_edges):
+                name = obs.GetName()
+                if name in seen and (len(seen[name][1]) != len(edges) or not np.allclose(seen[name][1], edges)):
+                    raise ModelError(f"channels {seen[name][0]} and {ch.name} use observables named '{name}' with "
+                                     "different ranges or binnings: give each its own RooRealVar name")
+                seen.setdefault(name, (ch.name, edges))
 
     def write(self, outdir, plots=False, text2workspace=False, shapes=True):
         """Write the Combine model to outdir: combined.txt and <channel>.txt cards (paths relative to outdir), shapes/,
@@ -451,7 +515,9 @@ class Model:
         if process in r.envelope_info:
             info["envelope"] = {k: v for k, v in r.envelope_info[process].items() if k != "tested"}
         print(f"{channel}/{process}: {json.dumps(info, indent=2, default=float)}")
-        if figdir:
+        if figdir and ch.dim == 2:
+            print("  (figures of 2D channels are not drawn by fit_process)")
+        elif figdir:
             from . import plots as plotlib
             os.makedirs(figdir, exist_ok=True)
             plotlib._style()
@@ -479,8 +545,12 @@ class Model:
     @staticmethod
     def print_summary(summary):
         for name, ch in summary["channels"].items():
-            print(f"Channel {name} ({ch['mode']}, {ch['observable']['name']} {ch['observable']['range'][0]:g}-"
-                  f"{ch['observable']['range'][1]:g}, {ch['observable']['bins']} bins), data: {ch['data']['source']} "
+            obs = ch["observable"]
+            axes = obs.get("axes")
+            where = (" x ".join(f"{a['name']} {a['range'][0]:g}-{a['range'][1]:g}, {a['bins']} bins" for a in axes)
+                     + f", {obs['bins']} unrolled bins" if axes else
+                     f"{obs['name']} {obs['range'][0]:g}-{obs['range'][1]:g}, {obs['bins']} bins")
+            print(f"Channel {name} ({ch['mode']}, {where}), data: {ch['data']['source']} "
                   f"({ch['data']['integral']:.4g})")
             for p, info in ch["processes"].items():
                 tag = " (signal)" if info["signal"] else ""
@@ -533,10 +603,12 @@ class _ChannelBuilder:
             shape = proc.shape
             if isinstance(shape, Envelope) or not (build_all or name in self.only):
                 continue
-            my_shifts = [s for s in shifts if s.applies(ch.name, name)]
+            my_shifts = self._my_shifts(shifts, name)
             prefix = f"{ch.name}_{name}"
             try:
-                if isinstance(shape, Template):
+                if isinstance(shape, Product):
+                    self._product(r, name, shape, my_shifts, prefix)
+                elif isinstance(shape, Template):
                     self._template(r, name, shape, my_shifts)
                 elif isinstance(shape, Fit) and shape.binned:
                     self._binned_fit(r, name, shape, my_shifts, prefix)
@@ -597,27 +669,55 @@ class _ChannelBuilder:
         return r
 
     # -- process kinds -------------------------------------------------------------------------------------------------
-    def _template(self, r, name, shape, shifts):
-        edges = self.edges
+    def _my_shifts(self, shifts, name):
+        """The shape shifts that act on a process of this channel (see Model.shape_shift: `axis`)."""
+        ch, out = self.channel, []
+        for s in shifts:
+            if not s.applies(ch.name, name):
+                continue
+            axis = s.options.get("axis")
+            if ch.dim == 2 and axis is None:
+                raise ModelError(f"shape_shift '{s.name}' applies to {ch.name}/{name} in a 2D channel: give "
+                                 f"axis= ({', '.join(a.GetName() for a in ch.axes)})")
+            if axis is not None and axis not in [a.GetName() for a in ch.axes]:
+                continue
+            out.append(s)
+        return out
+
+    def _shift_source(self, shape, s, sign):
+        """The shape's source histogram (unrolled TH1D for a 2D Template) transformed by a shape shift."""
+        o = s.options
+        raw = getattr(shape, "raw", None)
+        if raw is None:
+            return transformed(shape.source(), sign * o["shift"], sign * o["stretch"], o["about"])
+        axis = [a.GetName() for a in self.channel.axes].index(o["axis"])
+        return unroll(rebin2_to(transformed2(raw, axis, sign * o["shift"], sign * o["stretch"], o["about"]),
+                                *self.channel.axis_edges))
+
+    def _template_parts(self, name, shape, shifts, edges):
+        """(nominal, mc_rel, [(nuisance, up, down)]) of a Template in `edges`."""
         nominal = shape.nominal(edges)
         if np.any(arrays(nominal)[1] < 0):
             warnings.warn(f"{self.channel.name}/{name}: negative bins set to zero")
             clip_negative(nominal)
-        r.add_template(name, name, nominal)
-        r.expected[name] = arrays(nominal)[1]
-        r.card_rates[name] = integral(nominal)
-        r.mc_rel[name] = rel_error(in_channel(shape.hist, edges, "Template"))
-        for vname in shape.variations:
-            up, down = shape.varied(vname, edges)
-            self._add_variation(r, name, vname, nominal, up, down)
+        variations = [(vname, *shape.varied(vname, edges)) for vname in shape.variations]
         for s in shifts:
             varied = []
             for sign in (1., -1.):
-                src = transformed(shape.source(), sign * s.options["shift"], sign * s.options["stretch"],
-                                  s.options["about"])
+                src = self._shift_source(shape, s, sign)
                 varied.append(in_channel(src, edges, "Template") if shape.shape_hist is None
                               else shape.nominal(edges, source=src))
-            self._add_variation(r, name, s.name, nominal, varied[0], varied[1])
+            variations.append((s.name, varied[0], varied[1]))
+        return nominal, rel_error(in_channel(shape.hist, edges, "Template")), variations
+
+    def _template(self, r, name, shape, shifts):
+        nominal, mc_rel, variations = self._template_parts(name, shape, shifts, self.edges)
+        r.add_template(name, name, nominal)
+        r.expected[name] = arrays(nominal)[1]
+        r.card_rates[name] = integral(nominal)
+        r.mc_rel[name] = mc_rel
+        for vname, up, down in variations:
+            self._add_variation(r, name, vname, nominal, up, down)
 
     def _add_variation(self, r, name, vname, nominal, up, down):
         if integral(up) <= 0 or integral(down) <= 0:
@@ -627,18 +727,12 @@ class _ChannelBuilder:
         r.add_template(name, f"{name}_{vname}Down", clip_negative(down))
         r.effects.append((vname, "shape", name, "1"))
 
-    def _binned_fit(self, r, name, shape, shifts, prefix):
+    def _binned_fit_parts(self, shape, obs, edges, prefix, shifts, name):
+        """Fit `shape` on obs and use it binned: (nominal, rate, mc_rel, [(nuisance, up, down)]), all in `edges`."""
         from .pdfs import bin_fractions
-        edges, obs = self.edges, self.channel.obs
         shape.build(obs, f"{prefix}_smooth", edges, self.model_params)
-        r.fits[name] = shape
         rate = shape.rate(edges)
         nominal = make(edges, bin_fractions(shape.pdf, obs, edges) * rate, None, name)
-        r.add_template(name, name, nominal)
-        r.expected[name] = arrays(nominal)[1]
-        r.card_rates[name] = rate
-        r.mc_rel[name] = shape.rate_rel_error(edges)
-        r.smoothed.add(name)
         ref = integral(shape.fit_hist(edges))
 
         def template(values, k=1.):
@@ -652,16 +746,16 @@ class _ChannelBuilder:
             values, _ = shape.refit(h, edges, obs)
             return template(values, integral(in_channel(h, edges, "Fit")) / ref if mode == "shape" else 1.)
 
+        variations = []
         for vname, (up, down, mode) in shape.variations.items():
             if mode == "rate":
-                self._add_variation(r, name, vname, nominal, scaled(nominal, _ratio(up, ref, edges)),
-                                    scaled(nominal, _ratio(down, ref, edges)))
+                variations.append((vname, scaled(nominal, _ratio(up, ref, edges)),
+                                   scaled(nominal, _ratio(down, ref, edges))))
             else:
-                self._add_variation(r, name, vname, nominal, from_hist(up, mode), from_hist(down, mode))
+                variations.append((vname, from_hist(up, mode), from_hist(down, mode)))
         for s in shifts:
-            varied = [from_hist(transformed(shape.source(), sign * s.options["shift"], sign * s.options["stretch"],
-                                            s.options["about"]), "shape") for sign in (1., -1.)]
-            self._add_variation(r, name, s.name, nominal, varied[0], varied[1])
+            varied = [from_hist(self._shift_source(shape, s, sign), "shape") for sign in (1., -1.)]
+            variations.append((s.name, varied[0], varied[1]))
         for nuis, params in shape.nuisances.items():
             nominal_values = shape.values()
             varied = []
@@ -671,7 +765,69 @@ class _ChannelBuilder:
                     p = shape.param(pname, f"{prefix}_smooth")
                     values[p.GetName()] += sign * _shift_size(size, nominal_values[p.GetName()])
                 varied.append(template(values))
-            self._add_variation(r, name, nuis, nominal, varied[0], varied[1])
+            variations.append((nuis, varied[0], varied[1]))
+        return nominal, rate, shape.rate_rel_error(edges), variations
+
+    def _binned_fit(self, r, name, shape, shifts, prefix):
+        nominal, rate, mc_rel, variations = self._binned_fit_parts(shape, self.channel.obs, self.edges, prefix, shifts,
+                                                                   name)
+        r.fits[name] = shape
+        r.add_template(name, name, nominal)
+        r.expected[name] = arrays(nominal)[1]
+        r.card_rates[name] = rate
+        r.mc_rel[name] = mc_rel
+        r.smoothed.add(name)
+        for vname, up, down in variations:
+            self._add_variation(r, name, vname, nominal, up, down)
+
+    def _product(self, r, name, shape, shifts, prefix):
+        """A Product in a 2D channel: each component is built in 1D on its axis, the template is
+        rate * outer(fx, fy) unrolled, and a variation of a component multiplies the other axis's nominal fractions
+        (the variations of both components of a shared nuisance are applied together)."""
+        ch = self.channel
+        names = [a.GetName() for a in ch.axes]
+        parts = []   # per axis: (nominal values, integral, mc_rel, {nuisance: (up values, down values)})
+        for a, comp in enumerate(shape.components):
+            obs, edges, other = ch.axes[a], ch.axis_edges[a], ch.axes[1 - a]
+            cshifts = [s for s in shifts if s.options["axis"] == names[a]]
+            if isinstance(comp, Template):
+                nominal, mc_rel, variations = self._template_parts(name, comp, cshifts, edges)
+            else:
+                if not isinstance(comp.function, str) and comp.function.dependsOn(other):
+                    raise ShapeError(f"the {'xy'[a]} component PDF '{comp.function.GetName()}' depends on the other "
+                                     f"observable '{other.GetName()}'; a Fit component is on '{obs.GetName()}' only")
+                nominal, _, mc_rel, variations = self._binned_fit_parts(comp, obs, edges, f"{prefix}_{'xy'[a]}",
+                                                                        cshifts, name)
+                r.components.setdefault(name, {})[names[a]] = comp
+            total = integral(nominal)
+            if total <= 0:
+                raise ShapeError(f"the {'xy'[a]} component is empty in the channel range")
+            parts.append((arrays(nominal)[1], total, mc_rel,
+                          {v: (arrays(up)[1], arrays(dn)[1]) for v, up, dn in variations}))
+        (vx, nx, mc_x, varx), (vy, ny, _, vary) = parts
+        ex, ey = ch.axis_edges
+        if shape.rate_source is None:
+            rate, mc_rel = nx, mc_x
+        elif isinstance(shape.rate_source, (int, float)):
+            rate, mc_rel = float(shape.rate_source), 0.
+        else:
+            src = shape.rate_source
+            h = unroll(rebin2_to(src, ex, ey)) if is_th2(src) else in_channel(src, ex, "Product rate")
+            rate, mc_rel = integral(h), rel_error(h)
+
+        def build2(fx, fy, label):
+            return make(self.edges, (rate * np.outer(fx / nx, fy / ny)).T.ravel(), None, label)
+
+        nominal = build2(vx, vy, name)
+        r.add_template(name, name, nominal)
+        r.expected[name] = arrays(nominal)[1]
+        r.card_rates[name] = integral(nominal)
+        r.mc_rel[name] = mc_rel
+        r.smoothed.add(name)   # the template has no bin errors: the MC statistics are the log-normal
+        for vname in dict.fromkeys(list(varx) + list(vary)):
+            ux, dx = varx.get(vname, (vx, vx))
+            uy, dy = vary.get(vname, (vy, vy))
+            self._add_variation(r, name, vname, nominal, build2(ux, uy, name), build2(dx, dy, name))
 
     def _fit(self, r, name, shape, shifts, prefix):
         from .pdfs import add_nuisances, bin_fractions
@@ -806,6 +962,7 @@ class ChannelResult:
         self.pdfs = {}          # process -> RooAbsPdf
         self.norms = {}         # process -> RooAbsReal or None
         self.fits = {}          # process -> Fit
+        self.components = {}    # Product process -> {axis observable name: Fit} of its fitted components (QA fits)
         self.expected = {}      # process -> expected events per bin (numpy)
         self.card_rates = {}
         self.mc_rel = {}
@@ -877,11 +1034,18 @@ class ChannelResult:
                               "edges": [float(e) for e in ch.edges]},
                "data": {"source": self.data_source, "integral": integral(self.data)},
                "processes": {}, "absorbed": self.absorbed}
+        if ch.dim == 2:
+            out["observable"]["axes"] = [{"name": x.GetName(), "title": x.GetTitle(),
+                                          "range": [float(e[0]), float(e[-1])], "bins": len(e) - 1,
+                                          "edges": [float(v) for v in e]} for x, e in zip(ch.axes, ch.axis_edges)]
+            out["observable"]["unroll"] = "k = iy * nx + ix"
         for p in self.processes:
             proc = ch.processes[p]
             kind = "envelope" if p in self.envelopes else proc.shape.kind
             if isinstance(proc.shape, Fit):
                 kind = "fit-binned" if proc.shape.binned else "fit"
+            if isinstance(proc.shape, Product):
+                kind = "product"
             info = {"kind": kind, "signal": proc.signal, "id": ids[p], "title": proc.title,
                     "rate": float(self.expected[p].sum()) if p in self.envelopes else self.card_rates[p],
                     "nuisances": sorted({e[0] for e in self.effects if e[2] == p})}
@@ -889,6 +1053,8 @@ class ChannelResult:
                 info["mc_rel_error"] = self.mc_rel[p]
             if p in self.fits:
                 info["fit"] = self.fits[p].info
+            if p in self.components:
+                info["components"] = {axis: fit.info for axis, fit in self.components[p].items()}
             if p in self.envelope_info:
                 info["envelope"] = self.envelope_info[p]
             out["processes"][p] = info

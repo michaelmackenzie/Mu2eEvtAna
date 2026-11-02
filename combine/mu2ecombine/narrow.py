@@ -182,6 +182,8 @@ def narrow_model(model_dir, out_dir, ranges):
         if ch not in ranges:
             shutil.copyfile(src, dst)
             continue
+        if "axes" in info["observable"]:
+            raise NarrowError(f"channel {ch} is a 2D channel (unrolled): narrowing is not supported for 2D channels")
         edges = np.array(info["observable"]["edges"])
         ilo, ihi = _subrange(edges, *ranges[ch], ch)
         used[ch] = (float(edges[ilo]), float(edges[ihi]))

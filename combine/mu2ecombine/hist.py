@@ -8,6 +8,9 @@ so MC statistical uncertainties follow every step. Inputs are never modified.
     t = convolved(truth, response)      # truth spectrum smeared by a response histogram (x_reco - x_true)
     h = replace_tail(h, 102., t)        # bins above 102 take the shape of t, keeping h's content there
     h = total([h1, h2])                 # sum
+
+2D histograms (TH2) are handled by unrolling into a TH1D on bin-index edges 0..nx*ny, global bin k = iy * nx + ix
+(x fastest): rebin2_to / unroll / roll / as_th2 / transformed2.
 """
 
 import itertools
@@ -127,23 +130,50 @@ def clip_negative(h):
     return h
 
 
+def _transform_fractions(e, shift, stretch, about):
+    """For x -> about + (x - about) * (1 + stretch) + shift: [(i, f)] with f[j] the fraction of input bin i that lands
+    in output bin j."""
+    lo = about + (e[:-1] - about) * (1. + stretch) + shift
+    hi = about + (e[1:] - about) * (1. + stretch) + shift
+    out = []
+    for i in range(len(e) - 1):
+        width = hi[i] - lo[i]
+        if width <= 0:
+            continue
+        out.append((i, np.clip(np.minimum(e[1:], hi[i]) - np.maximum(e[:-1], lo[i]), 0., None) / width))
+    return out
+
+
 def transformed(h, shift=0., stretch=0., about=None):
     """Template for x -> about + (x - about) * (1 + stretch) + shift, each bin's content spread uniformly over its
     transformed interval (an energy scale or resolution variation). `about` defaults to the peak bin."""
     e, values, variances = arrays(h)
     centers = 0.5 * (e[1:] + e[:-1])
     about = centers[np.argmax(values)] if about is None else about
-    lo = about + (e[:-1] - about) * (1. + stretch) + shift
-    hi = about + (e[1:] - about) * (1. + stretch) + shift
     out_v, out_var = np.zeros(len(values)), np.zeros(len(values))
-    for i in range(len(values)):
-        width = hi[i] - lo[i]
-        if width <= 0:
-            continue
-        frac = np.clip(np.minimum(e[1:], hi[i]) - np.maximum(e[:-1], lo[i]), 0., None) / width
+    for i, frac in _transform_fractions(e, shift, stretch, about):
         out_v += frac * values[i]
         out_var += frac * variances[i]
     return make(e, out_v, out_var, h.GetName())
+
+
+def transformed2(h, axis, shift=0., stretch=0., about=None):
+    """A TH2D with the `transformed` operation applied along one axis (0 = x, 1 = y) to every slice of the other axis.
+    `about` defaults to the peak of the projection on that axis, the same for all slices."""
+    if axis not in (0, 1):
+        raise HistError(f"transformed2: axis must be 0 (x) or 1 (y), got {axis!r}")
+    ex, ey, values, variances = arrays2(h)
+    e = (ex, ey)[axis]
+    values, variances = (values, variances) if axis == 0 else (values.T, variances.T)   # transformed axis first
+    centers = 0.5 * (e[1:] + e[:-1])
+    about = centers[np.argmax(values.sum(axis=1))] if about is None else about
+    out_v, out_var = np.zeros_like(values), np.zeros_like(variances)
+    for i, frac in _transform_fractions(e, shift, stretch, about):
+        out_v += frac[:, None] * values[i][None, :]
+        out_var += frac[:, None] * variances[i][None, :]
+    if axis == 1:
+        out_v, out_var = out_v.T, out_var.T
+    return make2(ex, ey, out_v, out_var, h.GetName())
 
 
 def convolved(h, response, new_edges=None, step=None):
@@ -185,3 +215,120 @@ def replace_tail(h, start, reference, norm_from=None, rel_error=None):
         rel_error = np.sqrt(variances[above].sum()) / max(content, 1e-300)
     variances[tail] = (rel_error * values[tail]) ** 2
     return make(e, values, variances, h.GetName())
+
+
+# -- 2D histograms --------------------------------------------------------------------------------------------------
+def is_th2(obj):
+    try:
+        return bool(obj.InheritsFrom("TH2")) and obj.GetDimension() == 2
+    except AttributeError:
+        return False
+
+
+def arrays2(h):
+    """(xedges, yedges, values[nx, ny], variances[nx, ny]) of a 2D histogram as numpy arrays (no under/overflow)."""
+    if not is_th2(h):
+        raise HistError(f"expected a 2D ROOT histogram, got {type(h).__name__}")
+    nx, ny = h.GetNbinsX(), h.GetNbinsY()
+    xa, ya = h.GetXaxis(), h.GetYaxis()
+    xedges = np.array([xa.GetBinLowEdge(i) for i in range(1, nx + 2)])
+    yedges = np.array([ya.GetBinLowEdge(j) for j in range(1, ny + 2)])
+    values = np.array([[h.GetBinContent(i, j) for j in range(1, ny + 1)] for i in range(1, nx + 1)])
+    errors = np.array([[h.GetBinError(i, j) for j in range(1, ny + 1)] for i in range(1, nx + 1)])
+    return xedges, yedges, values, errors ** 2
+
+
+def make2(xedges, yedges, values, variances=None, name="h", title=""):
+    """A detached TH2D from bin edges and contents / variances of shape [nx, ny] (default: no errors)."""
+    import ROOT
+    xedges = np.ascontiguousarray(xedges, dtype=float)
+    yedges = np.ascontiguousarray(yedges, dtype=float)
+    values = np.asarray(values, dtype=float)
+    variances = np.zeros_like(values) if variances is None else np.asarray(variances, dtype=float)
+    h = ROOT.TH2D(_unique(name), title, len(xedges) - 1, xedges, len(yedges) - 1, yedges)
+    h.SetDirectory(0)
+    h.Sumw2()
+    for i in range(values.shape[0]):
+        for j in range(values.shape[1]):
+            h.SetBinContent(i + 1, j + 1, float(values[i, j]))
+            h.SetBinError(i + 1, j + 1, float(np.sqrt(max(variances[i, j], 0.))))
+    return h
+
+
+def copy2(h, name=None):
+    """A detached TH2D copy (also converts TH2F etc.)."""
+    return make2(*arrays2(h), name or h.GetName(), h.GetTitle())
+
+
+def total2(hists, name=None):
+    """Sum of TH2s with the same binning, as a new TH2D."""
+    hists = [hists] if is_th2(hists) else list(hists)
+    if not hists:
+        raise HistError("total: no histograms given")
+    ex, ey, values, variances = arrays2(hists[0])
+    for h in hists[1:]:
+        x, y, v, var = arrays2(h)
+        if (len(x) != len(ex) or len(y) != len(ey) or not np.allclose(x, ex, rtol=0, atol=1e-9)
+                or not np.allclose(y, ey, rtol=0, atol=1e-9)):
+            raise HistError(f"total: '{h.GetName()}' and '{hists[0].GetName()}' have different binnings")
+        values, variances = values + v, variances + var
+    return make2(ex, ey, values, variances, name or hists[0].GetName())
+
+
+def as_th2(h, what="histogram"):
+    """A detached TH2D from a TH2 or a list of TH2s (summed)."""
+    if is_th2(h):
+        return copy2(h)
+    if isinstance(h, (list, tuple)) and h and all(is_th2(x) for x in h):
+        return total2(h)
+    raise HistError(f"{what}: expected a 2D ROOT histogram or a list of them, got {type(h).__name__}")
+
+
+def as_hist(h, what="histogram"):
+    """A detached TH1D or TH2D from a TH1/TH2 or a list of them (summed)."""
+    if is_th2(h) or (isinstance(h, (list, tuple)) and h and all(is_th2(x) for x in h)):
+        return as_th2(h, what)
+    return as_th1(h, what)
+
+
+def rebin2_to(h, new_xedges, new_yedges, name=None):
+    """Merge bins into new_xedges and new_yedges, which must all be edges of h's axes. Contents outside are dropped."""
+    ex, ey, values, variances = arrays2(h)
+    index = []
+    for axis, e, new in (("x", ex, new_xedges), ("y", ey, new_yedges)):
+        new = np.asarray(new, dtype=float)
+        idx = []
+        for x in new:
+            i = _edge_index(e, x)
+            if i is None:
+                raise HistError(f"'{h.GetName()}': {axis} bin edge {x:g} is not an edge of its binning "
+                                f"({e[0]:g}-{e[-1]:g}, {len(e) - 1} bins)")
+            idx.append(i)
+        index.append((new, idx))
+
+    out = []
+    for a in (values, variances):
+        for axis, (_, idx) in enumerate(index):
+            a = np.stack([np.take(a, range(lo, hi), axis=axis).sum(axis=axis) for lo, hi in zip(idx, idx[1:])],
+                         axis=axis)
+        out.append(a)
+    return make2(index[0][0], index[1][0], out[0], out[1], name or h.GetName())
+
+
+def unroll(h, name=None):
+    """A TH1D on edges 0..nx*ny from a TH2: global bin k = iy * nx + ix (x fastest). Errors are kept."""
+    ex, ey, values, variances = arrays2(h)
+    n = values.size
+    return make(np.arange(n + 1, dtype=float), values.T.ravel(), variances.T.ravel(), name or h.GetName(),
+                h.GetTitle())
+
+
+def roll(h, xedges, yedges, name=None):
+    """The inverse of `unroll`: a TH2D on xedges x yedges from a 1D histogram with nx*ny bins."""
+    xedges, yedges = np.asarray(xedges, dtype=float), np.asarray(yedges, dtype=float)
+    nx, ny = len(xedges) - 1, len(yedges) - 1
+    _, values, variances = arrays(h)
+    if len(values) != nx * ny:
+        raise HistError(f"roll: '{h.GetName()}' has {len(values)} bins, not nx*ny = {nx}*{ny}")
+    return make2(xedges, yedges, values.reshape(ny, nx).T, variances.reshape(ny, nx).T, name or h.GetName(),
+                 h.GetTitle())
