@@ -923,7 +923,7 @@ class _ChannelBuilder:
             terms.append(f"@{args.getSize()}")
             args.add(extra)
         norm = ROOT.RooFormulaVar(f"{pdf_name}_norm", "", "*".join(terms), args)
-        r.keep += [args, norm] + list(self.thetas.values())
+        r.keep += [args, norm]
         return norm
 
     def _envelope(self, r, name, env, expected, absorbed):

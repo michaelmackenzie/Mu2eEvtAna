@@ -197,13 +197,14 @@ def add_nuisances(pdf, name, shifts, thetas):
     p + sum_k theta_k * (theta_k > 0 ? up_k : down_k).
 
     shifts: {RooRealVar p: {nuisance: (up, down)}}; thetas: {nuisance: RooRealVar}, created as needed (shared by the
-    PDFs of one channel). Returns (new pdf named `name`, objects to keep alive), or (pdf, []) without shifts."""
+    PDFs of one channel). Returns (new pdf named `name`, objects to keep alive in an order that destroys them safely
+    (last item first)), or (pdf, []) without shifts."""
     import ROOT
     shifts = {p: s for p, s in shifts.items() if any(abs(u) > 0 or abs(d) > 0 for u, d in s.values())}
     if not shifts:
         return pdf, []
     cust = ROOT.RooCustomizer(pdf, "m2c")
-    keep = [cust]
+    keep = []
     for p, by_nuisance in shifts.items():
         args = ROOT.RooArgList(p)
         terms = []
@@ -219,7 +220,9 @@ def add_nuisances(pdf, name, shifts, thetas):
         keep += [args, f]
     new = cust.build(False)
     new.SetName(name)
-    keep.append(new)
+    # Python frees a list from its last item: the customizer holds references to the formulas it substituted, so it
+    # must be destroyed before them (RooFit does not protect them), then the new PDF, then the formulas
+    keep += [new, cust]
     return new, keep
 
 
