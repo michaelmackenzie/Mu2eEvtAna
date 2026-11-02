@@ -33,12 +33,16 @@ def plot_model(results, figdir, label=None):
                                  plot_channel)
     <channel>_inputs             each process's expected distribution over the data, with the pulls of the data
     <channel>_<process>_fit      each fit over the histogram it was fit to, with the pulls
-    <channel>_<process>_template each binned template (MC) process, with its MC statistical uncertainties"""
+    <channel>_<process>_template each binned template (MC) process, with its MC statistical uncertainties
+    A 2D channel (see model.Channel) has instead:
+    <channel>_prefit_<axis>      the expected stack of the projection on each observable
+    <channel>_<process>_<axis>_fit  the fit of each Fit component of a Product, over the histogram it was fit to
+    <channel>_<process>_2d       the expected 2D template (colz) of each process"""
     os.makedirs(figdir, exist_ok=True)
     _style()
     for name, r in results.items():
         if r.channel.dim == 2:
-            print(f"  (figures of the 2D channel {name} are not drawn yet)")
+            plot_model_2d(r, figdir, label)
             continue
         for logy, suffix in ((False, ""), (True, "_log")):
             plot_channel(r, os.path.join(figdir, f"{name}_prefit{suffix}.png"), logy, label)
@@ -49,6 +53,42 @@ def plot_model(results, figdir, label=None):
             for p in r.processes:
                 if is_template(r, p):
                     plot_template(r, p, os.path.join(figdir, f"{name}_{p}_template{suffix}.png"), logy, label)
+
+
+def plot_model_2d(r, figdir, label=None):
+    """The figures of a 2D channel (see plot_model); returns the paths written."""
+    ch, name, paths = r.channel, r.channel.name, []
+    for logy, suffix in ((False, ""), (True, "_log")):
+        for a, obs in enumerate(ch.axes):
+            paths.append(os.path.join(figdir, f"{name}_prefit_{obs.GetName()}{suffix}.png"))
+            plot_channel(r, paths[-1], logy, label, axis=a)
+        for p, comps in r.components.items():
+            if p not in r.processes:
+                continue
+            for a, obs in enumerate(ch.axes):
+                if obs.GetName() in comps:
+                    paths.append(os.path.join(figdir, f"{name}_{p}_{obs.GetName()}_fit{suffix}.png"))
+                    plot_fit(r, p, comps[obs.GetName()], paths[-1], logy, label, obs=obs, edges=ch.axis_edges[a])
+    for p in r.processes:
+        paths.append(os.path.join(figdir, f"{name}_{p}_2d.png"))
+        plot_template_2d(r, p, paths[-1], label)
+    return paths
+
+
+def _view(r, axis=None):
+    """What a channel figure draws: (edges, {process: expected}, data values, observable title, blind window). For a 2D
+    channel, `axis` (0 = x, 1 = y) selects the projection of the unrolled bins on that observable."""
+    from .hist import arrays
+    ch = r.channel
+    data = arrays(r.data)[1]
+    if ch.dim == 1 or axis is None:
+        return ch.edges, dict(r.expected), data, ch.obs.GetTitle(), ch.blind
+    nx, ny = (len(e) - 1 for e in ch.axis_edges)
+
+    def project(v):
+        return np.asarray(v).reshape(ny, nx).sum(axis=axis)
+    return (ch.axis_edges[axis], {p: project(v) for p, v in r.expected.items()}, project(data),
+            ch.axes[axis].GetTitle(), None)
 
 
 def is_template(r, process):
@@ -182,17 +222,17 @@ def _bin_width_title(obs_title, edges):
     if not np.allclose(widths, widths[0]):
         return "Events / bin"
     m = re.search(r"[\(\[]([^\)\]]+)[\)\]]\s*$", obs_title)
-    return f"Events / {widths[0]:.2g} {m.group(1)}" if m else f"Events / {widths[0]:.2g}"
+    return f"Events / {widths[0]:g} {m.group(1)}" if m else f"Events / {widths[0]:g}"
 
 
-def plot_channel(r, path, logy=False, label=None):
+def plot_channel(r, path, logy=False, label=None, axis=None):
     """The expected stack: the backgrounds stacked (smallest at the bottom), the signals as lines, and the data unless
     it is the Asimov data set (then it is the stack itself). label: (left, right) TLatex header above the frame, e.g.
-    ("#bf{Experiment} #it{Simulation}", "<exposure>"); either may be None."""
+    ("#bf{Experiment} #it{Simulation}", "<exposure>"); either may be None. axis: for a 2D channel, 0 or 1 for the
+    projection on the first or second observable."""
     import ROOT
-    from .hist import arrays
     ch = r.channel
-    edges = ch.edges
+    edges, expected, data_vals, obs_title, blind = _view(r, axis)
     bkg = [p for p in r.processes if not ch.processes[p].signal]
     sig = [p for p in r.processes if ch.processes[p].signal]
     c = ROOT.TCanvas("c", "", 1100, 825)
@@ -202,32 +242,31 @@ def plot_channel(r, path, logy=False, label=None):
     c.SetBottomMargin(0.13)
     c.SetTicks()
     keep = []
-    order = sorted(bkg, key=lambda p: r.expected[p].sum())
+    order = sorted(bkg, key=lambda p: expected[p].sum())
     cumulative = np.zeros(len(edges) - 1)
     stack = []
     for i, p in enumerate(order):
-        cumulative = cumulative + r.expected[p]
+        cumulative = cumulative + expected[p]
         h = _hist(f"_stack_{p}", edges, cumulative)
         h.SetFillColor(_color(r, p, i))
         h.SetLineColor(ROOT.kBlack)
         h.SetLineWidth(1)
         stack.append((p, h))
     show_data = r.data_source != "asimov"
-    data_vals = arrays(r.data)[1]
     data = _hist("_data", edges, data_vals, np.sqrt(np.clip(data_vals, 0., None)))
     data.SetMarkerStyle(20)
     data.SetLineWidth(2)
     data.SetLineColor(ROOT.kBlack)
     sig_hists = []
     for i, p in enumerate(sig):
-        h = _hist(f"_sig_{p}", edges, r.expected[p])
+        h = _hist(f"_sig_{p}", edges, expected[p])
         h.SetLineColor(_color(r, p, i, signal_index=i))
         h.SetLineWidth(2)
         sig_hists.append((p, h))
     ymax = max([cumulative.max()] + ([data_vals.max()] if show_data else [])
                + [h.GetMaximum() for _, h in sig_hists] + [1e-9])
     frame = _hist("_frame", edges, np.zeros(len(edges) - 1))
-    frame.SetTitle(f";{ch.obs.GetTitle()};{_bin_width_title(ch.obs.GetTitle(), edges)}")
+    frame.SetTitle(f";{obs_title};{_bin_width_title(obs_title, edges)}")
     for axis in (frame.GetXaxis(), frame.GetYaxis()):
         axis.SetLabelFont(132)
         axis.SetTitleFont(132)
@@ -246,8 +285,8 @@ def plot_channel(r, path, logy=False, label=None):
         h.Draw("hist same")
     if show_data:
         data.Draw("E same")
-        if ch.blind:
-            box = ROOT.TBox(ch.blind[0], frame.GetMinimum(), ch.blind[1], frame.GetMaximum())
+        if blind:
+            box = ROOT.TBox(blind[0], frame.GetMinimum(), blind[1], frame.GetMaximum())
             box.SetFillColorAlpha(ROOT.kGray, 0.35)
             box.Draw()
             keep.append(box)
@@ -271,19 +310,21 @@ def plot_channel(r, path, logy=False, label=None):
     c.Close()
 
 
-def plot_fit(r, process, fit, path, logy=False, label=None):
+def plot_fit(r, process, fit, path, logy=False, label=None, obs=None, edges=None):
     """The fitted function (a smooth curve) over the histogram it was fit to, with the pulls of the histogram,
-    (N - N_fit) / sigma. label: the header (see plot_channel)."""
+    (N - N_fit) / sigma. label: the header (see plot_channel). obs, edges: the observable and binning the fit is on
+    (default the channel's; for a component of a Product, one of its axes)."""
     import ROOT
     from .hist import arrays
     from .pdfs import bin_fractions
     ch = r.channel
-    edges = ch.edges
+    obs = ch.obs if obs is None else obs
+    edges = ch.edges if edges is None else edges
     h = fit.fit_hist(edges)
     _, values, variances = arrays(h)
     errors = np.sqrt(variances)
     centers = 0.5 * (edges[1:] + edges[:-1])
-    frac = bin_fractions(fit.pdf, ch.obs, edges)
+    frac = bin_fractions(fit.pdf, obs, edges)
     mask = np.ones(len(centers), dtype=bool)
     if fit.fit_range is not None:
         mask = (centers > fit.fit_range[0]) & (centers < fit.fit_range[1])
@@ -293,7 +334,7 @@ def plot_fit(r, process, fit, path, logy=False, label=None):
     nsub = 10
     fine = np.concatenate([np.linspace(lo, hi, nsub, endpoint=False) for lo, hi in zip(edges[:-1], edges[1:])]
                           + [edges[-1:]])
-    fine_frac = bin_fractions(fit.pdf, ch.obs, fine)
+    fine_frac = bin_fractions(fit.pdf, obs, fine)
     width = np.repeat(np.diff(edges), nsub)
     curve_y = fine_frac * total * width / np.diff(fine)
     curve_x = 0.5 * (fine[1:] + fine[:-1])
@@ -303,7 +344,7 @@ def plot_fit(r, process, fit, path, logy=False, label=None):
     h.SetMarkerStyle(20)
     h.SetLineWidth(2)
     h.SetLineColor(ROOT.kBlack)
-    h.SetTitle(f";;{_bin_width_title(ch.obs.GetTitle(), edges)}")
+    h.SetTitle(f";;{_bin_width_title(obs.GetTitle(), edges)}")
     _axes(h, 0.06, 0.065, 0.95)
     h.GetXaxis().SetLabelSize(0)
     ymax = max((values + errors).max(), curve_y.max(), 1e-9)
@@ -330,7 +371,7 @@ def plot_fit(r, process, fit, path, logy=False, label=None):
     shown = mask & (values > 0) & (errors > 0)
     pull = np.where(shown, (values - predicted) / np.where(shown, errors, 1.), 0.)
     span = max(3.5, 1.15 * np.abs(pull[shown]).max()) if shown.any() else 3.5
-    _lower_frame(edges, ch.obs.GetTitle(), "#frac{N_{MC} - N_{fit}}{#sigma_{MC}}", -span, span, keep)
+    _lower_frame(edges, obs.GetTitle(), "#frac{N_{MC} - N_{fit}}{#sigma_{MC}}", -span, span, keep)
     _lower_points("_fit_pull", edges, pull, np.where(shown, 1., 0.), keep)
     c.SaveAs(path)
     c.Close()
@@ -380,6 +421,44 @@ def plot_template(r, process, path, logy=False, label=None):
     leg.Draw()
     _header(c, label, keep)
     c.SetLogy(logy)
+    c.RedrawAxis()
+    c.SaveAs(path)
+    c.Close()
+
+
+def plot_template_2d(r, process, path, label=None):
+    """The expected distribution of a process of a 2D channel over its two observables (events per bin, colz). label:
+    the header (see plot_channel)."""
+    import ROOT
+    from .hist import roll
+    ch = r.channel
+    ex, ey = ch.axis_edges
+    h = roll(_hist("_template_2d", ch.edges, r.expected[process]), ex, ey, "_template_2d")
+    h.SetTitle(f";{ch.axes[0].GetTitle()};{ch.axes[1].GetTitle()};Events / bin")
+    c = ROOT.TCanvas("c", "", 1100, 825)
+    c.SetRightMargin(0.17)
+    c.SetTopMargin(0.05)
+    c.SetLeftMargin(0.13)
+    c.SetBottomMargin(0.13)
+    c.SetTicks()
+    _axes(h, 0.05, 0.05, 1.2)
+    h.GetZaxis().SetLabelFont(FONT)
+    h.GetZaxis().SetTitleFont(FONT)
+    h.GetZaxis().SetLabelSize(0.045)
+    h.GetZaxis().SetTitleSize(0.05)
+    h.GetZaxis().SetTitleOffset(1.2)
+    h.SetMinimum(0.)
+    h.Draw("colz")
+    keep = []
+    text = ROOT.TLatex()
+    text.SetNDC()
+    text.SetTextFont(FONT)
+    text.SetTextSize(0.045)
+    text.SetTextAlign(33)
+    text.DrawLatex(1. - c.GetRightMargin() - 0.02, 1. - c.GetTopMargin() - 0.02,
+                   f"{ch.processes[process].title} ({r.expected[process].sum():.3g})")
+    keep.append(text)
+    _header(c, label, keep)
     c.RedrawAxis()
     c.SaveAs(path)
     c.Close()
@@ -635,8 +714,36 @@ def plot_postfit_channel(ch, info, fit, path, logy=False):
     c.Close()
 
 
+def project_postfit(ch, info, axis):
+    """(channel, info) of the projection of a 2D channel's unrolled pre/post-fit shapes (see read_fitdiagnostics) on
+    observable `axis` (0 = x, 1 = y), in the form plot_postfit_channel draws. Combine gives no covariance between
+    bins, so the error of a projected bin is the quadrature sum of its bins' errors (exact only for uncorrelated
+    bins; with correlated nuisances it over- or under-estimates the band). Data errors are sqrt(N) of the projected
+    counts."""
+    axes = info["observable"]["axes"]
+    nx, ny = axes[0]["bins"], axes[1]["bins"]
+
+    def project(v, quadrature=False):
+        v = np.asarray(v, dtype=float).reshape(ny, nx)
+        return np.sqrt(np.square(v).sum(axis=axis)) if quadrature else v.sum(axis=axis)
+    out = {"edges": np.asarray(axes[axis]["edges"]),
+           "processes": {p: (project(v), project(e, True)) for p, (v, e) in ch["processes"].items()}}
+    for key in ("total", "total_signal", "total_background"):
+        if key in ch:
+            out[key] = (project(ch[key][0]), project(ch[key][1], True))
+    if "data" in ch:
+        y = project(ch["data"][0])
+        err = np.sqrt(np.clip(y, 0., None))
+        out["data"], out["asimov"] = (y, err, err), ch["asimov"]
+    pinfo = dict(info)
+    pinfo["observable"] = dict(info["observable"], title=axes[axis]["title"], name=axes[axis]["name"])
+    pinfo["blind"] = None    # the blind window of a 2D channel is not drawn
+    return out, pinfo
+
+
 def plot_fitdiagnostics(path, model_dir=".", figdir=None, logy=False):
-    """Pre- and post-fit figures (<figdir>/<channel>_<fit>.png, default <model_dir>/figures/postfit) from a
+    """Pre- and post-fit figures (<figdir>/<channel>_<fit>.png, default <model_dir>/figures/postfit; for a 2D channel
+    <channel>_<fit>_<observable>.png, the projections, see project_postfit) from a
     FitDiagnostics output made with --saveShapes (add --saveWithUncertainties for the bands). Also writes
     postfit_yields.json there. Returns {fit: {channel: {process: yield}}}."""
     shapes, model = read_fitdiagnostics(path, model_dir)
@@ -649,7 +756,14 @@ def plot_fitdiagnostics(path, model_dir=".", figdir=None, logy=False):
     for fit, channels in shapes.items():
         yields[fit] = {}
         for name, ch in channels.items():
-            plot_postfit_channel(ch, model["channels"][name], fit, os.path.join(figdir, f"{name}_{fit}.png"), logy)
+            info = model["channels"][name]
+            if "axes" in info["observable"]:   # 2D: the projection on each observable
+                for a, axis in enumerate(info["observable"]["axes"]):
+                    pch, pinfo = project_postfit(ch, info, a)
+                    plot_postfit_channel(pch, pinfo, fit, os.path.join(figdir, f"{name}_{fit}_{axis['name']}.png"),
+                                         logy)
+            else:
+                plot_postfit_channel(ch, info, fit, os.path.join(figdir, f"{name}_{fit}.png"), logy)
             y = {p: float(v.sum()) for p, (v, _) in ch["processes"].items()}
             if "data" in ch:
                 y["data"] = float(ch["data"][0].sum())

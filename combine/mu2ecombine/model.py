@@ -512,15 +512,27 @@ class Model:
         info = {"rate": r.card_rates.get(process), "mc_rel_error": r.mc_rel.get(process)}
         if process in r.fits:
             info["fit"] = r.fits[process].info
+        if process in r.components:
+            info["components"] = {axis: fit.info for axis, fit in r.components[process].items()}
         if process in r.envelope_info:
             info["envelope"] = {k: v for k, v in r.envelope_info[process].items() if k != "tested"}
         print(f"{channel}/{process}: {json.dumps(info, indent=2, default=float)}")
-        if figdir and ch.dim == 2:
-            print("  (figures of 2D channels are not drawn by fit_process)")
-        elif figdir:
+        if figdir:
             from . import plots as plotlib
             os.makedirs(figdir, exist_ok=True)
             plotlib._style()
+            if ch.dim == 2:   # the component fits of a Product, and the 2D template
+                for logy, suffix in ((False, ""), (True, "_log")):
+                    for a, obs in enumerate(ch.axes):
+                        if obs.GetName() in r.components.get(process, {}):
+                            path = os.path.join(figdir, f"{channel}_{process}_{obs.GetName()}_fit{suffix}.png")
+                            plotlib.plot_fit(r, process, r.components[process][obs.GetName()], path, logy,
+                                             self.figure_label, obs=obs, edges=ch.axis_edges[a])
+                            print(f"  figure: {path}")
+                path = os.path.join(figdir, f"{channel}_{process}_2d.png")
+                plotlib.plot_template_2d(r, process, path, self.figure_label)
+                print(f"  figure: {path}")
+                return r
             for logy, suffix in ((False, ""), (True, "_log")):
                 if process in r.fits:
                     path = os.path.join(figdir, f"{channel}_{process}_fit{suffix}.png")
