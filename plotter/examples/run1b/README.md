@@ -34,7 +34,7 @@ Figures go to `<figdir>/<selection>/stack_<hist>_<type>_<set>[_log].png`.
 `samples.C` holds the Run 1B definitions:
 
 - **Sample sizes:** N(generated) and N(events) come from the r0204 entries of `scripts/datasets.C` (EventNtuple
-  Run1B-010; pileup Run1B-011).
+  Run1B-013; pileup Run1B-014; RPCInternal Run1B-010).
 - **Rates:** v40 Run 1B rates, built from the shared constants in `plotter/physics/Mu2ePhysics.C`.
 - **Exposure:** `days` of 1BB running at a 0.322 duty cycle, 6.14×10⁶ POT per microbunch, and 5.066×10⁻⁴ stopped muons
   per POT. Cosmic rays are normalized to the on-spill livetime, pileup (`mnbs`) per microbunch.

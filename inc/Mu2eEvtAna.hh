@@ -249,7 +249,9 @@ namespace Mu2eEvtAna {
     std::vector<TString> disabled_branches_ = {
       // "trkhits",
       "trkhitscalibs", "trkhitsmc", "trkmats", "trksegpars_ch", "trksegpars_kl",
-      "calohits", "calohitsmc", "calodigis", "calorecodigis", "crvcoincmcplane"
+      "calohits", "calohitsmc", "calodigis", "calorecodigis", "crvcoincmcplane",
+      "helicesde", "helicesue", "helicesdmu", "helicesumu",
+      "trigaprhelices", "trigcalhelicesde"
     };
     std::vector<TString> enabled_branches_; //applied after disabled_branches_
 

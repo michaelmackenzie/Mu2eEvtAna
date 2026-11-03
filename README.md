@@ -36,7 +36,9 @@ root.exe -q -b 'Mu2eEvtAna/scripts/make_histograms.C(1, "my_files.txt", 1, "run1
 ```
 
 - **Datasets** are defined in `scripts/datasets.C` as a key, the ntuple dataset name, N(events), and N(generated).
-  Their file lists are `file_lists/<dataset name>.files`. With an empty dataset, every entry flagged for processing runs.
+  Their file lists are `file_lists/<dataset name>.files`. `scripts/make_file_lists.py <ntuple datasets>` writes them and
+  prints N(events) and N(generated), summed over the parent mcs files (needs `muse setup ops` and a metacat login).
+  With an empty dataset, every entry flagged for processing runs.
 - **Output** is `<Analyzer>.<function>.<tag>.m<mode>.root` in the current directory, e.g.
   `Run1BAna.run1b_ana.fele0b1s51r0204.m1.root`. Threads write per-thread files that are merged
   (`scripts/merge_hist_files.sh`).
