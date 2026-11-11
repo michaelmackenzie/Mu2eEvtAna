@@ -118,7 +118,16 @@ namespace Mu2eEvtAna {
     // and calomcsim prirel, which only some EventNtuple versions fill: whether it is filled is checked on the first entries.
     // Without it the veto is skipped with a warning, or, with require_calo_prirel_, processing stops.
     // Inputs without MC are not vetoed.
-    primary_veto_ = apply_primary_veto_ && !name_.Contains("mnbs") && ntuple_->FindBranch("calomcsim");
+    // Cosmic samples (csms, cry) are not vetoed either: the CRY primary is a stage-1 SimParticle and the muon reaching the
+    // calorimeter is its stage-2 continuation (selfParent), which MCRelationship doesn't relate to it (prirel none), so the
+    // veto would remove ~99.7% of cosmic clusters. Skipping it double counts only the pileup mixed into the cosmic events,
+    // ~100 cosmic events/s of livetime vs ~6e5 microbunches/s, i.e. ~2e-4 of the pileup sample.
+    // See Mu2e/Offline#2102: revisit once MCRelationship is fixed and the cosmic ntuples are remade.
+    const bool is_cosmic = name_.Contains("csms") || name_.Contains("cry");
+    primary_veto_ = apply_primary_veto_ && !name_.Contains("mnbs") && !is_cosmic && ntuple_->FindBranch("calomcsim");
+    if(apply_primary_veto_ && is_cosmic)
+      printf("Run1BAna::%s: Not vetoing clusters by primary association in cosmic sample %s (stage-2 cosmic SimParticles have no "
+             "prirel to the CRY primary)\n", __func__, name_.Data());
     if(!apply_primary_veto_) printf("Run1BAna::%s: WARNING: the primary cluster veto is disabled\n", __func__);
     n_prirel_checked_ = 0;
     if(primary_veto_) {
@@ -478,6 +487,7 @@ namespace Mu2eEvtAna {
 
     // Identify the sample type
     const bool is_pu = name_.Contains("mnbs");
+    const bool is_dio = name_.Contains("dio") || name_.Contains("fele");
     if(primary_veto_) CheckCaloPrimaryRelations();
 
 
@@ -529,19 +539,20 @@ namespace Mu2eEvtAna {
 
       const int sim_pdg = cluster->MCPDG();
       const float sim_edep = cluster->MCSimEDep();
+      const auto sim = cluster->MCSim();
+      const float mc_edep = cluster->MCEDep();
       bool mc_veto = false;
       if(is_pu) {
         // skip high energy tail RMC/protons/neutrons
         mc_veto |= (sim_pdg == 22 || sim_pdg == 2212 || sim_pdg == 2112) && sim_edep > 60.f;
         // skip DIO electrons above 60 MeV, which the flat DIO electron sample covers: the main particle is a muon
         // decay-in-orbit electron that deposited most (> 80%) of the cluster's true energy
-        const auto sim = cluster->MCSim();
-        const float mc_edep = cluster->MCEDep();
         mc_veto |= sim && sim_pdg == 11 && sim->startCode == mu2e::ProcessCode::mu2eMuonDecayAtRest
           && energy > 60.f && mc_edep > 0.f && sim_edep/mc_edep > 0.80f;
       } else if(primary_veto_) {
         // primary samples: skip clusters not from the primary (e.g. pileup), which the pileup sample covers
         mc_veto |= !cluster->IsPrimaryAssociated();
+        if(is_dio) mc_veto |= IsPrimaryRelated(sim) && sim_edep/mc_edep < 0.70f; // large pileup contribution DIO comes from no-primary
       }
 
       if(!mc_veto) {

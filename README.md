@@ -66,7 +66,8 @@ Other packages register their own analyzers with `RegisterAnalyzer(function, cla
 - DIO and Plestid RMC spectrum weights for the flat-spectrum samples,
 - the pion survival weight for RPC,
 - beam-intensity re-weighting to 1.5 kW (6.14e6 POT per microbunch),
-- a veto of non-primary clusters in primary samples, and of the RMC/proton/neutron/DIO tails in pileup.
+- a veto of non-primary clusters in primary samples (not cosmics: stage-2 cosmic SimParticles have no prirel to the CRY
+  primary), and of the RMC/proton/neutron/DIO tails in pileup.
 
 It stops with an error when an ntuple lacks the information a weight or veto needs.
 

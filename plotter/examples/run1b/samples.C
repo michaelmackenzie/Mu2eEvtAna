@@ -1,7 +1,6 @@
 // Run 1B (field-off, straight-line) samples and normalization for the Mu2eEvtAna Run1BAna (run1b_ana) histograms.
 //
-// N(generated) and N(events) are those of the r0204 entries in Mu2eEvtAna/scripts/datasets.C (EventNtuple Run1B-013; pileup Run1B-014;
-// RPCInternal is still Run1B-010).
+// N(generated) and N(events) are those of the r0204 entries in Mu2eEvtAna/scripts/datasets.C (EventNtuple Run1B-013; pileup Run1B-014).
 // Rates are for the v40 Run 1B simulation, using the shared constants in plotter/physics/Mu2ePhysics.C.
 
 #ifndef __MU2EEVTANA_PLOTTER_EXAMPLES_RUN1B_SAMPLES__
@@ -63,12 +62,12 @@ namespace run1b {
       {"poly"   , "COL5 RMC"          , 26        , "pgamcb1s51r0204",  100000000,   5249814, rate_pgam,  50., 110., kPOT     },
       {"dio"    , "DIO"               , kMagenta-10,"fele0b1s51r0204", 1998000000,    704053, rate_dio ,  50., 110., kPOT     },
       {"rmc"    , "RMC"               , kGray     , "fgam0b1s51r0204", 1999000000,   1039674, rate_rmc ,  50., 110., kPOT     },
-      {"rpc"    , "RPC"               , kGreen+2  , "rpce0b1s51r0204", 2451922140,    315190, rpc_per_pot, 0.,   1., kPOT     },
+      {"rpc"    , "RPC"               , kGreen+2  , "rpce0b1s51r0204", 4999841344,    643155, rpc_per_pot, 0.,   1., kPOT     },
       {"rpc_int", "RPC"               , kGreen+2  , "rpci0b1s51r0204", 4999841344,    230559, rpc_per_pot*rpc_internal_ratio, 0., 1., kPOT},
       {"protons", "Protons"           , kAtlantic , "prot0b1s51r0204",  100000000,    158688, rate_prot,   0.,   1., kPOT     },
       {"neutrons","Neutrons"          , kViolet+6 , "neut0b1s51r0204",  125000000,    154086, rate_neut,   0.,   1., kPOT     },
       {"cosmics", "Cosmics"           , kGreen-6  , "csms0b1s51r0204",     2.29e4,   2351533, 1.       ,   0.,   1., kLivetime},
-      {"pileup" , "Pileup"            , kOrange   , "mnbs1b1s51r0204", 2750000000, 189323591, 1.       ,   0.,   1., kNEvents },
+      {"pileup" , "Pileup"            , kOrange   , "mnbs1b1s51r0204", 5000000000, 344196254, 1.       ,   0.,   1., kNEvents },
     };
   }
 
