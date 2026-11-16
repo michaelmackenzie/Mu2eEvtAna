@@ -58,6 +58,13 @@ namespace Mu2eEvtAna {
     int   trk_opa;
     int   trk_tsda;
     float trk_tsda_r; // radius of the TSDA intersection (mm), -1 if none
+    float trk_tsda_p; // kinematics at the TSDA intersection (defaults if none, see Track_t::TSDA*)
+    float trk_tsda_pt;
+    float trk_tsda_cos;
+    float trk_tsda_pr;
+    float trk_tsda_dt;
+    float trk_tsda_dp;
+    int   trk_tsda_inbounds;
     float trk_mc_dp; // MC info
     float trk_mc_pdg;
     int   trk_id; // selection ID bits (Track_t ID index hist_track_id_), 0 if all cuts pass
@@ -167,6 +174,8 @@ namespace Mu2eEvtAna {
       trk_ttslope = 0.f;
       trk_ttslope_unc = -1.f;
       trk_tsda_r = -1.f;
+      trk_tsda_p = 0.f; trk_tsda_pt = -1.f; trk_tsda_cos = -2.f; trk_tsda_pr = -1000.f;
+      trk_tsda_dt = -1.e4f; trk_tsda_dp = -1000.f; trk_tsda_inbounds = -1;
       trk_mc_dp = 0.f;
       trk_mc_pdg = 0.f;
       trk_id = 0;

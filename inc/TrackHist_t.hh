@@ -59,6 +59,15 @@ namespace Mu2eEvtAna {
     TH1*    fIPAInters;
     TH1*    fOPAInters;
     TH1*    fTSDARadius;
+    TH1*    fTSDAP;        // kinematics at the TSDA plane (tracks with a TSDA intersection)
+    TH1*    fTSDAPT;
+    TH1*    fTSDACos;
+    TH1*    fTSDAPR;
+    TH1*    fTSDADt;
+    TH1*    fTSDADp;
+    TH1*    fTSDAInBounds;
+    TH2*    fTSDARvsCos;
+    TH2*    fTSDARvsPR;
     TH1*    fTrackID;
     TH1*    fExlTrackID; //flagging what is exclusively cut by a given ID bit
 

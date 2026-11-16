@@ -99,6 +99,20 @@ namespace Mu2eEvtAna {
     bool  OPAInter  () const { return (track_ && track_->trk) ? track_->trk->opainter : false; }
     bool  TSDAInter () const { return (track_ && track_->trk) ? track_->trk->tsdainter : false; }
     float TSDARadius() const { return RSegment(mu2e::SurfaceIdDetail::TSDA); } // radius of the TSDA intersection (mm), -1 if none
+    // Kinematics of the (upstream) fit extrapolation at the TSDA plane; defaults if there is no TSDA intersection
+    const mu2e::TrkSegInfo* TSDASeg() const { return Segment(mu2e::SurfaceIdDetail::TSDA); }
+    float TSDAP       () const { auto s = TSDASeg(); return (s) ? s->mom.r()   :     0.f; } // momentum (MeV/c)
+    float TSDAPT      () const { auto s = TSDASeg(); return (s) ? s->mom.rho() :    -1.f; } // transverse momentum (MeV/c)
+    float TSDACosTheta() const { auto s = TSDASeg(); return (s && s->mom.r() > 0.) ? s->mom.z()/s->mom.r() : -2.f; } // pitch
+    // Radial momentum (x px + y py)/r: > 0 if the helix moves outward at the TSDA plane
+    float TSDAPR      () const {
+      auto s = TSDASeg();
+      if(!s || s->pos.rho() <= 0.) return -1000.f;
+      return (s->pos.x()*s->mom.x() + s->pos.y()*s->mom.y())/s->pos.rho();
+    }
+    float TSDADt      () const { auto s = TSDASeg(); return (s) ? s->time - TFront()    : -1.e4f; } // time relative to the tracker front (ns)
+    float TSDADp      () const { auto s = TSDASeg(); return (s) ? s->mom.r() - PFront() : -1000.f; } // momentum relative to the tracker front
+    int   TSDAInBounds() const { auto s = TSDASeg(); return (s) ? s->inbounds : -1; } // within the TSdA annulus bounds (-1: no intersection)
     int   NSTInterUp  () const {
       return (track_ && track_->trk) ? track_->trk->nstup : 0;
     }
