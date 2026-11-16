@@ -50,6 +50,7 @@ namespace Mu2eEvtAna {
     TH1*    fEp;
     TH1*    fTZSlope;
     TH1*    fTZSlopeSig;
+    TH1*    fTTSlope;
     TH1*    fTZSlopeRatio;
     TH1*    fBestAlg;
     TH1*    fAlgMask;
@@ -57,6 +58,7 @@ namespace Mu2eEvtAna {
     TH1*    fSTInters;
     TH1*    fIPAInters;
     TH1*    fOPAInters;
+    TH1*    fTSDARadius;
     TH1*    fTrackID;
     TH1*    fExlTrackID; //flagging what is exclusively cut by a given ID bit
 

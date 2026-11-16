@@ -98,6 +98,7 @@ namespace Mu2eEvtAna {
     float TZSlopeUnc() const { return (track_) ? tz_slope_unc_ :    -1.f; }
     bool  OPAInter  () const { return (track_ && track_->trk) ? track_->trk->opainter : false; }
     bool  TSDAInter () const { return (track_ && track_->trk) ? track_->trk->tsdainter : false; }
+    float TSDARadius() const { return RSegment(mu2e::SurfaceIdDetail::TSDA); } // radius of the TSDA intersection (mm), -1 if none
     int   NSTInterUp  () const {
       return (track_ && track_->trk) ? track_->trk->nstup : 0;
     }
