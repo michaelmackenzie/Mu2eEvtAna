@@ -1064,7 +1064,7 @@ namespace Mu2eEvtAna {
             test_id &= track_->PID() > 0.556937 && track_->ECluster() > 0.;
             test_id &= track_->TErrMiddle() < 0.794113;
             test_id &= track_->TanDipFront() > 0.622565 && track_->TanDipFront() < 0.894688;
-            test_id &= track_->D0Front() > -51.77949.;
+            test_id &= track_->D0Front() > -51.77949;
             test_id &= track_->D0Front() <  94.06077;
             test_id &= track_->NActive() >= 17;
             test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
