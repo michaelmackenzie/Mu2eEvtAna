@@ -11,6 +11,8 @@ namespace Mu2eEvtAna {
       sys_hists_[ihist] = nullptr;
     }
 
+    InitNMinusOne();
+
     // Initialize the MVA models
 
     if(evaluate_mvas_ > 0) {
@@ -296,8 +298,10 @@ namespace Mu2eEvtAna {
         break;
       }
     }
+    is_offspill_ = name_.Contains("bns5");
     if(verbose_ > 0 || dataset_ == kUnknown)
       printf("[ConvAna::%s] Name %s --> dataset %s\n", __func__, name_.Data(), DatasetName(dataset_));
+    if(is_offspill_) printf("[ConvAna::%s] Off-spill sample: no upper t0 edge in any selection\n", __func__);
   }
 
   //------------------------------------------------------------------------------------
@@ -461,13 +465,13 @@ namespace Mu2eEvtAna {
     if(track->TrkQual() <= 0.145)                                 ID.SetBit(kTrkQual);  // Track quality
     if(track->TErrMiddle() >= 0.81)                               ID.SetBit(kT0Err);    //
     if(track->NActive() < 17)                                     ID.SetBit(kNActive);  //
-    if(track->TFront() <= 475. || track->TFront() >= 1650.)       ID.SetBit(kT0);       // shape-based time
+    if(!is_offspill_ && (track->TFront() <= 475. || track->TFront() >= 1650.)) ID.SetBit(kT0); // shape-based time
     if(!track->STBoundary())                                      ID.SetBit(kSTBoundary);// Consistent with stopping target
     if(track->NSTInter() <= 0)                                    ID.SetBit(kSTInter);  // Consistent with stopping target
     if(track->TanDipFront() <= 0.56)                              ID.SetBit(kTDip);     // Tan(dip) = pz / pt here
     if(track->TanDipFront() >= 0.8787)                            ID.SetBit(kTDip);     // Tan(dip) = pz / pt here
     if(track->D0Front() <= -60. || track->D0Front() >= 94.)       ID.SetBit(kD0);       // Cosmic rejection
-    if(track->TFront() <= 475. || track->TFront() >= 1650.)       ID.SetBit(kT0Loose);  // For RPC control regions
+    if(!is_offspill_ && (track->TFront() <= 475. || track->TFront() >= 1650.)) ID.SetBit(kT0Loose); // shape-based time
     if(track->ECluster() <= 0.)                                   ID.SetBit(kClusterE); // Require a cluster
     else if(track->PID() <= 0.574)                                ID.SetBit(kPID);      // PID requirement
 
@@ -488,9 +492,77 @@ namespace Mu2eEvtAna {
   }
 
   //------------------------------------------------------------------------------------
+  // Register the ID bits for the N-1 efficiency tables (names match the cut-flow steps)
+  void ConvAna::InitNMinusOne() {
+    for(auto* nm1 : {&nm1_em_, &nm1_ep_}) {
+      nm1->AddCut(kUpstream  , "upstream_veto");
+      nm1->AddCut(kMultiTrk  , "multi_track");
+      nm1->AddCut(kFitHyp    , "fit_hypothesis");
+      nm1->AddCut(kTZSlope   , "tz_slope");
+      nm1->AddCut(kPID       , "good_pid");
+      nm1->AddCut(kTrkPID    , "good_trkpid");
+      nm1->AddCut(kClusterE  , "good_cluster");
+      nm1->AddCut(kTrkQual   , "good_trkqual");
+      nm1->AddCut(kFitCon    , "fitcon");
+      nm1->AddCut(kNActive   , "active_hits");
+      nm1->AddCut(kT0Err     , "t0_err");
+      nm1->AddCut(kSTBoundary, "st_boundary");
+      nm1->AddCut(kSTInter   , "st_inter");
+      nm1->AddCut(kOPA       , "no_opa");
+      nm1->AddCut(kTSDA      , "no_tsda");
+      nm1->AddCut(kCRV       , "no_crv_veto");
+      nm1->AddCut(kTDip      , "pz_over_pt");
+      nm1->AddCut(kCosTheta  , "cos_theta");
+      nm1->AddCut(kRMax      , "rmax");
+      nm1->AddCut(kD0        , "d0");
+      nm1->AddCut(kCosmicID  , "cosmic_id");
+      nm1->AddCut(kTrigger   , "trigger");
+      nm1->AddCut(kP         , "loose_mom_region");
+      // kT0Loose (control-region flag) is not registered: kT0 is tighter, so with both registered
+      // removing kT0 alone would still fail kT0Loose and the time-cut N-1 row would be empty
+      nm1->AddCut(kT0        , "final_time_region");
+    }
+    nm1_run1a_.AddCut(kTrigger   , "trigger");
+    nm1_run1a_.AddCut(kUpstream  , "upstream_reflection");
+    nm1_run1a_.AddCut(kMultiTrk  , "multi_trk");
+    nm1_run1a_.AddCut(kClusterE  , "cluster_energy");
+    nm1_run1a_.AddCut(kPID       , "PID");
+    nm1_run1a_.AddCut(kTDip      , "tan_dip");
+    nm1_run1a_.AddCut(kD0        , "d0");
+    nm1_run1a_.AddCut(kSTBoundary, "st_boundary");
+    nm1_run1a_.AddCut(kSTInter   , "st_inter");
+    nm1_run1a_.AddCut(kOPA       , "opa_inter");
+    nm1_run1a_.AddCut(kTSDA      , "tsda_inter");
+    nm1_run1a_.AddCut(kTrkQual   , "trkqual");
+    nm1_run1a_.AddCut(kNActive   , "nactive");
+    nm1_run1a_.AddCut(kT0Err     , "t0_err");
+    nm1_run1a_.AddCut(kCRV       , "crv_veto");
+    nm1_run1a_.AddCut(kT0Tight   , "t_540"); // t_475 (kT0) is part of the preselection
+  }
+
+  //------------------------------------------------------------------------------------
+  // Copy of a track ID for the N-1 tables, with the event-level trigger bit added
+  CutID ConvAna::NMinusOneID(const CutID& ID) {
+    CutID nm1_id = ID;
+    if(!trigger_.FiredAPR() && !trigger_.FiredCPR()) nm1_id.SetBit(kTrigger);
+    return nm1_id;
+  }
+
+  //------------------------------------------------------------------------------------
   // Evaluate a cut-flow
-  bool ConvAna::SetCutFlow(const CutID& ID, CutFlow& cut_flow, bool eminus) {
+  bool ConvAna::SetCutFlow(const CutID& ID, CutFlow& cut_flow, bool eminus, NMinusOne* nm1) {
     if(!track_) return false;
+    // N-1 tracking: candidates passing the non-ID requirements of this selection
+    // The trigger and t_540 are N-1 cuts, set on a copy of the ID so the stored ID is unchanged
+    const CutID nm1_id = NMinusOneID(ID);
+    if(nm1 && track_->IsGood() && track_->PFront() > 0.f && std::abs(track_->FitPDG()) == 11
+       && track_->PZFront() > 0.f && !(track_->Charge() > 0)
+       && !(track_->PFront() <= 100.f || track_->PFront() >= 110.f)
+       && !nm1_id.CheckBit(kT0)) { // t_475 window (475 - 1650 ns; no upper edge off-spill)
+      CutID run1a_id = nm1_id;
+      if(!is_offspill_ && track_->TFront() <= 540.f) run1a_id.SetBit(kT0Tight);
+      nm1->Fill(run1a_id);
+    }
     cut_flow.Increment("a_track");
     if(!track_->IsGood()) return false;
     cut_flow.Increment("a_converged_track");
@@ -536,9 +608,9 @@ namespace Mu2eEvtAna {
     cut_flow.Increment("momentum");
     if(ID.CheckBit(kT0)) return false;
     cut_flow.Increment("t_475");
-    if(track_->TFront() > 540.f) {
+    if(is_offspill_ || track_->TFront() > 540.f) {
       cut_flow.Increment("t_540");
-      if(track_->TFront() > 640.f) {
+      if(is_offspill_ || track_->TFront() > 640.f) {
         cut_flow.Increment("t_640");
         if(track_->PFront() > 103.34f && track_->PFront() < 104.74f) {
           cut_flow.Increment("sr_momentum");
@@ -566,6 +638,13 @@ namespace Mu2eEvtAna {
     const int event_id = (
                           2*(!trigger_.FiredAPR() && !trigger_.FiredCPR())
                           );
+
+    // N-1 tracking: candidates passing the non-ID requirements of this selection
+    if(!ID.CheckBit(kMC) && track_->PFront() > 0.f && std::abs(track_->FitPDG()) == 11
+       && !(eminus && track_->Charge() > 0) && !(!eminus && track_->Charge() < 0)
+       && track_->PZFront() > 0.f && (event_id & 1) == 0) { // no final (tight) momentum window; kP is the loose one
+      (eminus ? nm1_em_ : nm1_ep_).Fill(NMinusOneID(ID)); // copy with the trigger bit, off-spill time window
+    }
 
     if((ID.CheckBit(kMC))) return false;
     cut_flow.Increment("mc_cut");
@@ -700,6 +779,9 @@ namespace Mu2eEvtAna {
     run1a_cut_flow_.Increment("All");
     dev_cut_flow_.ResetEvent();
     dev_cut_flow_.Increment("All");
+    nm1_em_.ResetEvent();
+    nm1_ep_.ResetEvent();
+    nm1_run1a_.ResetEvent();
 
     // Event-level requirements
     const bool triggered = trigger_.FiredAPR() || trigger_.FiredCPR();
@@ -763,7 +845,7 @@ namespace Mu2eEvtAna {
 
         if(!multi_trk)     Run1AID.SetBit(kMultiTrk);
         if(!upstream_veto) Run1AID.SetBit(kUpstream);
-        SetCutFlow(Run1AID, run1a_cut_flow_, true);
+        SetCutFlow(Run1AID, run1a_cut_flow_, true, &nm1_run1a_);
 
         // Offset to control regions
         int neg_set_offset(0), pos_set_offset(0);
@@ -792,7 +874,7 @@ namespace Mu2eEvtAna {
             }
             // alternate ID set on top of standard ID (~75% signal eff)
             const bool alt_id = (track_->CosThetaFront() > 0.5 && track_->CosThetaFront() < 0.646805 &&
-                                 track_->TFront() > 594.049 &&
+                                 (is_offspill_ || track_->TFront() > 594.049) &&
                                  track_->RMaxFront() > 482.031 &&
                                  track_->EPFront() < 0.960571 &&
                                  track_->AltPID() > 0.140625);
@@ -812,7 +894,7 @@ namespace Mu2eEvtAna {
         const int run1a_id_no_crv_time = run1a_id_no_crv & run1a_id_no_time;
 
         if(event_id == 0 && run1a_id_no_crv_time == 0) {
-          if(track_->TFront() > 640.) { // nominal timing window for 1D fit
+          if(is_offspill_ || track_->TFront() > 640.) { // nominal timing window for 1D fit
             if(evt_.nde_tracks_ == 1) FillAllHistograms(60 + run1a_set_offset);
             if(upstream_veto && multi_trk) {
               FillAllHistograms(62 + run1a_set_offset);
@@ -820,7 +902,7 @@ namespace Mu2eEvtAna {
               // No timing window applied --> 2D fit selection
               FillTrackHist(trk_hists_[65 + run1a_set_offset], track_);
               if(track_->PFront() > 103.34 && track_->PFront() < 104.74
-                 && track_->TFront() > 640. && track_->TFront() < 1650.) { // FIXME: Timing selection not given for cut-and-count
+                 && (is_offspill_ || (track_->TFront() > 640. && track_->TFront() < 1650.))) { // FIXME: Timing selection not given for cut-and-count
                 FillAllHistograms(66 + run1a_set_offset);
               }
             }
@@ -837,7 +919,7 @@ namespace Mu2eEvtAna {
                                     && multi_trk
                                     && track_->CosThetaFront() > 0.525 && track_->CosThetaFront() < 0.649 // start optimized cuts
                                     && track_->RMaxFront() > 482. && track_->RMaxFront() < 642.6
-                                    && track_->TFront() > 540. && track_->TFront() < 1650.
+                                    && (is_offspill_ || (track_->TFront() > 540. && track_->TFront() < 1650.))
                                     && track_->AltTrkQual() > 0.235352
                                     && track_->TrkPID() > 0.078125);
         if(no_csm_opt_id) {
@@ -856,7 +938,7 @@ namespace Mu2eEvtAna {
                                  && multi_trk
                                  && track_->CosThetaFront() > 0.525 && track_->CosThetaFront() < 0.649 // start optimized cuts
                                  && track_->RMaxFront() > 482. && track_->RMaxFront() < 642.6
-                                 && track_->TFront() > 540. && track_->TFront() < 1650.
+                                 && (is_offspill_ || (track_->TFront() > 540. && track_->TFront() < 1650.))
                                  && track_->TrkQual() > 0.2);
         if(evt_opt_id) {
           int cut_opt_offset = 0;
@@ -887,11 +969,11 @@ namespace Mu2eEvtAna {
           dev_cut_flow_.Increment("crv_veto");
           if(track_->PFront() > 100.f && track_->PFront() < 110.f) {
             dev_cut_flow_.Increment("momentum");
-            if(track_->TFront() > 475.f && track_->TFront() < 1650.f) {
+            if(is_offspill_ || (track_->TFront() > 475.f && track_->TFront() < 1650.f)) {
               dev_cut_flow_.Increment("t_475");
-              if(prv_opt_id && track_->TFront() > 540.f) {
+              if(prv_opt_id && (is_offspill_ || track_->TFront() > 540.f)) {
                 dev_cut_flow_.Increment("t_540");
-                if(prv_opt_id && track_->TFront() > 640.f) {
+                if(prv_opt_id && (is_offspill_ || track_->TFront() > 640.f)) {
                   dev_cut_flow_.Increment("t_640");
                   if(track_->PFront() > 103.34f && track_->PFront() < 104.74f) {
                     dev_cut_flow_.Increment("sr_momentum");
@@ -910,7 +992,7 @@ namespace Mu2eEvtAna {
           if(Run1AID.CheckBit(kCRV)) cut_opt_offset += kCRVVetoOffset;
           if(!charge_cut) cut_opt_offset += kChargeOffset;
           int offset_1d = cut_opt_offset; // for 1D selections with a timing cut
-          if(track_->TFront() <= 540.f) offset_1d += kTimeCutOffset;
+          if(!is_offspill_ && track_->TFront() <= 540.f) offset_1d += kTimeCutOffset;
 
           // nominal 1D selection
           FillAllHistograms(75 + offset_1d);
@@ -940,7 +1022,7 @@ namespace Mu2eEvtAna {
           }
 
           // nominal 2D selection
-          if(track_->TFront() > 475.f) FillAllHistograms(80 + cut_opt_offset);
+          if(is_offspill_ || track_->TFront() > 475.f) FillAllHistograms(80 + cut_opt_offset);
         }
 
         bool base_test_id = true; // As of 2026-10-08 from Natalie
@@ -964,11 +1046,11 @@ namespace Mu2eEvtAna {
             test_id &= track_->D0Front() <  94.;
             test_id &= track_->NActive() >= 17;
             test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
-            test_id &= track_->TFront() > 540. && track_->TFront() < 1650.;
+            test_id &= is_offspill_ || (track_->TFront() > 540. && track_->TFront() < 1650.);
             if(test_id) {
               int cut_opt_offset = 0;
               if(Run1AID.CheckBit(kCRV))    cut_opt_offset += kCRVVetoOffset;
-              if(track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset;
+              if(!is_offspill_ && track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset;
               if(track_->Charge() > 0)      cut_opt_offset += kChargeOffset;
               FillAllHistograms(79 + cut_opt_offset);
             }
@@ -992,15 +1074,15 @@ namespace Mu2eEvtAna {
           // Use fixed control region definitions
           int cut_opt_offset = 0;
           if(Run1AID.CheckBit(kCRV))   cut_opt_offset += kCRVVetoOffset;
-          if(track_->TFront() <= 500.) cut_opt_offset += kTimeCutOffset;
+          if(!is_offspill_ && track_->TFront() <= 500.) cut_opt_offset += kTimeCutOffset;
           if(track_->Charge() > 0)     cut_opt_offset += kChargeOffset;
 
           // Nominal target (random3: eff 0.745, S/sqrt(B) 2.92, 1/limit 2.49 relative to set 81)
           if(base_test_id) {
             bool test_id = true;
             test_id &= track_->CosThetaFront() > 0.51988223 && track_->CosThetaFront() < 0.9;
-            test_id &= track_->TFront() < 1586.7247;
-            test_id &= track_->TFront() <= 500. || track_->TFront() > 531.83835; // t0 <= 500 ns: time control region
+            test_id &= is_offspill_ || track_->TFront() < 1586.7247;
+            test_id &= is_offspill_ || track_->TFront() <= 500. || track_->TFront() > 531.83835; // t0 <= 500 ns: time control region
             test_id &= track_->RMaxFront() > 400. && track_->RMaxFront() < 638.35034;
             test_id &= track_->EPFront() > 0. && track_->EPFront() < 1.2;
             test_id &= track_->Dt() > -4. && track_->Dt() < 4.;
@@ -1014,8 +1096,8 @@ namespace Mu2eEvtAna {
           if(base_test_id) {
             bool test_id = true;
             test_id &= track_->CosThetaFront() > 0.48123671 && track_->CosThetaFront() < 0.9;
-            test_id &= track_->TFront() < 1584.9767;
-            test_id &= track_->TFront() <= 500. || track_->TFront() > 531.64117; // t0 <= 500 ns: time control region
+            test_id &= is_offspill_ || track_->TFront() < 1584.9767;
+            test_id &= is_offspill_ || track_->TFront() <= 500. || track_->TFront() > 531.64117; // t0 <= 500 ns: time control region
             test_id &= track_->RMaxFront() > 400. && track_->RMaxFront() < 635.83456;
             test_id &= track_->Dt() > -4. && track_->Dt() < 4.;
             test_id &= track_->FitCon() > 1.7032742e-17;
@@ -1029,8 +1111,8 @@ namespace Mu2eEvtAna {
           if(base_test_id) {
             bool test_id = true;
             test_id &= track_->CosThetaFront() > 0.50493616 && track_->CosThetaFront() < 0.9;
-            test_id &= track_->TFront() < 1585.7396;
-            test_id &= track_->TFront() <= 500. || track_->TFront() > 525.83432; // t0 <= 500 ns: time control region
+            test_id &= is_offspill_ || track_->TFront() < 1585.7396;
+            test_id &= is_offspill_ || track_->TFront() <= 500. || track_->TFront() > 525.83432; // t0 <= 500 ns: time control region
             test_id &= track_->RMaxFront() > 400. && track_->RMaxFront() < 637.04733;
             test_id &= track_->Dt() > -4. && track_->Dt() < 4.;
             test_id &= track_->TrkQual() > 0.064945206;
@@ -1043,8 +1125,8 @@ namespace Mu2eEvtAna {
           if(base_test_id) {
             bool test_id = true;
             test_id &= track_->CosThetaFront() > 0.51990423 && track_->CosThetaFront() < 0.9;
-            test_id &= track_->TFront() < 1583.8349;
-            test_id &= track_->TFront() <= 500. || track_->TFront() > 524.92834; // t0 <= 500 ns: time control region
+            test_id &= is_offspill_ || track_->TFront() < 1583.8349;
+            test_id &= is_offspill_ || track_->TFront() <= 500. || track_->TFront() > 524.92834; // t0 <= 500 ns: time control region
             test_id &= track_->RMaxFront() > 400. && track_->RMaxFront() < 636.84894;
             test_id &= track_->EPFront() > 0. && track_->EPFront() < 0.90899929;
             test_id &= track_->Dt() > -4. && track_->Dt() < 4.;
@@ -1058,8 +1140,8 @@ namespace Mu2eEvtAna {
           if(base_test_id) {
             bool test_id = true;
             test_id &= track_->CosThetaFront() > 0.51 && track_->CosThetaFront() < 0.9;
-            test_id &= track_->TFront() < 1585.;
-            test_id &= track_->TFront() <= 500. || track_->TFront() > 530.; // t0 <= 500 ns: time control region
+            test_id &= is_offspill_ || track_->TFront() < 1585.;
+            test_id &= is_offspill_ || track_->TFront() <= 500. || track_->TFront() > 530.; // t0 <= 500 ns: time control region
             test_id &= track_->RMaxFront() > 400. && track_->RMaxFront() < 637.;
             test_id &= track_->EPFront() > 0. && track_->EPFront() < 1.2;
             test_id &= track_->Dt() > -4. && track_->Dt() < 4.;
@@ -1080,7 +1162,7 @@ namespace Mu2eEvtAna {
         // loose selection for optimization
         if(track_->Charge() > 0 && triggered &&
            track_->PFront() > 87.f && track_->PFront() < 97.f &&
-           track_->TFront() > 475.f && track_->TFront() < 1650.f &&
+           (is_offspill_ || (track_->TFront() > 475.f && track_->TFront() < 1650.f)) &&
            track_->STBoundary()) {
           FillAllHistograms(45);
         }
@@ -1123,5 +1205,12 @@ namespace Mu2eEvtAna {
     run1a_cut_flow_.Print();
     printf("Test cut-flow:\n");
     dev_cut_flow_.Print();
+    printf("N-1 legend: per event, unweighted; N-1 eff = N(all)/N(all but this cut); acc = fraction of the selection's preselected candidates\n");
+    printf("Nominal e- N-1 efficiencies:\n");
+    nm1_em_.Print();
+    printf("Nominal e+ N-1 efficiencies:\n");
+    nm1_ep_.Print();
+    printf("Run 1A N-1 efficiencies:\n");
+    nm1_run1a_.Print();
   }
 }

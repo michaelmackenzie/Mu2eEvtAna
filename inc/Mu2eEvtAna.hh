@@ -144,6 +144,8 @@ namespace Mu2eEvtAna {
       case kSTInter: return "ST inter";
       case kT0Err: return "#sigma_{t}";
       case kNActive: return "N(hits)";
+      case kTrigger: return "Trigger";
+      case kT0Tight: return "T_{0} (tight)";
       case kCosTheta: return "cos(#theta)";
       case kTZSlope: return "TZ slope";
       case kMC: return "MC";
@@ -207,6 +209,7 @@ namespace Mu2eEvtAna {
     Tree_t*            trs_hists_ [kMaxHists];
 
     TString name_; //name for output file
+    bool is_offspill_ = false; // off-spill sample: no upper t0 edge (e.g. t0 < 1650 ns) in any selection
     bool require_calo_prirel_ = false; //stop if a veto needs calomcsim prirel and the ntuple doesn't fill it
 
     // Beam intensity re-weighting of MC with N(POT) per microbunch (evtinfomc), applied to evt_.weight_ in InitEvent().

@@ -1366,7 +1366,8 @@ namespace Mu2eEvtAna {
         if(track->PFront() < 85.f || track->PFront() > 130.f)        ID.SetBit(kP);
         if(track->RMaxFront() < 430. || track->RMaxFront() > 650.)   ID.SetBit(kRMax);
         if(track->AltTrkQual() > -10. && track->AltTrkQual() < 0.2)  ID.SetBit(kTrkQual);
-        if(track->TFront() < 540. || track->TFront() > 1650.)        ID.SetBit(kT0);
+        if(!is_offspill_ && (track->TFront() < 540. || track->TFront() > 1650.)) ID.SetBit(kT0);
+        if(track->NActive() < 15)                                    ID.SetBit(kNActive); // well-defined track
         if(track->FitCon() < 1.e-5)                                  ID.SetBit(kFitCon);
         if(track->ECluster() <= 0.)                                  ID.SetBit(kClusterE);
         else if(track->AltPID() < 0.5f)                              ID.SetBit(kPID);
@@ -1380,8 +1381,9 @@ namespace Mu2eEvtAna {
         if(track->RMaxFront() < 400. || track->RMaxFront() > 610.)   ID.SetBit(kRMax);
         if(track->TrkQual() > -10. && track->TrkQual() < 0.015)      ID.SetBit(kTrkQual);
         // if(track->AltTrkQual() > -10. && track->AltTrkQual() < 0.02) ID.SetBit(kTrkQual);
-        if(track->TFront() < 500. || track->TFront() > 1650.)        ID.SetBit(kT0);
-        if(track->FitCon() < 1.e-8)                                  ID.SetBit(kFitCon);
+        if(!is_offspill_ && (track->TFront() < 500. || track->TFront() > 1650.)) ID.SetBit(kT0);
+        if(track->NActive() < 15)                                    ID.SetBit(kNActive); // well-defined track
+        if(track->FitCon() < 1.e-6)                                  ID.SetBit(kFitCon);
         if(track->TanDipFront() < 0.5 || track->TanDipFront() > 1.5) ID.SetBit(kTDip);
 
         if(track->ECluster() <= 0.) { // no cluster associated
@@ -1394,7 +1396,9 @@ namespace Mu2eEvtAna {
       if(track->OPAInter())                                          ID.SetBit(kOPA);
       if(track->TSDAInter())                                         ID.SetBit(kTSDA);
       if(!track->STBoundary())                                       ID.SetBit(kSTBoundary);
-      if(track->TFront() < 475. || track->TFront() > 1650.)          ID.SetBit(kT0Loose); //for control regions
+      if(!is_offspill_) {
+        if(track->TFront() < 475. || track->TFront() > 1650.)        ID.SetBit(kT0Loose); //for control regions
+      }
 
       // upstream and multi-track rejection
       bool multi_trk(true), upstream_veto(true);

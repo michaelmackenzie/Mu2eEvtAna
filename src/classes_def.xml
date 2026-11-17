@@ -4,6 +4,7 @@
   <class name="Mu2eEvtAna::SimParticle_t" />
   <class name="Mu2eEvtAna::CutID" />
   <class name="Mu2eEvtAna::CutFlow" />
+  <class name="Mu2eEvtAna::NMinusOne" />
   <class name="Mu2eEvtAna::Mu2eEvtAna" />
   <class name="Mu2eEvtAna::RMCAna" />
   <class name="Mu2eEvtAna::ConvAna" />
