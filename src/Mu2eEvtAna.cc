@@ -267,6 +267,7 @@ namespace Mu2eEvtAna {
     Hist->fEp            = new TH1F("ep"          ,Form("%s: cluster E / track P"                  ,Folder),  200,    0.,    2.);
     Hist->fTZSlope       = new TH1F("tzslope"     ,Form("%s: TZ slope"                             ,Folder),  200,  -0.1,   0.1);
     Hist->fTZSlopeSig    = new TH1F("tzslopesig"  ,Form("%s: TZ slope significance"                ,Folder),  200, -10.,   10.);
+    Hist->fTTSlope       = new TH1F("ttslope"     ,Form("%s: dt_{hit} vs dt_{trk} slope"           ,Folder),  150,  -2.,    4.);
     Hist->fTZSlopeRatio  = new TH1F("tzsloperatio",Form("%s: TZ slope / expected slope"            ,Folder),  200, -10.,   10.);
     Hist->fBestAlg       = new TH1F("bestAlg"     ,Form("%s: Best fit algorithm"                   ,Folder),   10,    0.,   10.);
     Hist->fAlgMask       = new TH1F("algMask"     ,Form("%s: Algorithm mask"                       ,Folder),   10,    0.,   10.);
@@ -274,6 +275,16 @@ namespace Mu2eEvtAna {
     Hist->fSTInters      = new TH1F("st_inters"   ,Form("%s: Stopping target intersections"        ,Folder),  30,    0.,   30.);
     Hist->fIPAInters     = new TH1F("ipa_inters"  ,Form("%s: IPA intersections"                    ,Folder),  10,    0.,   10.);
     Hist->fOPAInters     = new TH1F("opa_inters"  ,Form("%s: OPA intersections"                    ,Folder),  10,    0.,   10.);
+    Hist->fTSDARadius    = new TH1F("tsda_r"      ,Form("%s: TSDA intersection radius (-1: none)"  ,Folder),  82,  -20.,  800.);
+    Hist->fTSDAP         = new TH1F("tsda_p"      ,Form("%s: p at the TSDA plane"                  ,Folder), 150,    0.,  300.);
+    Hist->fTSDAPT        = new TH1F("tsda_pt"     ,Form("%s: p_{T} at the TSDA plane"              ,Folder), 150,    0.,  150.);
+    Hist->fTSDACos       = new TH1F("tsda_cos"    ,Form("%s: cos(#theta) at the TSDA plane"        ,Folder), 100,   -1.,    1.);
+    Hist->fTSDAPR        = new TH1F("tsda_pr"     ,Form("%s: radial p at the TSDA plane"           ,Folder), 120, -120.,  120.);
+    Hist->fTSDADt        = new TH1F("tsda_dt"     ,Form("%s: t(TSDA) - t(tracker front)"           ,Folder), 100, -100.,    0.);
+    Hist->fTSDADp        = new TH1F("tsda_dp"     ,Form("%s: p(TSDA) - p(tracker front)"           ,Folder), 100,  -10.,   10.);
+    Hist->fTSDAInBounds  = new TH1F("tsda_inbounds",Form("%s: TSDA intersection in the TSdA bounds",Folder),   2,    0.,    2.);
+    Hist->fTSDARvsCos    = new TH2F("tsda_r_vs_cos",Form("%s: TSDA radius vs cos(#theta) at the TSDA plane",Folder), 50, -1., 1., 40, 0., 800.);
+    Hist->fTSDARvsPR     = new TH2F("tsda_r_vs_pr",Form("%s: TSDA radius vs radial p at the TSDA plane",Folder), 60, -120., 120., 40, 0., 800.);
     Hist->fTrackID       = new TH1F("track_id"    ,Form("%s: Track ID bits"                        ,Folder),   35,    0.,   35.);
     Hist->fExlTrackID    = new TH1F("track_exl_id",Form("%s: Track ID bits for exclusive rejection",Folder),   35,    0.,   35.);
 
@@ -506,6 +517,8 @@ namespace Mu2eEvtAna {
     Tree->tree->Branch("trk_tzslope"            , &Tree->trk_tzslope             );
     Tree->tree->Branch("trk_tzslope_sig"        , &Tree->trk_tzslope_sig         );
     Tree->tree->Branch("trk_tzslope_ratio"      , &Tree->trk_tzslope_ratio       );
+    Tree->tree->Branch("trk_ttslope"            , &Tree->trk_ttslope             );
+    Tree->tree->Branch("trk_ttslope_unc"        , &Tree->trk_ttslope_unc         );
     Tree->tree->Branch("trk_pexit_diff"         , &Tree->trk_pexit_diff          );
     Tree->tree->Branch("trk_qual"               , &Tree->trk_qual                );
     Tree->tree->Branch("trk_pid"                , &Tree->trk_pid                 );
@@ -520,6 +533,14 @@ namespace Mu2eEvtAna {
     Tree->tree->Branch("trk_nipa"               , &Tree->trk_nipa                );
     Tree->tree->Branch("trk_opa"                , &Tree->trk_opa                 );
     Tree->tree->Branch("trk_ntsda"              , &Tree->trk_tsda                );
+    Tree->tree->Branch("trk_tsda_r"             , &Tree->trk_tsda_r              );
+    Tree->tree->Branch("trk_tsda_p"             , &Tree->trk_tsda_p              );
+    Tree->tree->Branch("trk_tsda_pt"            , &Tree->trk_tsda_pt             );
+    Tree->tree->Branch("trk_tsda_cos"           , &Tree->trk_tsda_cos            );
+    Tree->tree->Branch("trk_tsda_pr"            , &Tree->trk_tsda_pr             );
+    Tree->tree->Branch("trk_tsda_dt"            , &Tree->trk_tsda_dt             );
+    Tree->tree->Branch("trk_tsda_dp"            , &Tree->trk_tsda_dp             );
+    Tree->tree->Branch("trk_tsda_inbounds"      , &Tree->trk_tsda_inbounds       );
     Tree->tree->Branch("trk_mc_dp"              , &Tree->trk_mc_dp               );
     Tree->tree->Branch("trk_mc_pdg"             , &Tree->trk_mc_pdg              );
     Tree->tree->Branch("trk_id"                 , &Tree->trk_id                  );
@@ -696,10 +717,23 @@ namespace Mu2eEvtAna {
     Hist->fEp->Fill(Track->EPFront(), Weight);
     Hist->fTZSlope->Fill(Track->TZSlope(), Weight);
     Hist->fTZSlopeSig->Fill(Track->TZSlopeSig(), Weight);
+    Hist->fTTSlope->Fill(Track->TTSlope(), Weight);
     Hist->fTZSlopeRatio->Fill(Track->TZSlopeRatio(), Weight);
     Hist->fSTBoundary->Fill(Track->STBoundary(), Weight);
     Hist->fSTInters->Fill(Track->NSTInter(), Weight);
     Hist->fOPAInters->Fill(Track->OPAInter(), Weight);
+    Hist->fTSDARadius->Fill(Track->TSDARadius(), Weight);
+    if(Track->TSDASeg()) {
+      Hist->fTSDAP       ->Fill(Track->TSDAP()       , Weight);
+      Hist->fTSDAPT      ->Fill(Track->TSDAPT()      , Weight);
+      Hist->fTSDACos     ->Fill(Track->TSDACosTheta(), Weight);
+      Hist->fTSDAPR      ->Fill(Track->TSDAPR()      , Weight);
+      Hist->fTSDADt      ->Fill(Track->TSDADt()      , Weight);
+      Hist->fTSDADp      ->Fill(Track->TSDADp()      , Weight);
+      Hist->fTSDAInBounds->Fill(Track->TSDAInBounds(), Weight);
+      Hist->fTSDARvsCos  ->Fill(Track->TSDACosTheta(), Track->TSDARadius(), Weight);
+      Hist->fTSDARvsPR   ->Fill(Track->TSDAPR()      , Track->TSDARadius(), Weight);
+    }
     Hist->fIPAInters->Fill(Track->NIPAInter(), Weight);
     // Hist->fBestAlg->Fill(Track->BestAlg(), Weight);
     // Hist->fAlgMask->Fill(Track->AlgMask(), Weight);
@@ -989,6 +1023,8 @@ namespace Mu2eEvtAna {
       Tree->trk_tzslope = Track->TZSlope();
       Tree->trk_tzslope_sig = Track->TZSlopeSig();
       Tree->trk_tzslope_ratio = Track->TZSlopeRatio();
+      Tree->trk_ttslope = Track->TTSlope();
+      Tree->trk_ttslope_unc = Track->TTSlopeUnc();
       Tree->trk_pexit_diff = Track->PFront() - Track->PBack();
       Tree->trk_qual = Track->TrkQual();
       Tree->trk_pid = Track->PID();
@@ -1003,6 +1039,14 @@ namespace Mu2eEvtAna {
       Tree->trk_nipa = Track->NIPAInter();
       Tree->trk_opa = Track->OPAInter();
       Tree->trk_tsda = Track->TSDAInter();
+      Tree->trk_tsda_r = Track->TSDARadius();
+      Tree->trk_tsda_p = Track->TSDAP();
+      Tree->trk_tsda_pt = Track->TSDAPT();
+      Tree->trk_tsda_cos = Track->TSDACosTheta();
+      Tree->trk_tsda_pr = Track->TSDAPR();
+      Tree->trk_tsda_dt = Track->TSDADt();
+      Tree->trk_tsda_dp = Track->TSDADp();
+      Tree->trk_tsda_inbounds = Track->TSDAInBounds();
       Tree->trk_mc_dp = Track->MCDeltaPFront();
       Tree->trk_mc_pdg = Track->MCPDG();
       Tree->trk_id = Track->ID(hist_track_id_).ID(0xffffffff);
