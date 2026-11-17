@@ -134,6 +134,8 @@ namespace Mu2eEvtAna {
     hist_sets[ 79] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 80] = new hist_info_t("e-: 2D (t,p) selection"           ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 81] = new hist_info_t("e-: Initial ID for optimization"  ,  true, false, false, false, false, false, false,  true);
+    hist_sets[ 82] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true, false);
+    hist_sets[ 83] = new hist_info_t("e-: Test ID set"                  ,  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 85] = new hist_info_t("e-: Nominal target ID, no ST cuts",  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 86] = new hist_info_t("e-: st37plus6up6dn ID, no ST cuts",  true,  true,  true,  true,  true,  true,  true, false);
     hist_sets[ 87] = new hist_info_t("e-: st49hole1to5 ID, no ST cuts"  ,  true,  true,  true,  true,  true,  true,  true, false);
@@ -1053,6 +1055,46 @@ namespace Mu2eEvtAna {
               if(!is_offspill_ && track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset;
               if(track_->Charge() > 0)      cut_opt_offset += kChargeOffset;
               FillAllHistograms(79 + cut_opt_offset);
+            }
+          }
+
+          { // Rank 1 from Natalie's test on 11-17-2026
+            bool test_id = true;
+            test_id &= track_->TrkQual() > 0.156263;
+            test_id &= track_->PID() > 0.556937 && track_->ECluster() > 0.;
+            test_id &= track_->TErrMiddle() < 0.794113;
+            test_id &= track_->TanDipFront() > 0.622565 && track_->TanDipFront() < 0.894688;
+            test_id &= track_->D0Front() > -51.77949.;
+            test_id &= track_->D0Front() <  94.06077;
+            test_id &= track_->NActive() >= 17;
+            test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
+            test_id &= is_offspill_ || (track_->TFront() > 540. && track_->TFront() < 1650.);
+            if(test_id) {
+              int cut_opt_offset = 0;
+              if(Run1AID.CheckBit(kCRV))    cut_opt_offset += kCRVVetoOffset;
+              if(!is_offspill_ && track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset;
+              if(track_->Charge() > 0)      cut_opt_offset += kChargeOffset;
+              FillAllHistograms(82 + cut_opt_offset);
+            }
+          }
+
+          { // Rank 14 from Natalie's test on 11-17-2026
+            bool test_id = true;
+            test_id &= track_->TrkQual() > 0.195;
+            test_id &= track_->PID() > 0.551563 && track_->ECluster() > 0.;
+            test_id &= track_->TErrMiddle() < 0.792089;
+            test_id &= track_->TanDipFront() > 0.622341 && track_->TanDipFront() < 0.842647;
+            test_id &= track_->D0Front() > -100.;
+            test_id &= track_->D0Front() <  94.28191;
+            test_id &= track_->NActive() >= 17;
+            test_id &= track_->PFront() > 100. && track_->PFront() < 110.;
+            test_id &= is_offspill_ || (track_->TFront() > 540. && track_->TFront() < 1650.);
+            if(test_id) {
+              int cut_opt_offset = 0;
+              if(Run1AID.CheckBit(kCRV))    cut_opt_offset += kCRVVetoOffset;
+              if(!is_offspill_ && track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset;
+              if(track_->Charge() > 0)      cut_opt_offset += kChargeOffset;
+              FillAllHistograms(83 + cut_opt_offset);
             }
           }
         }
