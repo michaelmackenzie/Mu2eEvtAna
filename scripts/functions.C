@@ -14,6 +14,7 @@ int debug_level_ = 0;
 // Global flags
 bool use_xrootd_ = true;
 bool require_calo_prirel_ = false; // stop if the ntuple doesn't fill calomcsim prirel (needed by the Run1BAna primary cluster veto)
+TString preselection_ = ""; // Preselection applied to the input ntuple
 
 //------------------------------------------------------------------------------------
 // Analyzer registry: analyzer function name (e.g. "cnv_ana") --> analyzer class and the libraries it needs.
@@ -103,14 +104,35 @@ int RunAnalyzer(Mu2eEvtAna::Mu2eEvtAna* ana, TString input, TString ana_name, Lo
   ana->use_xrootd_ = use_xrootd_;
   ana->verbose_ = debug_level_;
   ana->require_calo_prirel_ = require_calo_prirel_;
+  ana->preselection_ = preselection_;
   return ana->Process(max_entries);
 }
 
+// Preselection hand-off to the thread processes: the cut is written to a file rather than passed on the command line,
+// since cuts contain characters the shell and the macro argument parsing would mangle (quotes, $, &&, >, ...)
+TString PreselectionFile(TString name_tag) { return Form("temp/%s_preselection.txt", name_tag.Data()); }
+
+bool ReadPreselection(TString file_name, TString& preselection) {
+  std::ifstream file(file_name.Data());
+  if(!file.is_open()) return false;
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  preselection = buffer.str().c_str();
+  preselection = preselection.Strip(TString::kBoth, '\n');
+  return true;
+}
+
 // Process one thread's share of the input, using the file list written by ProcessWithThreads.
-// Called in a child process via functions.C(ana_func, class_name, libraries, name_tag, mode, max_entries, first_entry, thread_id, xrootd)
+// Called in a child process via functions.C(ana_func, class_name, libraries, name_tag, mode, max_entries, first_entry, thread_id,
+// xrootd, presel_file), where presel_file (if not empty) holds the preselection written by ProcessWithThreads
 int functions(TString ana_func, TString class_name, TString libraries, TString name_tag, int Mode,
-              Long64_t max_entries, Long64_t first_entry, int thread_id, bool xrootd = true) {
+              Long64_t max_entries, Long64_t first_entry, int thread_id, bool xrootd = true, TString presel_file = "") {
   use_xrootd_ = xrootd;
+  preselection_ = "";
+  if(presel_file != "" && !ReadPreselection(presel_file, preselection_)) {
+    cout << "ERROR: Preselection file not found: " << presel_file << endl;
+    return -1;
+  }
   TString input_file = Form("temp/%s_thread_%i.files", name_tag.Data(), thread_id);
 
   // File list was already split by ProcessWithThreads, just verify it exists
@@ -124,6 +146,15 @@ int functions(TString ana_func, TString class_name, TString libraries, TString n
   const int status = RunAnalyzer(ana, input_file, Form("%s.%s.m%i.thread_%i", ana_func.Data(), name_tag.Data(), Mode, thread_id),
                                  max_entries, first_entry, Mode);
   cout << "Thread " << thread_id << " status = " << status << endl;
+
+  // End the thread process immediately: the output is already written and closed by Process(), and the normal exit's
+  // static destructors can deadlock in the XRootD client cleanup (XrdCl::DefaultEnv::Finalize waiting on a pending
+  // TAsyncReadvHandler response), leaving a process that never exits and a ProcessWithThreads that waits on it forever.
+  // _exit skips those destructors, so flush the log first: ProcessWithThreads looks for the status line above.
+  cout.flush();
+  fflush(stdout);
+  fflush(stderr);
+  gSystem->Exit(status, kFALSE); // kFALSE: _exit, no atexit handlers or static destructors
   return status;
 }
 
@@ -193,12 +224,22 @@ int ProcessWithThreads(TString ana_func, TString input, int Mode,
   gSystem->Setenv("XRD_REDIRECTLIMIT", "255");
   gSystem->Setenv("XRD_STREAMTIMEOUT", "1800");
 
+  // Hand the preselection to the threads through a file (see PreselectionFile)
+  TString presel_file = "";
+  if(!preselection_.IsWhitespace()) {
+    presel_file = PreselectionFile(dataset);
+    std::ofstream presel_out(presel_file.Data());
+    presel_out << preselection_.Data() << "\n";
+    presel_out.close();
+    cout << "Preselection: " << preselection_ << " (" << presel_file << ")" << endl;
+  }
+
   std::vector<int> pids;
 
   for(int t = 0; t < actual_n_threads; ++t) {
-    TString cmd = Form("(root.exe -q -b \"${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/functions.C(\\\"%s\\\", \\\"%s\\\", \\\"%s\\\", \\\"%s\\\", %i, %lli, %lli, %i, %i)\" >| log/out_%s_thread_%i.log 2>&1) & echo $!",
+    TString cmd = Form("(root.exe -q -b \"${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/functions.C(\\\"%s\\\", \\\"%s\\\", \\\"%s\\\", \\\"%s\\\", %i, %lli, %lli, %i, %i, \\\"%s\\\")\" >| log/out_%s_thread_%i.log 2>&1) & echo $!",
                        ana_func.Data(), info.class_name_.Data(), info.libraries_.Data(), dataset.Data(), Mode, max_entries, first_entry, t,
-                       (int) use_xrootd_, dataset.Data(), t);
+                       (int) use_xrootd_, presel_file.Data(), dataset.Data(), t);
     cout << "Submitting thread " << t << ": " << cmd << endl;
     TString pid_str = gSystem->GetFromPipe(cmd.Data());
     int pid = pid_str.Atoi();

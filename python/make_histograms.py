@@ -76,7 +76,7 @@ def process(chunk):
 
     # every entry is read, so nseen == nntuple here; nneg stays 0 until weights are applied
     norm = histograms.Norm(ngen=0, nntuple=n_events, nseen=n_events,
-                           naccept=n_accept, nneg=0)
+                           npresel=n_events, naccept=n_accept, nneg=0)
     return {"books": books, "flows": flows, "n_events": n_events, "norm": norm}
 
 

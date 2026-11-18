@@ -16,10 +16,16 @@
    n_threads: Number of threads per process to split file lists (default 1)
    name_tag : Tag used to name the output files, defaults to the dataset name for a dataset
               or to the input file name for a file input
+   presel_file: File holding the input preselection (Mu2eEvtAna::preselection_), used to hand the global preselection_ to
+              the per-dataset sub-processes (processes > 1); normally left empty
  **/
 int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
                     const char* function = "cnv_ana", int n_threads = 1, Long64_t max_entries = 1e5,
-                    TString name_tag = "") {
+                    TString name_tag = "", TString presel_file = "") {
+  if(presel_file != "" && !ReadPreselection(presel_file, preselection_)) {
+    cout << "Preselection file " << presel_file << " not found!\n";
+    return 1;
+  }
 
   if(processes > 3) {
     cout << "Requested " << processes << " parallel processes, but this exceeds the interactive maximum of about 2-3!\n";
@@ -34,6 +40,8 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
   // Inputs that aren't a known dataset name (a single ntuple file or a file list) are processed directly
   const bool file_input = dataset != "" && !IsKnownDataset(dataset);
   const TString tag = (name_tag != "") ? name_tag : (file_input ? DefaultNameTag(dataset) : dataset);
+  const bool is_run1b = TString(function) == "run1b_ana";
+  if(is_run1b) preselection_ = "trig_calo_cluster_50 > 0"; // require the calo trigger for Run 1B datasets to speed up processing
 
   // if(tag.BeginsWith("cele")) max_entries = min(max_entries, Long64_t(1e6/n_threads)); // don't need as many signal events
   if(tag.BeginsWith("cpos")) max_entries = min(max_entries, Long64_t(1e6/n_threads));
@@ -56,7 +64,6 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
   }
 
   auto datasets = DATA::datasets();
-  const bool is_run1b = TString(function) == "run1b_ana";
 
   vector<TString> logs;
   // processes > 1: one sub-process per dataset, tracked by PID (each waits for its own threads and merges their output)
@@ -86,8 +93,16 @@ int make_histograms(int processes = 1, TString dataset = "", const int mode = 1,
 
     if(processes > 1) { // note: analyzers registered by other packages are not known to these sub-processes
       while(n_running() >= processes) sleep(10);
-      TString command = Form("(root.exe -q -b \"${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/make_histograms.C(0, \\\"%s\\\", %i, \\\"%s\\\", %i, %lld)\" >| log/out_%s.log 2>&1) & echo $!",
-                             config.name_.Data(), mode, function, n_threads, max_entries, config.name_.Data());
+      // Hand the preselection to the sub-process through a file (see PreselectionFile in functions.C)
+      TString process_presel_file = "";
+      if(!preselection_.IsWhitespace()) {
+        process_presel_file = Form("temp/%s_process_preselection.txt", config.name_.Data());
+        std::ofstream presel_out(process_presel_file.Data());
+        presel_out << preselection_.Data() << "\n";
+        presel_out.close();
+      }
+      TString command = Form("(root.exe -q -b \"${MUSE_WORK_DIR}/Mu2eEvtAna/scripts/make_histograms.C(0, \\\"%s\\\", %i, \\\"%s\\\", %i, %lld, \\\"\\\", \\\"%s\\\")\" >| log/out_%s.log 2>&1) & echo $!",
+                             config.name_.Data(), mode, function, n_threads, max_entries, process_presel_file.Data(), config.name_.Data());
       printf(" Submitting %-20s histogramming (%i threads)...\n", config.name_.Data(), n_threads);
       logs.push_back(Form("log/out_%s.log", config.name_.Data()));
       const int pid = TString(gSystem->GetFromPipe(command.Data())).Atoi();

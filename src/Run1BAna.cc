@@ -22,6 +22,11 @@ namespace Mu2eEvtAna {
     disabled_branches_.erase(
       std::remove(disabled_branches_.begin(), disabled_branches_.end(), TString("calohitsmc")),
       disabled_branches_.end());
+    // trkhits (~30% of a Run1B EventNtuple, ~half of what is read here) is used only by Track_t::EvaluateTZSlope, for the
+    // t-z slope track histograms; no Run1BAna selection uses it. Without it those histograms are 0. The dt_hit vs dt_trk
+    // slope (trkdtdt, Track_t::TTSlope) replaces it where the ntuple has trkdtdt. The virtual detector steps are unused.
+    disabled_branches_.push_back("trkhits");
+    disabled_branches_.push_back("mcsteps_virtualdetector");
   }
 
   //------------------------------------------------------------------------------------
@@ -272,11 +277,15 @@ namespace Mu2eEvtAna {
     hist_sets[ 40] = new hist_info_t("base_proton"                     ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 43] = new hist_info_t("proton_edep"                     ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 44] = new hist_info_t("proton_id"                       ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 50] = new hist_info_t("base_neutron"                    ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 51] = new hist_info_t("neutron_id"                      ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 52] = new hist_info_t("neutron_1_cr"                    ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 70] = new hist_info_t("60 < E < 120 MeV"                ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 71] = new hist_info_t("rmc_base"                        ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 72] = new hist_info_t("rmc_r_cut"                       ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 73] = new hist_info_t("rmc_line_cut"                    ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 74] = new hist_info_t("rmc_seed_cut"                    ,  true,  true,  true,  true,  true,  true, false, false);
+    hist_sets[ 75] = new hist_info_t("rmc_neutron_veto"                ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 80] = new hist_info_t("ce_id"                           ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 90] = new hist_info_t("rpc_base"                        ,  true,  true,  true,  true,  true,  true, false, false);
     hist_sets[ 93] = new hist_info_t("rpc_line_cut"                    ,  true,  true,  true,  true,  true,  true, false, false);
@@ -535,24 +544,25 @@ namespace Mu2eEvtAna {
       const auto p_line_seed    = cluster->proton_line_seed_;
       const auto p_line         = cluster->proton_line_;
       const auto c_line         = cluster->cosmic_line_;
-      const int   n_e_hits_high = (e_tc) ? e_tc->NHitsAboveZ(1300.) : -1;
+      const int  n_e_hits_high  = (e_tc) ? e_tc->NHitsAboveZ(1300.) : -1;
 
       const int sim_pdg = cluster->MCPDG();
       const float sim_edep = cluster->MCSimEDep();
       const auto sim = cluster->MCSim();
       const float mc_edep = cluster->MCEDep();
+      const float mc_gen_e = (sim) ? sim->mom.r() : 0.f;
+      constexpr float dio_pu_cutoff = 65.f; // use pileup for all DIOs below this cut
       bool mc_veto = false;
       if(is_pu) {
         // skip high energy tail RMC/protons/neutrons
         mc_veto |= (sim_pdg == 22 || sim_pdg == 2212 || sim_pdg == 2112) && sim_edep > 60.f;
-        // skip DIO electrons above 60 MeV, which the flat DIO electron sample covers: the main particle is a muon
-        // decay-in-orbit electron that deposited most (> 80%) of the cluster's true energy
+        // Model all DIO tail with the dedicated sample
         mc_veto |= sim && sim_pdg == 11 && sim->startCode == mu2e::ProcessCode::mu2eMuonDecayAtRest
-          && energy > 60.f && mc_edep > 0.f && sim_edep/mc_edep > 0.80f;
+          && mc_gen_e >= dio_pu_cutoff;
       } else if(primary_veto_) {
         // primary samples: skip clusters not from the primary (e.g. pileup), which the pileup sample covers
         mc_veto |= !cluster->IsPrimaryAssociated();
-        if(is_dio) mc_veto |= IsPrimaryRelated(sim) && sim_edep/mc_edep < 0.70f; // large pileup contribution DIO comes from no-primary
+        if(is_dio) mc_veto |= IsPrimaryRelated(sim) && (mc_gen_e < dio_pu_cutoff || sim_edep/mc_edep < 0.5f); // model all DIO tail with the dedicated sample
       }
 
       if(!mc_veto) {
@@ -625,6 +635,12 @@ namespace Mu2eEvtAna {
             if(is_pu && energy > 70.f) PrintClusterInfo("[Accepted RMC: PU]", cluster);
             FillCaloClusterHist(cls_hists_[74], cluster);
             FillTimeClusterHist(tcs_hists_[74], e_tc);
+
+            const bool neutron_veto = e24_r > 0.075 && e2p_r < 0.3;
+            if(neutron_veto) {
+              FillCaloClusterHist(cls_hists_[75], cluster);
+              FillTimeClusterHist(tcs_hists_[75], e_tc);
+            }
           }
         }
       }
@@ -758,6 +774,29 @@ namespace Mu2eEvtAna {
       //------------------------------------------------
       // Neutron selection
       //------------------------------------------------
+
+      if(base_id) {
+        bool trk_veto = false;
+        trk_veto |= e_line != nullptr;
+        bool neutron_id = ncr < 3 && disk == 0;
+        if(neutron_id) {
+          FillCaloClusterHist(cls_hists_[50], cluster);
+          FillTimeClusterHist(tcs_hists_[50], e_tc);
+          neutron_id &= r > 500.f && r < 575.f;
+          neutron_id &= e1_r > 0.9f;
+          neutron_id &= n_e_hits_high < 6;
+          neutron_id &= (e_tc) ? e_tc->AvgEDep() < 0.0015f : true;
+          neutron_id &= (p_tc) ? p_tc->AvgEDep() < 0.0020f : true;
+          if(!trk_veto && neutron_id) {
+            FillCaloClusterHist(cls_hists_[51], cluster);
+            FillTimeClusterHist(tcs_hists_[51], e_tc);
+            if(ncr == 1) {
+              FillCaloClusterHist(cls_hists_[52], cluster);
+              FillTimeClusterHist(tcs_hists_[52], e_tc);
+            }
+          }
+        }
+      }
 
       //------------------------------------------------
       // RPC selection

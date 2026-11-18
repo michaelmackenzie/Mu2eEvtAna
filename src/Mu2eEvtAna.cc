@@ -1,6 +1,8 @@
 #include "Mu2eEvtAna/inc/Mu2eEvtAna.hh"
 
 #include "TEnv.h"
+#include "TEntryList.h"
+#include "TNamed.h"
 #include <stdlib.h>
 
 
@@ -1136,6 +1138,7 @@ namespace Mu2eEvtAna {
     tnorm_->Branch("ngen"   , &norm_.ngen_   );
     tnorm_->Branch("nntuple", &norm_.nntuple_);
     tnorm_->Branch("nseen"  , &norm_.nseen_  );
+    tnorm_->Branch("npresel", &norm_.npresel_);
     tnorm_->Branch("naccept", &norm_.naccept_);
     tnorm_->Branch("nneg"   , &norm_.nneg_   );
 
@@ -1550,6 +1553,30 @@ namespace Mu2eEvtAna {
       return 2;
     }
 
+    const Long64_t max_entry = (nentries < 0) ? entries : std::min(entries, first+nentries);
+
+    //---------------------------------------------------
+    // Optional preselection: an entry list of the entries in [first, max_entry) passing preselection_. Built before
+    // InitializeInput(), so the cut is evaluated before any branch is disabled or given an address.
+    TEntryList* presel_list = nullptr;
+    if(!preselection_.IsWhitespace()) {
+      if(verbose_ > -2) printf("Mu2eEvtAna::%s: Applying the preselection \"%s\" to entries [%lld, %lld)\n",
+                               __func__, preselection_.Data(), first, max_entry);
+      watch_->SetTime("Preselection");
+      const TString list_name = Form("mu2eevtana_presel_%p", (void*) this);
+      const Long64_t npass = ntuple_->Draw(">>" + list_name, preselection_, "entrylist", max_entry - first, first);
+      presel_list = dynamic_cast<TEntryList*>(gDirectory->Get(list_name));
+      if(npass < 0 || !presel_list) {
+        if(verbose_ > -3) printf("Mu2eEvtAna::%s: Error! Unable to evaluate the preselection \"%s\"\n", __func__, preselection_.Data());
+        return 5;
+      }
+      presel_list->SetDirectory(nullptr); // owned here, not by whatever file is current
+      ntuple_->SetEntryList(presel_list);
+      watch_->StopTime("Preselection");
+      if(verbose_ > -2) printf("Mu2eEvtAna::%s: %lld of %lld entries pass the preselection (%.3g%%)\n", __func__, presel_list->GetN(),
+                               max_entry - first, presel_list->GetN()*100./std::max(Long64_t(1), max_entry - first));
+    }
+
     //---------------------------------------------------
     // Initialize the input
     if(InitializeInput()) return 3;
@@ -1565,9 +1592,12 @@ namespace Mu2eEvtAna {
     Long64_t naccepted = 0; //track the acceptance rate
     Long64_t nnegative = 0; //track the number of negative weight events
 
-    const Long64_t max_entry = (nentries < 0) ? entries : std::min(entries, first+nentries);
+    // Entries to process: every entry in [first, max_entry), or only those in the preselection list
+    const Long64_t nprocess = (presel_list) ? presel_list->GetN() : max_entry - first;
 
-    for(Long64_t entry = first; entry < max_entry; ++entry) {
+    for(Long64_t iprocess = 0; iprocess < nprocess; ++iprocess) {
+      const Long64_t entry = (presel_list) ? ntuple_->GetEntryNumber(iprocess) : first + iprocess;
+      if(entry < 0) throw std::runtime_error(Form("Mu2eEvtAna::Process: No entry for preselected index %lld", iprocess));
       watch_->Increment("Event");
       entry_ = entry;
       watch_->SetTime("Read");
@@ -1576,7 +1606,7 @@ namespace Mu2eEvtAna {
         tree_ = ntuple_->GetTree();
         if(!tree_ || !ntuple_->GetCurrentFile()) throw std::runtime_error("The next tree or file is undefined!");
         if(verbose_ > -1) printf("Mu2eEvtAna::%s: Opened input file: %s\n", __func__, ntuple_->GetCurrentFile()->GetName());
-        if(load_baskets_) {
+        if(load_baskets_ && !presel_list) { // loading every basket would read the events the preselection skips
           watch_->SetTime("LoadBaskets");
           tree_->LoadBaskets(cache_size_);
           watch_->StopTime("LoadBaskets");
@@ -1587,7 +1617,7 @@ namespace Mu2eEvtAna {
       event_->Update(verbose_ > 3);
       watch_->StopTime("Update");
       if((verbose_ > -1 && nseen % report_rate_ == 0) || verbose_ > 1) {
-        const Long64_t nremaining = max_entry - entry;
+        const Long64_t nremaining = nprocess - iprocess;
         const auto& timer = watch_->Timer("Event");
         double est_time = timer.AvgTime() / 1.e6 * nremaining; // in seconds
         TString unit = "s";
@@ -1595,10 +1625,11 @@ namespace Mu2eEvtAna {
           est_time /= 60.;
           unit = "min";
         }
-        double percent_remaining = nremaining * 100./((max_entry - first + 1 > 0) ? (max_entry - first + 1) : 1);
+        double percent_remaining = nremaining * 100./((nprocess > 0) ? nprocess : 1);
         printf("Mu2eEvtAna::%s: Processing event %7lld (entry %8lld, event %6i/%7i/%7i): N(accept) = %7lld (%6.2f%%) (%.0f Hz), %5.1f%% remaining (%.2f %s)\n", __func__, nseen, entry,
                event_->evtinfo->run,event_->evtinfo->subrun,event_->evtinfo->event, naccepted, naccepted*100./((nseen <= 0) ? 1 : nseen),
                timer.AvgRate(), percent_remaining, est_time, unit.Data());
+        fflush(stdout); // stdout redirected to a log file is block-buffered: keep the progress current
       }
       ++nseen;
 
@@ -1625,7 +1656,8 @@ namespace Mu2eEvtAna {
     // FIXME: Figure out how to access gen count objects
     norm_.ngen_    = entries;
     norm_.nntuple_ = entries;
-    norm_.nseen_   = nseen;
+    norm_.nseen_   = (presel_list) ? max_entry - first : nseen; // every entry in the range, so N(seen) normalization is unchanged
+    norm_.npresel_ = nseen;
     norm_.naccept_ = naccepted;
     norm_.nneg_    = nnegative;
     tnorm_->Fill();
@@ -1633,6 +1665,12 @@ namespace Mu2eEvtAna {
     // Close output structures and report results
     tout_->Write();
     tnorm_->Write();
+    if(presel_list) { // record the cut alongside the normalization
+      data_dir_->cd();
+      TNamed("Preselection", preselection_.Data()).Write();
+      ntuple_->SetEntryList(nullptr);
+      delete presel_list;
+    }
     fout_->Write();
     fout_->Close();
 

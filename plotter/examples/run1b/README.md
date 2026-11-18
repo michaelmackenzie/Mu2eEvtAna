@@ -6,8 +6,14 @@ Stack plots from the Mu2eEvtAna `Run1BAna` (`run1b_ana`) histogram files. Each s
 ```bash
 # from the directory holding Run1BAna.run1b_ana.<dataset>.m1.root
 root.exe -q -b 'Mu2eEvtAna/plotter/examples/run1b/make_plots.C(".", "figures/run1b")'
-root.exe -q -b 'Mu2eEvtAna/plotter/examples/run1b/make_plots.C(".", "figures/run1b", {"rmc"}, 30.)'  # RMC only, 30 days
+root.exe -q -b 'Mu2eEvtAna/plotter/examples/run1b/make_plots.C(".", "figures/run1b", 1., {"rmc"}, 30.)'  # RMC only, 30 days
+# 1.5x the nominal beam power (beam_scale)
+root.exe -q -b 'Mu2eEvtAna/plotter/examples/run1b/make_plots.C(".", "figures/run1b", 1.5)'
 ```
+
+`beam_scale` scales N(POT) per microbunch: POT-normalized samples scale linearly, the pileup sample as `beam_scale`²
+(coincidences), and cosmic rays not at all. Only the normalization changes; the intensity weights and the pileup mixed
+into the primary samples stay at the nominal intensity.
 
 | selection | sets | signal (stacked, drawn alone in front) |
 |---|---|---|

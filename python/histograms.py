@@ -28,7 +28,8 @@ class Norm:
 
     ``ngen``     N(generated events)
     ``nntuple``  N(events in the input ntuple)
-    ``nseen``    N(processed events)
+    ``nseen``    N(input entries in the processed range, including any failing the preselection)
+    ``npresel``  N(entries passing the preselection and processed; = ``nseen`` without one)
     ``naccept``  N(accepted events)
     ``nneg``     N(negative weight events)
     """
@@ -36,6 +37,7 @@ class Norm:
     ngen: int = 0
     nntuple: int = 0
     nseen: int = 0
+    npresel: int = 0
     naccept: int = 0
     nneg: int = 0
 
@@ -43,6 +45,7 @@ class Norm:
         self.ngen += other.ngen
         self.nntuple += other.nntuple
         self.nseen += other.nseen
+        self.npresel += other.npresel
         self.naccept += other.naccept
         self.nneg += other.nneg
         return self
@@ -192,7 +195,7 @@ def _write_norm(norm: "Norm") -> None:
 
     tree = ROOT.TTree("Norm", "Normalization information")
     buffers = {}
-    for name in ("ngen", "nntuple", "nseen", "naccept", "nneg"):
+    for name in ("ngen", "nntuple", "nseen", "npresel", "naccept", "nneg"):
         buffers[name] = array.array("l", [int(getattr(norm, name))])
         tree.Branch(name, buffers[name], f"{name}/L")
     tree.Fill()

@@ -242,6 +242,11 @@ namespace Mu2eEvtAna {
     Bool_t          use_xrootd_   = true;
     Bool_t          fill_trees_   = true;
     Int_t           hist_track_id_ = 0; // Track_t ID index shown in the track ID bit histograms
+    // Optional TCut on the input ntuple. When non-empty, Process() builds a TEntryList of the entries in the requested
+    // range that pass it and reads only those. Norm::nseen still counts every entry in the range, so the downstream
+    // N(seen) normalization is unchanged; Norm::npresel counts the entries passing the cut. Histograms only see the
+    // preselected events, so the cut must not remove events any filled selection needs.
+    TString         preselection_ = "";
 
     Long64_t        tree_entries_ = 0;
 

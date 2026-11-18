@@ -4,7 +4,7 @@
 //
 // Usage (from the directory holding the Run1BAna.run1b_ana.<dataset>.m1.root files):
 //   root.exe -q -b 'Mu2eEvtAna/plotter/examples/run1b/make_plots.C(".", "figures/run1b")'
-//   root.exe -q -b 'Mu2eEvtAna/plotter/examples/run1b/make_plots.C(".", "figures/run1b", {"rmc"})'
+//   root.exe -q -b 'Mu2eEvtAna/plotter/examples/run1b/make_plots.C(".", "figures/run1b", 1., {"rmc"})'
 //
 // Each selection's signal is stacked on the other samples and drawn alone in front, with an S/sigma(B) lower pad
 // (10% normalization uncertainty on each background). Samples without a histogram file are skipped; make one with
@@ -28,16 +28,15 @@ namespace run1b {
     return {
       // 70: 60 < E < 120 MeV, 500 < t < 1650 ns; 71: + pileup veto (N(cr), E1/E, (E1+E2)/E, t variance, 2nd moment, disk 0);
       // 72: + 500 < r < 580 mm; 73: + no electron line; 74: + no electron line seed, N(electron time cluster hits, z > 1300 mm) < 3
-      {"rmc"   , {70, 71, 72, 73, 74}, {"rmc"}             , {"ce", "ce_nomix"}},
+      {"rmc"   , {70, 71, 72, 73, 74, 75}, {"rmc"}             , {"ce", "ce_nomix"}},
       // 90: 60 < E < 140 MeV, 300 < t < 550 ns, pileup and radius vetoes; 93: + no electron line; 94: + no line seed, high-z hits
       {"rpc"   , {90, 93, 94}        , {"rpc", "rpc_int"}  , {"ce", "ce_nomix"}},
       // 80: set 71 (no radius cut) with a matched electron line and time cluster, 10 < N(hits) < 40, N(active) > 0, |cos(theta)| > 0.985
-      {"ce"    , {80}                , {ce_sample}         , {other_ce}},
+      {"ce"    , {70,80}                , {ce_sample}         , {other_ce}},
       // 40: base selection with a proton line and time cluster; 43: + average hit E(dep) > 2.8 keV; 44: + disk 0, N(cr) < 4, |cos(theta)| > 0.985
       {"proton", {40, 43, 44}        , {"protons"}         , {"ce", "ce_nomix"}},
-      // Run1BAna has no neutron selection yet: the calorimeter preselection the other selections share,
-      // 1: E > 50 MeV; 2: E > 70 MeV; 70-72 as for the RMC selection
-      {"neutron", {1, 2, 70, 71, 72} , {"neutrons"}        , {"ce", "ce_nomix"}},
+      // 50: base selection for neutron clusters
+      {"neutron", {70, 50, 51, 52} , {"neutrons"}        , {"ce", "ce_nomix"}},
     };
   }
 
@@ -59,6 +58,7 @@ namespace run1b {
       plot_t("disk_id"       , "cls", set,  1,   0. ,   2. ,  1., -1., false, false, "Disk"                      , ""   ),
       plot_t("nhitsabovez"   , "tcs", set,  1,   0. ,  20. ,  1., -1., false, false, "N(time cluster hits, z > 1300 mm)", ""),
       plot_t("nhits"         , "tcs", set,  2,   0. , 100. ,  1., -1., false, false, "N(time cluster hits)"      , ""   ),
+      plot_t("MC_sim_pdg"    , "cls", set,  1,  -15., 25.  ,  1., -1., false, false, "MC PDG"                    , ""   ),
     };
     if(proton) plots.push_back(plot_t("avgedep", "tcs", set, 2, 0., 0.005, 1., -1., false, false, "Average hit E(dep)", "MeV"));
     if(has_line) {
@@ -84,10 +84,18 @@ namespace run1b {
 // ce_sample    : "ce" (mixed with pileup) or "ce_nomix"
 // ce_rate      : R(mue) for the CE signal
 // stacked      : stack the signal on the other samples (and draw it in front), otherwise overlay it
-int make_plots(TString hist_dir = ".", TString figdir = "figures/run1b",
+// mode         : histogram file mode tag (m<mode>)
+// beam_scale   : beam power relative to nominal; scales N(POT) per microbunch, so POT-normalized samples scale linearly
+//                and the pileup sample (coincidences in a microbunch) as beam_scale^2. Cosmic rays are unchanged.
+int make_plots(TString hist_dir = ".", TString figdir = "figures/run1b", double beam_scale = 1.,
                std::vector<TString> names = {"rmc", "rpc", "ce", "proton", "neutron"},
                double days = 7., TString ce_sample = "ce", double ce_rate = 1.e-8,
                bool stacked = true, int mode = 1) {
+  if(beam_scale <= 0.) { printf("make_plots: beam_scale must be > 0 (got %g)\n", beam_scale); return 1; }
+  // FIXME: only the normalization changes. The per-event intensity weights (Run1BAna) and the pileup mixed into the
+  // primary samples stay at the nominal intensity, so intensity-dependent efficiencies (e.g. pileup vetoes) are not
+  // rescaled. The beam_scale^2 pileup scaling also assumes the selected pileup is from coincidences; any single-particle
+  // part of it should scale linearly.
   using namespace mu2eplot;
   int status = 0;
   for(const auto& sel : run1b::selections(ce_sample)) {
@@ -101,7 +109,7 @@ int make_plots(TString hist_dir = ".", TString figdir = "figures/run1b",
     Plotter plotter;
     plotter.figdir_          = figdir + "/" + sel.name;
     plotter.layout_          = Layout_t::evtana();
-    plotter.exposure_        = run1b::exposure(days, run1b::npot_per_event);
+    plotter.exposure_        = run1b::exposure(days, beam_scale*run1b::npot_per_event);
     plotter.require_signals_ = false; // a missing signal sample still gives the background plots
     plotter.use_offsets_     = false;
     plotter.legend_columns_  = 3;
@@ -118,7 +126,8 @@ int make_plots(TString hist_dir = ".", TString figdir = "figures/run1b",
     for(const auto& s : run1b::samples()) {
       if(std::find(sel.signals.begin(), sel.signals.end(), s.key) != sel.signals.end()) continue;
       if(std::find(sel.exclude.begin(), sel.exclude.end(), s.key) != sel.exclude.end()) continue;
-      plotter.add_process(run1b::make_process(s, kBackground, hist_dir, mode));
+      Process_t& p_bkg = plotter.add_process(run1b::make_process(s, kBackground, hist_dir, mode));
+      if(s.exposure == kNEvents) p_bkg.rate_scale(beam_scale*beam_scale); // pileup: per microbunch, coincidence rate ~ intensity^2
     }
     if(plotter.init()) { ++status; continue; }
 
