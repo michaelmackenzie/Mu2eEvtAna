@@ -21,6 +21,7 @@
 #include "Mu2eEvtAna/inc/MVATools.hh"
 #include "Mu2eEvtAna/inc/CutID.hh"
 #include "Mu2eEvtAna/inc/CutFlow.hh"
+#include "Mu2eEvtAna/inc/NMinusOne.hh"
 
 using namespace mu2e;
 namespace Mu2eEvtAna {
@@ -69,7 +70,9 @@ namespace Mu2eEvtAna {
     void FillAllHistograms(const int index);
     void InitTreeData();
     CutID Run1ATrackID(Track_t* track);
-    bool SetCutFlow(const CutID& ID, CutFlow& cut_flow, bool eminus = true);
+    CutID NMinusOneID(const CutID& ID); // ID copy used by the N-1 tables
+    bool SetCutFlow(const CutID& ID, CutFlow& cut_flow, bool eminus = true, NMinusOne* nm1 = nullptr);
+    void InitNMinusOne();
     bool Run1ACutFlow();
     bool StandardCutFlow(const bool eminus = true);
 
@@ -99,6 +102,9 @@ namespace Mu2eEvtAna {
     CutFlow            cut_flow_ep_                     ; // standard e+ selection
     CutFlow            run1a_cut_flow_                  ; // Run 1A paper selection
     CutFlow            dev_cut_flow_                    ; // For cut-set testing
+    NMinusOne          nm1_em_                          ; // N-1 efficiencies, standard e- selection
+    NMinusOne          nm1_ep_                          ; // N-1 efficiencies, standard e+ selection
+    NMinusOne          nm1_run1a_                       ; // N-1 efficiencies, Run 1A paper selection
 
     Dataset_t          dataset_ = kUnknown              ; // input sample type
     Bool_t             fill_verbose_sys_ = false        ; // add additional info with each systematic

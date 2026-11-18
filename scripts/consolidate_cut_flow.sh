@@ -82,6 +82,35 @@ ENDFILE {
     file_block_idx = 0
 }
 
+# --- N-1 TABLES: sum the counts per table (keyed by its header line) and row ---
+FNR == 1 { nm1_cur = "" }
+/N-1 efficiencies:[ \t]*$/ {
+    nm1_cur = $0
+    sub(/^[ \t]+/, "", nm1_cur)
+    if (!(nm1_cur in nm1_seen)) {
+        nm1_seen[nm1_cur] = 1
+        nm1_order[++nm1_ntab] = nm1_cur
+    }
+    next
+}
+nm1_cur != "" && /^[ \t]*N-1 summary:/ {
+    if (match($0, /N\(presel\) = ([0-9]+)/, m))   nm1_presel[nm1_cur] += m[1]
+    if (match($0, /N\(all cuts\) = ([0-9]+)/, m)) nm1_all[nm1_cur]    += m[1]
+    next
+}
+nm1_cur != "" && /^[ \t]*N-1 \(no candidates/ { next }
+nm1_cur != "" && /^[ \t]*N-1 removed cut/ { next }
+nm1_cur != "" && /^[ \t]*N-1 / {
+    # Rows are keyed by cut name (first-seen order), so logs with different row sets do not misalign
+    if (!((nm1_cur, $2) in nm1_cnt)) {
+        nm1_name[nm1_cur, ++nm1_nrows[nm1_cur]] = $2
+    }
+    nm1_cnt[nm1_cur, $2] += $3
+    if (length($2) > nm1_name_len) nm1_name_len = length($2)
+    next
+}
+!/^[ \t]*N-1 / { nm1_cur = "" }
+
 # --- PHASE 2: PRINT THE CONSOLIDATED RESULTS ---
 END {
     id_width = length(global_max_cut)
@@ -112,6 +141,26 @@ END {
                 fmt = sprintf("  Cut %" id_width "d: %" max_name_len "s %10d: %6.3g %10.4g\n", i, c_name, c_val, rel_pct, pct)
                 printf(fmt)
             }
+        }
+    }
+    # Consolidated N-1 tables (rows with no candidates in any thread were never printed, so they are absent)
+    w = (nm1_name_len > 20) ? nm1_name_len : 20
+    for (t = 1; t <= nm1_ntab; t++) {
+        tab = nm1_order[t]
+        print ""
+        print tab
+        np = nm1_presel[tab] + 0
+        na = nm1_all[tab] + 0
+        if (np == 0) {
+            print "  N-1 (no candidates passed the preselection)"
+            continue
+        }
+        printf("  N-1 summary: N(presel) = %d, N(all cuts) = %d, acceptance = %.3f%%\n", np, na, 100. * na / np)
+        printf("  N-1 %-" w "s %12s %12s %14s\n", "removed cut", "N(all but)", "N-1 eff", "acc w/o cut")
+        for (r = 1; r <= nm1_nrows[tab]; r++) {
+            n = nm1_cnt[tab, nm1_name[tab, r]] + 0
+            eff = (n > 0) ? sprintf("%.3f%%", 100. * na / n) : "-"
+            printf("  N-1 %-" w "s %12d %12s %13.3f%%\n", nm1_name[tab, r], n, eff, 100. * n / np)
         }
     }
 }' log/out_${DATASET}_thread_*.log

@@ -41,6 +41,8 @@ namespace Mu2eEvtAna {
     kCRV = 15, kMultiTrk = 16, kTrkPID = 17,
     kOPA = 18, kTSDA = 19, kSTBoundary = 20, kSTInter = 21,
     kT0Err = 22, kNActive = 23,
+    kTrigger = 24, // event-level APR/CPR trigger; only set on the N-1 copies of the ID in ConvAna
+    kT0Tight = 25, // t0 > 540 ns (Run 1A final selection); only set on the N-1 copies of the ID in ConvAna
     kMC = 30
   };
 
