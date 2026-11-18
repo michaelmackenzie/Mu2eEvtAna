@@ -94,7 +94,7 @@ namespace mu2eplot {
       if(show_pot_      && exp.npot     > 0.) parts.push_back(format_sci(exp.npot) + " POT");
       if(show_running_  && exp.livetime > 0. && exp.duty_cycle > 0.) {
         const double days = exp.livetime/exp.duty_cycle/(24.*60.*60.);
-        parts.push_back((days > 365.) ? Form("%.3g years running", days/365.) : Form("%.3g days running", days));
+        parts.push_back((days > 365.) ? Form("%.3g years", days/365.) : Form("%.3g days", days));
       }
       if(show_livetime_ && exp.livetime > 0.) parts.push_back(format_sci(exp.livetime) + " s On-Spill");
       if(show_muons_    && exp.nmuons   > 0.) parts.push_back(format_sci(exp.nmuons) + " muon stops");

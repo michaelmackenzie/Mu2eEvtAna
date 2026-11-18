@@ -46,6 +46,8 @@ public:
   int     signal_front_style_ = 7                    ; // line style of the signals in front
   int     signal_front_width_ = 4                    ; // line width of the signals in front
   int     signal_front_color_ = -1                   ; // line color of the signals in front; < 0 uses the signal's color
+  bool    shared_scale_in_stamp_ = false             ; // if all signals have the same scale and symbol, show it once in the
+                                                       // stamp instead of in each legend label
 
   // Lower pad
   LowerPad_t          lower_pad_          = kRatio   ; // lower pad content
@@ -116,10 +118,31 @@ public:
     }
   }
 
-  // Legend label, including the scale if a symbol is given
+  // "<symbol> = <scale>" if all signals share the same scale and symbol (and it is shown), otherwise ""
+  TString shared_scale_text() const {
+    const Process_t* first = nullptr;
+    for(const auto& p : processes_) {
+      if(!p.is_signal()) continue;
+      if(!first) { first = &p; continue; }
+      if(p.scale_symbol_ != first->scale_symbol_ || p.scale_ != first->scale_) return "";
+    }
+    if(!first || first->scale_symbol_ == "" || first->scale_ == 1.) return "";
+    return first->scale_symbol_ + " = " + format_sci(first->scale_);
+  }
+
+  // Legend label, including the scale if a symbol is given (unless it is shown once in the stamp)
   TString display_label(const Process_t& p) const {
     if(p.scale_symbol_ == "" || p.scale_ == 1.) return p.label_;
+    if(shared_scale_in_stamp_ && p.is_signal() && shared_scale_text() != "") return p.label_;
     return p.label_ + " [" + p.scale_symbol_ + " = " + format_sci(p.scale_) + "]";
+  }
+
+  // The stamp, with the shared signal scale appended when shared_scale_in_stamp_ is set
+  Stamp_t stamp() const {
+    Stamp_t stamp(stamp_);
+    const TString shared = (shared_scale_in_stamp_) ? shared_scale_text() : TString("");
+    if(shared != "") stamp.extra_ = (stamp.extra_ == "") ? shared : stamp.extra_ + "; " + shared;
+    return stamp;
   }
 
   // Whether a process is part of the stack
@@ -758,7 +781,7 @@ public:
     delete_sources(model_sys);
 
     pad1->cd();
-    stamp_.draw(exposure_used_, scale);
+    stamp().draw(exposure_used_, scale);
     pad1->RedrawAxis();
     if(split) pad2->RedrawAxis();
     return c;
@@ -883,7 +906,7 @@ public:
     h->GetXaxis()->SetRangeUser(xmin, xmax);
     if(plot.logy_) c->SetLogy();
     if(plot.logx_) c->SetLogx();
-    stamp_.draw(exposure_used_);
+    stamp().draw(exposure_used_);
     c->RedrawAxis();
     return c;
   }
@@ -1008,7 +1031,7 @@ public:
     if(plot.logx_) pad2->SetLogx();
 
     pad1->cd();
-    stamp_.draw(exposure_used_);
+    stamp().draw(exposure_used_);
     pad1->RedrawAxis();
     pad2->RedrawAxis();
     return c;
@@ -1088,7 +1111,7 @@ public:
       haxis->GetYaxis()->SetRangeUser(0., 1.05);
     }
     leg->Draw();
-    stamp_.draw(exposure_used_, 0.7);
+    stamp().draw(exposure_used_, 0.7);
     c->RedrawAxis();
     return c;
   }
@@ -1099,7 +1122,10 @@ public:
   int print_yields(TString hist, TString type, int selection, double xmin = 1., double xmax = -1.) {
     printf("Expected yields for %s", layout_.hist_path(hist, type, selection).Data());
     if(xmin < xmax) printf(" in [%g, %g]", xmin, xmax);
-    printf(" (N(POT) = %.3g, livetime = %.3g s, N(muons) = %.3g)\n", exposure_used_.npot, exposure_used_.livetime, exposure_used_.nmuons);
+    printf(" (N(POT) = %.3g, livetime = %.3g s, N(muons) = %.3g", exposure_used_.npot, exposure_used_.livetime, exposure_used_.nmuons);
+    const TString shared = (shared_scale_in_stamp_) ? shared_scale_text() : TString("");
+    if(shared != "") printf(", signals at %s", shared.Data());
+    printf(")\n");
     double n_bkg(0.), var_bkg(0.);
     std::vector<std::pair<TString, double>> signals;
     for(auto& p : processes_) {

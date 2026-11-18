@@ -88,6 +88,15 @@ int test_plotter(TString outdir = "plotter_test") {
   check(close_to(plotter.process("flat")->sample_corr_, 2.), "sampling correction N(expected)/N(seen) = 200/100");
   check(plotter.display_label(*plotter.process("sig_a")) == "Signal A [R = 10^{-2}]", "signal label includes the scale");
   check(plotter.display_label(*plotter.process("sig_b")) == "Signal B [R = 2.0 #times 10^{-2}]", "signal label with a mantissa");
+  plotter.shared_scale_in_stamp_ = true;
+  check(plotter.shared_scale_text() == "" && plotter.display_label(*plotter.process("sig_a")) == "Signal A [R = 10^{-2}]",
+        "different signal scales stay in the labels");
+  plotter.set_signal_scale(1.e-2);
+  check(plotter.shared_scale_text() == "R = 10^{-2}" && plotter.display_label(*plotter.process("sig_b")) == "Signal B",
+        "a shared signal scale leaves the labels");
+  check(plotter.stamp().exposure_text(plotter.exposure_).EndsWith("; R = 10^{-2}"), "the stamp shows the shared signal scale");
+  plotter.set_signal_scale(2.e-2, {"sig_b"});
+  plotter.shared_scale_in_stamp_ = false;
 
   // Expected yields
   printf("Yields:\n");

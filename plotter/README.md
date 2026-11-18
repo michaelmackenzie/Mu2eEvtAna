@@ -93,6 +93,9 @@ from the offset set. Turn it off with `use_offsets_ = false`.
   `signal_front_` (default true), each signal is also drawn alone in front of the stack as a dashed line.
   The line color is `signal_front_color_`, or the signal's color if that is not set. Its legend entry shows both.
   `stacked_signals_ = {"name", ...}` stacks only the named signals and overlays the rest.
+- Any number of signals can be added, each with its own file, color, normalization, and scale. With many signals at the
+  same scale (e.g. one R for every model point), `shared_scale_in_stamp_ = true` shows `<symbol> = <scale>` once in
+  the stamp instead of in each legend label. Signals with different scales keep it in their labels.
 
 ## Lower pad (`lower_pad_`)
 
