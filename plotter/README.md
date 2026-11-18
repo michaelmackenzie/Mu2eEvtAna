@@ -132,7 +132,7 @@ plus `norm_path_`/`norm_branch_`.
 - `plot_component(plot, name_tag)`: the processes whose names contain the tag, on their own.
 - `plot_systematic(plot)`: the model with up/down shifts read from `<hist>_<sys>` in type `sys`.
 - `plot_roc(plot, left, eff)`: the ROC curve of each signal against the total background, or the efficiency curves.
-- `print_yields(hist, type, set, xmin, xmax)`: yields for each process, the background total with its MC-statistical and normalization uncertainties, and S/√B and S/σ(B) for each signal.
+- `print_yields(hist, type, set, xmin, xmax)`: yields for each process with the effective number of MC events ((Σw)²/Σw²), the background total with its MC-statistical and normalization uncertainties, and S/√B and S/σ(B) for each signal.
 - `get_histograms` / `get_histogram(hist, type, set, role, name_tag)`: the scaled histograms, for custom plots.
 
 Text, stamp, and style options are public members (`legend_columns_`, `stamp_`, `data_label_`, ...).

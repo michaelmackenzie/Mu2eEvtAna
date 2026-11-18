@@ -1139,8 +1139,11 @@ public:
       }
       double err = 0.;
       const double n = integral_in_range(h, xmin, xmax, &err);
-      const double n_mc = integral_in_range(h_raw, xmin, xmax);
-      printf("  %-45s (%-12s): %11.4g +- %-10.3g (%9.0f MC)\n", display_label(p).Data(), p.name_.Data(), n, err, n_mc);
+      // effective number of MC events, (sum w)^2 / sum w^2: the raw histograms carry the per-event weights
+      double err_mc = 0.;
+      const double sum_w = integral_in_range(h_raw, xmin, xmax, &err_mc);
+      const double n_mc = (err_mc > 0.) ? sum_w*sum_w/(err_mc*err_mc) : 0.;
+      printf("  %-45s (%-12s): %11.4g +- %-10.3g (%9.1f eff. MC)\n", display_label(p).Data(), p.name_.Data(), n, err, n_mc);
       if(p.is_background()) { n_bkg += n; var_bkg += err*err; }
       if(p.is_signal()) { // summed by label, as in the plots
         const TString label = display_label(p);
