@@ -544,6 +544,10 @@ class Model:
                     path = os.path.join(figdir, f"{channel}_{process}_prefit{suffix}.png")
                     plotlib.plot_channel(r, path, logy, self.figure_label)
                 print(f"  figure: {path}")
+                if process in r.envelope_shapes:
+                    path = os.path.join(figdir, f"{channel}_{process}_envelope{suffix}.png")
+                    plotlib.plot_envelope(r, process, path, logy, self.figure_label)
+                    print(f"  figure: {path}")
         return r
 
     # -- summary -------------------------------------------------------------------------------------------------------
@@ -946,12 +950,15 @@ class _ChannelBuilder:
         others = [n for n in expected if n not in absorbed and not ch.processes[n].signal]
         fixed = sum((expected[n] for n in others), np.zeros(len(self.edges) - 1)) if others else None
         print(f"  {ch.name}/{name}: envelope fit to the {r.data_source} outside the blind window {ch.blind}")
-        multi, cat, rate = env.build(f"{ch.name}_{name}", ch.obs, r.data, fixed, ch.blind)
+        # Asimov when the model makes its own, else detected from the counts (e.g. another model's Asimov set)
+        multi, cat, rate = env.build(f"{ch.name}_{name}", ch.obs, r.data, fixed, ch.blind,
+                                     asimov=True if r.data_source == "asimov" else None)
         norm = ROOT.RooRealVar(f"{ch.name}_{name}_norm", f"{name} yield", rate, 0., max(10. * rate, 10.))
         r.keep += [env, norm]
         r.pdfs[name] = multi
         r.norms[name] = norm
         r.envelopes[name] = cat.GetName()
+        r.envelope_shapes[name] = env
         r.envelope_info[name] = {"rate": rate, "best": env.best, "functions": [f.as_dict() for f in env.accepted],
                                  "tested": [f.as_dict() for f in env.fits]}
         r.card_rates[name] = 1.
@@ -984,6 +991,7 @@ class ChannelResult:
         self.effects = []       # (nuisance, kind 'lnN'|'shape'|'ws', process, text)
         self.envelopes = {}     # process -> category name
         self.envelope_info = {}
+        self.envelope_shapes = {}  # process -> built Envelope (its functions, for the figures)
         self.free_params = set()
         self.data = None        # TH1D
         self.data_source = ""

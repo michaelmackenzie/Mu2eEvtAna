@@ -127,7 +127,7 @@ Not supported yet: a top-level `Fit`, `Pdf` or `Envelope` process in a 2D channe
 | `Fit(..., binned=True)` | The fitted function used as a binned template, to smooth sparse MC. The rate's MC uncertainty is kept. |
 | `Pdf(roo_pdf, rate, norm=None)` | Any `RooAbsPdf`, used as is. Its free parameters float in Combine; constrain them with `model.param`. |
 | `Product(x_shape, y_shape, rate=None)` | A factorized 2D shape for a channel on two observables (see [2D observables](#2d-observables)). |
-| `Envelope(families=, absorbs=[...])` | Data-driven background: function families fit to the data outside the blind window, then discrete profiling (`RooMultiPdf`). `absorbs` lists the MC processes it replaces. |
+| `Envelope(families=, absorbs=[...])` | Data-driven background: function families fit to the data outside the blind window, then discrete profiling (`RooMultiPdf`). `absorbs` lists the MC processes it replaces. On Asimov data a function is accepted if p(χ² + ndof, ndof) > `chisq_p_min` (a correct shape has χ² ≈ 0 there). |
 
 Predefined names for `Fit` build ordinary RooFit PDFs: `gauss`, `cb`, `dscb` (`RooCrystalBall`), `exponential`, `power`,
 `chebychev`, `bernstein`, `exp_poly`, `endpoint`, and `uniform` (see `mu2ecombine/pdfs.py`). Their starting values come
@@ -189,7 +189,7 @@ samples to a reference rate (e.g. 1e-15); the limit on `r` is then in units of t
 | `shapes/<channel>.root` | TH1 shapes, or the workspace `w`. |
 | `model.json` | Yields, MC uncertainties, nuisances per process, fit results, and envelope choices. |
 | `commands.sh` | text2workspace and common Combine commands for this model. |
-| `figures/` (`plots=True`) | Expected stack per channel, and each MC fit over its histogram. |
+| `figures/` (`plots=True`) | Expected stack per channel, each MC fit over its histogram, and the functions of each envelope over the data (`<channel>_<process>_envelope`). |
 
 After `combine -M FitDiagnostics ... --saveShapes --saveWithUncertainties`, run
 `python3 -m mu2ecombine.plots fitDiagnostics.<name>.root` in the output directory for pre-fit and post-fit figures with

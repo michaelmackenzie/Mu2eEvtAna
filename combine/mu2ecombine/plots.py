@@ -34,6 +34,7 @@ def plot_model(results, figdir, label=None):
     <channel>_inputs             each process's expected distribution over the data, with the pulls of the data
     <channel>_<process>_fit      each fit over the histogram it was fit to, with the pulls
     <channel>_<process>_template each binned template (MC) process, with its MC statistical uncertainties
+    <channel>_<process>_envelope each function of an envelope over the data it was fit to, with the pulls
     A 2D channel (see model.Channel) has instead:
     <channel>_prefit_<axis>      the expected stack of the projection on each observable
     <channel>_<process>_<axis>_fit  the fit of each Fit component of a Product, over the histogram it was fit to
@@ -53,6 +54,8 @@ def plot_model(results, figdir, label=None):
             for p in r.processes:
                 if is_template(r, p):
                     plot_template(r, p, os.path.join(figdir, f"{name}_{p}_template{suffix}.png"), logy, label)
+            for p in r.envelope_shapes:
+                plot_envelope(r, p, os.path.join(figdir, f"{name}_{p}_envelope{suffix}.png"), logy, label)
 
 
 def plot_model_2d(r, figdir, label=None):
@@ -373,6 +376,108 @@ def plot_fit(r, process, fit, path, logy=False, label=None, obs=None, edges=None
     span = max(3.5, 1.15 * np.abs(pull[shown]).max()) if shown.any() else 3.5
     _lower_frame(edges, obs.GetTitle(), "#frac{N_{MC} - N_{fit}}{#sigma_{MC}}", -span, span, keep)
     _lower_points("_fit_pull", edges, pull, np.where(shown, 1., 0.), keep)
+    c.SaveAs(path)
+    c.Close()
+
+
+ENVELOPE_STYLES = (1, 2, 3, 9)   # solid, dashed, dotted, long dashed: functions often lie on top of each other
+
+
+def plot_envelope(r, process, path, logy=False, label=None):
+    """Each function accepted into an envelope over the data it was fit to, as the expected events per bin of the fit
+    (the function plus the channel's fixed backgrounds, normalized in the sidebands), with the Pearson pulls of the
+    data, (N - N_fit) / sqrt(N_fit), in the sidebands. The legend gives each function's chi2/ndof over the sidebands;
+    the starting function (best chi2 + penalty) is marked with *. Entries: <family> <order>: chi2/ndf. The blind window is shaded. label: the header (see
+    plot_channel)."""
+    import ROOT
+    from .envelope import LABELS
+    from .hist import arrays
+    env = r.envelope_shapes[process]
+    ch = r.channel
+    edges = ch.edges
+    centers = 0.5 * (edges[1:] + edges[:-1])
+    blind = env.blind
+    side = ~((centers > blind[0]) & (centers < blind[1]))
+    data_vals = arrays(r.data)[1]
+    data_err = np.sqrt(np.clip(data_vals, 0., None))
+    fits = [f for f in env.accepted if f.expected is not None]
+    c, top, bottom = _split_canvas()
+    keep = []
+    top.cd()
+    data = _hist("_env_data", edges, data_vals, data_err)
+    data.SetMarkerStyle(20)
+    data.SetMarkerSize(0.9)
+    data.SetLineWidth(2)
+    data.SetLineColor(ROOT.kBlack)
+    lines = []
+    for i, f in enumerate(fits):
+        h = _hist(f"_env_fit{i}", edges, f.expected)
+        color = ROOT.TColor.GetColor(COLORS[i % len(COLORS)])
+        h.SetLineColor(color)
+        h.SetMarkerColor(color)
+        h.SetLineWidth(3)
+        h.SetLineStyle(ENVELOPE_STYLES[i % len(ENVELOPE_STYLES)])
+        lines.append(h)
+    values = np.concatenate([data_vals] + [f.expected for f in fits])
+    ymax = max((data_vals + data_err).max(), max(f.expected.max() for f in fits), 1e-9)
+    frame = _hist("_env_frame", edges, np.zeros(len(edges) - 1))
+    frame.SetTitle(f";;{_bin_width_title(ch.obs.GetTitle(), edges)}")
+    _axes(frame, 0.06, 0.065, 0.95)
+    frame.GetXaxis().SetLabelSize(0)
+    nrows = (len(fits) + 2) // 2          # two-column legend: the data and the functions
+    room = min(0.6, 0.07 * nrows + 0.08)   # fraction of the frame the legend takes
+    if logy:
+        lo, _ = _log_range(values, ymax)
+        frame.SetMinimum(lo)
+        frame.SetMaximum(lo * (ymax / lo) ** (1. / (1. - room)))
+    else:
+        frame.SetMinimum(0.)
+        frame.SetMaximum(ymax / (1. - room))
+    frame.Draw("axis")
+    box = ROOT.TBox(blind[0], frame.GetMinimum(), blind[1], frame.GetMaximum())
+    box.SetFillColorAlpha(ROOT.kGray, 0.35)
+    box.Draw()
+    keep.append(box)
+    for h in lines:
+        h.Draw("hist same")
+    data.Draw("E same")
+    leg = ROOT.TLegend(0.02 + top.GetLeftMargin(), 0.97 - top.GetTopMargin() - room * (0.97 - top.GetTopMargin()
+                       - top.GetBottomMargin()), 0.98 - top.GetRightMargin(), 0.97 - top.GetTopMargin())
+    leg.SetNColumns(2)
+    leg.SetBorderSize(0)
+    leg.SetFillStyle(0)
+    leg.SetTextFont(FONT)
+    leg.SetTextSize(0.036)
+    leg.SetMargin(0.15)
+    leg.AddEntry(data, f"{'Asimov d' if r.data_source == 'asimov' else 'D'}ata (#chi^{{2}}/ndf in sidebands)", "PE")
+    best = env.accepted[env.best]
+    for f, h in zip(fits, lines):
+        star = " *" if f is best else ""
+        leg.AddEntry(h, f"{LABELS[f.family]} {f.order}: {f.chi2:.1f}/{f.ndof}{star}", "L")
+    leg.Draw()
+    _header(top, label, keep, SPLIT_SCALE)
+    top.SetLogy(logy)
+    top.RedrawAxis()
+    bottom.cd()
+    pulls = []
+    for f in fits:
+        mu = np.clip(f.expected, 1e-12, None)
+        pulls.append(np.where(side, (data_vals - mu) / np.sqrt(mu), 0.))
+    shown = np.abs(np.concatenate(pulls)) if pulls else np.zeros(0)
+    span = max(3.5, 1.15 * shown.max()) if shown.size else 3.5
+    _lower_frame(edges, ch.obs.GetTitle(), "#frac{N_{data} - N_{fit}}{#sqrt{N_{fit}}}", -span, span, keep)
+    pbox = ROOT.TBox(blind[0], -span, blind[1], span)
+    pbox.SetFillColorAlpha(ROOT.kGray, 0.35)
+    pbox.Draw()
+    keep.append(pbox)
+    for i, (pull, h) in enumerate(zip(pulls, lines)):
+        g = ROOT.TGraph(int(side.sum()), np.ascontiguousarray(centers[side]), np.ascontiguousarray(pull[side]))
+        g.SetMarkerStyle(20)
+        g.SetMarkerSize(0.7)
+        g.SetMarkerColor(h.GetLineColor())
+        g.Draw("P same")
+        keep.append(g)
+    bottom.RedrawAxis()
     c.SaveAs(path)
     c.Close()
 

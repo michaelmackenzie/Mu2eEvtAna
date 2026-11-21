@@ -5,7 +5,8 @@ Combine profiles over (discrete profiling).
 
 Options:
   families:      {family: (min_order, max_order)}; default DEFAULT_FAMILIES (ALL_FAMILIES lists every family)
-  chisq_p_min:   accept an order if p(chi2, ndof) exceeds this
+  chisq_p_min:   accept an order if p(chi2, ndof) exceeds this. On Asimov data (no fluctuations, so a correct shape has
+                 chi2 ~ 0) the test is p(chi2 + ndof, ndof): the function as if fit to a typical fluctuated data set
   ftest_p_max:   stop a family once the next order does not improve with p(F) < this
   enforce_ftest: apply the F-test
   force_orders:  {family: order} keeps only these orders (no chi2/F-test selection)
@@ -248,7 +249,8 @@ class Envelope:
     """A background shape from discrete profiling over function families (see the module docstring for options).
 
     build() arguments: obs, the channel observable; data, the TH1 (channel binning) fit outside the blind window; fixed,
-    the expected events per bin of the explicitly modeled backgrounds (numpy array), or None.
+    the expected events per bin of the explicitly modeled backgrounds (numpy array), or None; asimov: whether the data
+    is an Asimov data set (see chisq_p_min); None: Asimov if any sideband count is not an integer.
     """
 
     def __init__(self, families=None, absorbs=(), chisq_p_min=0.001, ftest_p_max=0.2, enforce_ftest=True,
@@ -272,16 +274,16 @@ class Envelope:
         self.keep = _Keeper()
         self.fits = []
 
-    def build(self, name, obs, data, fixed, blind, log=print):
+    def build(self, name, obs, data, fixed, blind, log=print, asimov=None):
         quiet_roofit()
         level = ROOT.gErrorIgnoreLevel
         ROOT.gErrorIgnoreLevel = max(level, ROOT.kError)  # Hessian warnings from the random starting points
         try:
-            return self._build(name, obs, data, fixed, blind, log)
+            return self._build(name, obs, data, fixed, blind, log, asimov)
         finally:
             ROOT.gErrorIgnoreLevel = level
 
-    def _build(self, name, obs, data, fixed, blind, log):
+    def _build(self, name, obs, data, fixed, blind, log, asimov):
         edges, data_vals, _ = arrays(data)
         centers = 0.5 * (edges[1:] + edges[:-1])
         if blind is None:
@@ -290,9 +292,16 @@ class Envelope:
         obs.setRange("m2c_low", float(edges[0]), float(blind[0]))
         obs.setRange("m2c_high", float(blind[1]), float(edges[-1]))
         n_data_side = float(data_vals[side].sum())
+        if asimov is None:
+            asimov = bool(np.any(np.abs(data_vals[side] - np.round(data_vals[side])) > 1e-6))
+        self.asimov = asimov
+        if asimov:
+            log(f"    Asimov data: an order is accepted if p(chi2 + ndof, ndof) > {self.chisq_p_min:g}")
         if n_data_side <= 0:
             raise EnvelopeError(f"{self.where}: no data in the sidebands")
         fixed_vals = np.asarray(fixed) if fixed is not None else np.zeros(len(data_vals))
+        self.fixed = fixed_vals   # kept for the figure of the functions (plots.plot_envelope)
+        self.blind = tuple(blind)
         n_fixed_side = float(fixed_vals[side].sum())
         if n_fixed_side >= n_data_side:
             raise EnvelopeError(f"{self.where}: the fixed backgrounds ({n_fixed_side:.3g}) exceed the sideband data "
@@ -321,14 +330,17 @@ class Envelope:
                 nparams = count_floating(pdf, obs)
                 ndof = nfit - nparams - 1
                 pvalue = float(stats.chi2.sf(chi2, ndof)) if ndof > 0 else 0.
+                # on Asimov data a correct shape gives chi2 ~ 0: test it as if fit to a typical fluctuated data set
+                p_accept = float(stats.chi2.sf(chi2 + ndof, ndof)) if (asimov and ndof > 0) else pvalue
+                p_name = "p(chi2 + ndof)" if asimov else "p(chi2)"
                 ftest = None
                 if self.keep_all:
                     ok, reason = True, "keep_all"
                 elif forced is not None:
                     ok, reason = order == forced, "forced order" if order == forced else f"not the forced order {forced}"
                 else:
-                    ok = pvalue > self.chisq_p_min
-                    reason = f"p(chi2) = {pvalue:.3g} {'>' if ok else '<'} {self.chisq_p_min:g}"
+                    ok = p_accept > self.chisq_p_min
+                    reason = f"{p_name} = {p_accept:.3g} {'>' if ok else '<'} {self.chisq_p_min:g}"
                 stop = False
                 if prev is not None and self.enforce_ftest and not self.keep_all and forced is None:
                     dchi2 = prev.chi2 - chi2
