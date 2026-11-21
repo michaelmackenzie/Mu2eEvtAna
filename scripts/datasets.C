@@ -15,8 +15,8 @@ namespace DATA {
   vector<Dataset_t> datasets() {
     vector<Dataset_t> datasets;
 
-    const bool ele = false; // datasets for electron analysis
-    const bool pos = true ; // datasets for positron analysis
+    const bool ele = true ; // datasets for electron analysis
+    const bool pos = false; // datasets for positron analysis
 
     //---------------------------------------
     // Run 1A datasets
@@ -44,8 +44,8 @@ namespace DATA {
     datasets.emplace_back(ele  ,  "cele1b1s5r0101", "nts.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_1-001.root"          );
     datasets.emplace_back(pos  ,  "cpos1b1s5r0101", "nts.mu2e.CePLeadingLogMix1BB.MDC2025au_best_v1_1-001.root"          );
     datasets.emplace_back(true ,  "cry4ab1s5r0101", "nts.mu2e.CosmicSignalMix1BB.MDC2025au_best_v1_1-001.root"           );
-    datasets.emplace_back(true ,  "cry4ab0s5r0101", "nts.mu2e.CosmicSignalOnSpill.MDC2025au_best_v1_5-001.root"          );
-    datasets.emplace_back(true ,  "cry4abns5r0101", "nts.mu2e.CosmicSignalOffSpill-LH.MDC2025au_best_v1_1.root"          );
+    datasets.emplace_back(false,  "cry4ab0s5r0101", "nts.mu2e.CosmicSignalOnSpill.MDC2025au_best_v1_5-001.root"          );
+    datasets.emplace_back(false,  "cry4abns5r0101", "nts.mu2e.CosmicSignalOffSpill-LH.MDC2025au_best_v1_1.root"          );
     datasets.emplace_back(ele  ,  "dio00b1s5r0101", "nts.mu2e.DIOtail95Mix1BB.MDC2025au_best_v1_1-001.root"              );
     datasets.emplace_back(true ,  "rmce0b1s5r0101", "nts.mu2e.RMCPhaseSpace0NExternalMix1BB.MDC2025au_best_v1_1-001.root");
     datasets.emplace_back(pos  ,  "rmce1b1s5r0101", "nts.mu2e.RMCPhaseSpace1NExternalMix1BB.MDC2025au_best_v1_1-001.root");

@@ -1427,7 +1427,6 @@ namespace Mu2eEvtAna {
         if(track->PFront() < 80.f || track->PFront() > 120.f)        ID.SetBit(kP);
         if(track->RMaxFront() < 400. || track->RMaxFront() > 610.)   ID.SetBit(kRMax);
         if(track->TrkQual() > -10. && track->TrkQual() < 0.015)      ID.SetBit(kTrkQual);
-        // if(track->AltTrkQual() > -10. && track->AltTrkQual() < 0.02) ID.SetBit(kTrkQual);
         if(!is_offspill_ && (track->TFront() < 500. || track->TFront() > 1650.)) ID.SetBit(kT0);
         if(track->NActive() < 15)                                    ID.SetBit(kNActive); // well-defined track
         if(track->FitCon() < 1.e-6)                                  ID.SetBit(kFitCon);
@@ -1436,7 +1435,7 @@ namespace Mu2eEvtAna {
         if(track->ECluster() <= 0.) { // no cluster associated
           if(track->TrkPID() < -100.f)                               ID.SetBit(kClusterE); // no score --> fail it
           else if(track->TrkPID() < 0.15f)                           ID.SetBit(kTrkPID); // tracker-only PID
-        } else if(track->AltPID() < 0.10f)                           ID.SetBit(kPID); // full PID
+        } else if(track->PID() < 0.10f)                              ID.SetBit(kPID); // full PID
       }
 
       // General selections

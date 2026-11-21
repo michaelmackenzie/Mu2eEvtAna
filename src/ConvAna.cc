@@ -1051,9 +1051,9 @@ namespace Mu2eEvtAna {
             test_id &= is_offspill_ || (track_->TFront() > 540. && track_->TFront() < 1650.);
             if(test_id) {
               int cut_opt_offset = 0;
-              if(Run1AID.CheckBit(kCRV))    cut_opt_offset += kCRVVetoOffset;
-              if(!is_offspill_ && track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset;
-              if(track_->Charge() > 0)      cut_opt_offset += kChargeOffset;
+              if(Run1AID.CheckBit(kCRV))                     cut_opt_offset += kCRVVetoOffset; // +1000
+              if(!is_offspill_ && track_->TFront() <= 540.f) cut_opt_offset += kTimeCutOffset; // +2000
+              if(track_->Charge() > 0)                       cut_opt_offset += kChargeOffset;  // +4000
               FillAllHistograms(79 + cut_opt_offset);
             }
           }
