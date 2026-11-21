@@ -16,7 +16,7 @@ namespace DATA {
     vector<Dataset_t> datasets;
 
     const bool ele = true ; // datasets for electron analysis
-    const bool pos = false; // datasets for positron analysis
+    const bool pos = true ; // datasets for positron analysis
 
     //---------------------------------------
     // Run 1A datasets
@@ -38,34 +38,51 @@ namespace DATA {
     datasets.emplace_back(false,  "mds3cb1s5r0100", "nts.mu2e.ensembleMDS3cMix1BB.MDC2025au_best_v1_1.root"              );
     datasets.emplace_back(false,  "mds3db0s5r0100", "nts.mu2e.ensembleMDS3dOnSpill.MDC2025au_best_v1_1-001.root"         );
 
-    // MDC2025au-001 version, new PID (same mcs, so same counts)
+    // MDC2025au-001 version, new PID
     datasets.emplace_back(false,  "cele0b0s5r0101", "nts.mu2e.CeEndpointOnSpill.MDC2025ba_best_v1_5.root"                );
     datasets.emplace_back(false,  "dio00b0s5r0101", "nts.mu2e.DIOtail95OnSpill.MDC2025ba_best_v1_5.root"                 );
-    datasets.emplace_back(ele  ,  "cele1b1s5r0101", "nts.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_1-001.root"          );
-    datasets.emplace_back(pos  ,  "cpos1b1s5r0101", "nts.mu2e.CePLeadingLogMix1BB.MDC2025au_best_v1_1-001.root"          );
-    datasets.emplace_back(true ,  "cry4ab1s5r0101", "nts.mu2e.CosmicSignalMix1BB.MDC2025au_best_v1_1-001.root"           );
+    datasets.emplace_back(false,  "cele1b1s5r0101", "nts.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_1-001.root"          );
+    datasets.emplace_back(false,  "cpos1b1s5r0101", "nts.mu2e.CePLeadingLogMix1BB.MDC2025au_best_v1_1-001.root"          );
+    datasets.emplace_back(false,  "cry4ab1s5r0101", "nts.mu2e.CosmicSignalMix1BB.MDC2025au_best_v1_1-001.root"           );
     datasets.emplace_back(false,  "cry4ab0s5r0101", "nts.mu2e.CosmicSignalOnSpill.MDC2025au_best_v1_5-001.root"          );
     datasets.emplace_back(false,  "cry4abns5r0101", "nts.mu2e.CosmicSignalOffSpill-LH.MDC2025au_best_v1_1.root"          );
-    datasets.emplace_back(ele  ,  "dio00b1s5r0101", "nts.mu2e.DIOtail95Mix1BB.MDC2025au_best_v1_1-001.root"              );
-    datasets.emplace_back(true ,  "rmce0b1s5r0101", "nts.mu2e.RMCPhaseSpace0NExternalMix1BB.MDC2025au_best_v1_1-001.root");
-    datasets.emplace_back(pos  ,  "rmce1b1s5r0101", "nts.mu2e.RMCPhaseSpace1NExternalMix1BB.MDC2025au_best_v1_1-001.root");
-    datasets.emplace_back(pos  ,  "rmci0b1s5r0101", "nts.mu2e.RMCPhaseSpace0NInternalMix1BB.MDC2025au_best_v1_1-001.root");
-    datasets.emplace_back(pos  ,  "rmci1b1s5r0101", "nts.mu2e.RMCPhaseSpace1NInternalMix1BB.MDC2025au_best_v1_1-001.root");
-    datasets.emplace_back(true ,  "rpce1b1s5r0101", "nts.mu2e.RPCExternalPhysicalMix1BB.MDC2025au_best_v1_1-001.root"    );
-    datasets.emplace_back(true ,  "rpci1b1s5r0101", "nts.mu2e.RPCInternalPhysicalMix1BB.MDC2025au_best_v1_1-001.root"    );
-    datasets.emplace_back(true ,  "pbar1b1s5r0101", "nts.mu2e.PbarResamplingMix1BB.MDC2025au_best_v1_1-001.root"         );
+    datasets.emplace_back(false,  "dio00b1s5r0101", "nts.mu2e.DIOtail95Mix1BB.MDC2025au_best_v1_1-001.root"              );
+    datasets.emplace_back(false,  "rmce0b1s5r0101", "nts.mu2e.RMCPhaseSpace0NExternalMix1BB.MDC2025au_best_v1_1-001.root");
+    datasets.emplace_back(false,  "rmce1b1s5r0101", "nts.mu2e.RMCPhaseSpace1NExternalMix1BB.MDC2025au_best_v1_1-001.root");
+    datasets.emplace_back(false,  "rmci0b1s5r0101", "nts.mu2e.RMCPhaseSpace0NInternalMix1BB.MDC2025au_best_v1_1-001.root");
+    datasets.emplace_back(false,  "rmci1b1s5r0101", "nts.mu2e.RMCPhaseSpace1NInternalMix1BB.MDC2025au_best_v1_1-001.root");
+    datasets.emplace_back(false,  "rpce1b1s5r0101", "nts.mu2e.RPCExternalPhysicalMix1BB.MDC2025au_best_v1_1-001.root"    );
+    datasets.emplace_back(false,  "rpci1b1s5r0101", "nts.mu2e.RPCInternalPhysicalMix1BB.MDC2025au_best_v1_1-001.root"    );
+    datasets.emplace_back(false,  "pbar1b1s5r0101", "nts.mu2e.PbarResamplingMix1BB.MDC2025au_best_v1_1-001.root"         );
     datasets.emplace_back(false,  "fpos0b1s5r0101", "nts.mu2e.FlatePlusMix1BB.MDC2025au_best_v1_1-001.root"              );
     datasets.emplace_back(false,  "mds3cb1s5r0101", "nts.mu2e.ensembleMDS3cMix1BB.MDC2025au_best_v1_1-001.root"          );
     datasets.emplace_back(false,  "mds3db0s5r0101", "nts.mu2e.ensembleMDS3dOnSpill.MDC2025au_best_v1_1-001-001.root"     );
-
-    // Reduced tracker configuration
-    datasets.emplace_back(ele  ,  "cele1b1s5r0102", "nts.mu2e.CeMLeadingLogOnSpill.MDC2025bd_best_v2_0.root"             );
-
     // Flat-spectrum e-/e+/mu- samples for PID performance studies (TrkPID v1 in the trkpid branch)
     datasets.emplace_back(false,  "fele0b1s5r0101", "nts.mu2e.FlateMinusMix1BB.MDC2025au_best_v1_1-001.root"            );
     datasets.emplace_back(false,  "fele0b0s5r0101", "nts.mu2e.FlateMinusOnSpill.MDC2025au_best_v1_5-001.root"           );
     datasets.emplace_back(false,  "fpos0b0s5r0101", "nts.mu2e.FlatePlusOnSpill.MDC2025au_best_v1_5-001.root"            );
     datasets.emplace_back(false,  "fmum0b0s5r0101", "nts.mu2e.FlatMuMinusOnSpill.MDC2025au_best_v1_5-001.root"          );
+
+
+    // Reduced tracker configuration
+    datasets.emplace_back(false,  "cele0b0s5r0102", "nts.mu2e.CeEndpointOnSpill.MDC2025be_best_v2_0.root"                );
+    datasets.emplace_back(false,  "dio00b0s5r0102", "nts.mu2e.DIOtail95OnSpill.MDC2025be_best_v2_0.root"                 );
+    datasets.emplace_back(ele  ,  "cele1b1s5r0102", "nts.mu2e.CeMLeadingLogMix1BB.MDC2025be_best_v2_0.root"              );
+    datasets.emplace_back(pos  ,  "cpos1b1s5r0102", "nts.mu2e.CePLeadingLogMix1BB.MDC2025be_best_v2_0.root"              );
+    datasets.emplace_back(true ,  "cry4ab1s5r0102", "nts.mu2e.CosmicSignalMix1BB.MDC2025be_best_v2_0.root"               );
+    datasets.emplace_back(false,  "cry4ab0s5r0102", "nts.mu2e.CosmicSignalOnSpill.MDC2025be_best_v2_0-001.root"          );
+    datasets.emplace_back(false,  "cry4abns5r0102", "nts.mu2e.CosmicSignalOffSpill-LH.MDC2025be_best_v1_1.root"          );
+    datasets.emplace_back(ele  ,  "dio00b1s5r0102", "nts.mu2e.DIOtail95Mix1BB.MDC2025be_best_v2_0.root"                  );
+    datasets.emplace_back(true ,  "rmce0b1s5r0102", "nts.mu2e.RMCPhaseSpace0NExternalMix1BB.MDC2025be_best_v2_0.root"    );
+    datasets.emplace_back(pos  ,  "rmce1b1s5r0102", "nts.mu2e.RMCPhaseSpace1NExternalMix1BB.MDC2025be_best_v2_0.root"    );
+    datasets.emplace_back(pos  ,  "rmci0b1s5r0102", "nts.mu2e.RMCPhaseSpace0NInternalMix1BB.MDC2025be_best_v2_0.root"    );
+    datasets.emplace_back(pos  ,  "rmci1b1s5r0102", "nts.mu2e.RMCPhaseSpace1NInternalMix1BB.MDC2025be_best_v2_0.root"    );
+    datasets.emplace_back(true ,  "rpce1b1s5r0102", "nts.mu2e.RPCExternalPhysicalMix1BB.MDC2025be_best_v2_0.root"        );
+    datasets.emplace_back(true ,  "rpci1b1s5r0102", "nts.mu2e.RPCInternalPhysicalMix1BB.MDC2025be_best_v2_0.root"        );
+    datasets.emplace_back(true ,  "pbar1b1s5r0102", "nts.mu2e.PbarResamplingMix1BB.MDC2025be_best_v2_0.root"             );
+    datasets.emplace_back(false,  "fpos0b1s5r0102", "nts.mu2e.FlatePlusMix1BB.MDC2025be_best_v2_0.root"                  );
+    datasets.emplace_back(false,  "mds3cb1s5r0102", "nts.mu2e.ensembleMDS3cMix1BB.MDC2025be_best_v2_0.root"              );
+    datasets.emplace_back(false,  "mds3db0s5r0102", "nts.mu2e.ensembleMDS3dOnSpill.MDC2025be_best_v2_0-001.root"         );
 
     // Nominal-target OnSpill (unmixed) references for the alternate target samples. There is no CeEndpointOnSpill at
     // au_best_v1_5, so the signal reference is CeMLeadingLog. N(events) and N(gen) are from the mcs datasets; the
