@@ -149,16 +149,21 @@ class Fit:
     nuisances: {nuisance: {parameter: shift}} shifts of fitted parameters per unit nuisance; a shift is a number
                (observable units) or a string 'x%' (relative to the fitted value), e.g. {"pscale": {"mean": 0.05}}.
                Parameters are named as in pdfs.py for predefined functions, or by their RooRealVar names.
+    nstarts:   starting points of the fit (pdfs.fit_pdf), default pdfs.FIT_STARTS; the best converged fit is kept
+
+    The fit (pdfs.fit_pdf) is a binned likelihood fit with the PDF integrated over the bins, to the histogram scaled
+    to its effective number of MC entries; info holds its status, chi2/ndf against the histogram, and parameters.
     """
 
     def __init__(self, function, hist, rate=None, order=None, params=None, fit_range=None, binned=False,
-                 variations=None, nuisances=None):
+                 variations=None, nuisances=None, nstarts=None):
         if not isinstance(function, str) and not _is_pdf(function):
             raise ShapeError(f"Fit: give a function name or a RooAbsPdf, not {type(function).__name__}")
         self.function = function
         self.hist = as_th1(hist, "Fit")
         self.rate_source = rate if rate is None or isinstance(rate, (int, float)) else as_th1(rate, "Fit rate")
         self.order, self.params, self.fit_range = order, params, fit_range
+        self.nstarts = nstarts
         self.binned = binned
         self.variations = as_variations(variations)
         self.nuisances = {n: dict(p) for n, p in (nuisances or {}).items()}
@@ -190,7 +195,7 @@ class Fit:
 
     def build(self, obs, name, edges, model_params=()):
         """Build (for a name) and fit the PDF on obs. Returns the RooAbsPdf."""
-        from .pdfs import fit_pdf, floating_params, make_pdf, quiet_roofit
+        from .pdfs import FIT_STARTS, fit_chi2, fit_pdf, floating_params, make_pdf, quiet_roofit
         quiet_roofit()
         h = self.fit_hist(edges)
         if integral(h) <= 0:
@@ -206,15 +211,25 @@ class Fit:
             self.pdf = self.function
         self.floating = floating_params(self.pdf, obs, exclude=model_params)
         self.hold = [p for p in floating_params(self.pdf, obs) if p.GetName() in model_params]
-        status = fit_pdf(self.pdf, obs, h, self.floating, self.fit_range, self.hold)
+        status = fit_pdf(self.pdf, obs, h, self.floating, self.fit_range, self.hold,
+                         nstarts=FIT_STARTS if self.nstarts is None else self.nstarts)
+        chi2, ndf = fit_chi2(self.pdf, obs, h, edges, len(self.floating), self.fit_range)
         self.info = {"function": self.function if isinstance(self.function, str) else self.function.GetName(),
-                     "fit_status": status, "params": self.values()}
-        if status not in (0, 1):
-            print(f"  warning: {name}: fit status {status}")
+                     "fit_status": status, "chi2": chi2, "ndf": ndf, "params": self.values(),
+                     "at_limit": self.at_limit()}
+        if status != 0:
+            print(f"  warning: {name}: fit status {status} (not converged)")
+        if self.info["at_limit"]:
+            print(f"  warning: {name}: fitted parameters at their range limits: {', '.join(self.info['at_limit'])}")
         return self.pdf
 
     def values(self):
         return {p.GetName(): p.getVal() for p in self.floating}
+
+    def at_limit(self, tolerance=1e-3):
+        """Names of the fitted parameters within tolerance x their range of a range limit."""
+        return [p.GetName() for p in self.floating
+                if min(p.getVal() - p.getMin(), p.getMax() - p.getVal()) < tolerance * (p.getMax() - p.getMin())]
 
     def set_values(self, values):
         for p in self.floating:

@@ -171,25 +171,76 @@ def floating_params(pdf, obs, exclude=()):
             if isinstance(p, ROOT.RooRealVar) and not p.isConstant() and p.GetName() not in exclude]
 
 
-def fit_pdf(pdf, obs, hist, params, fit_range=None, hold=()):
-    """Weighted ML fit of the RooRealVars `params` to a histogram (SumW2 errors). The variables in `hold` (e.g.
-    nuisances inside the PDF) are kept constant during the fit. Returns the fit status."""
+FIT_STARTS = 4  # starting points of a nominal fit (Fit.build): the given/default values, then random restarts
+
+
+def fit_pdf(pdf, obs, hist, params, fit_range=None, hold=(), nstarts=1, seed=12345):
+    """Binned ML fit of the RooRealVars `params` to a (weighted MC) histogram. The variables in `hold` (e.g. nuisances
+    inside the PDF) are kept constant during the fit. Returns the fit status of the result kept.
+
+    - The histogram is scaled to its effective number of entries, sum(w) / sum(w^2): the shape is unchanged, and the
+      likelihood gets the statistical precision of the MC. Fit to the weighted yields directly, a sample normalized to
+      a small expected yield (e.g. a signal at a small branching fraction) has an almost flat likelihood, and the
+      minimizer stops wherever its tolerance is first met.
+    - The PDF is integrated over each bin (as bin_fractions does when the fit becomes a template), not evaluated at
+      the bin centers, which would favour features narrower than a bin (e.g. a Crystal Ball core spike).
+    - nstarts > 1: after the fit from the current values, refits from random points between those values and the
+      parameter ranges; the converged fit (status 0) with the lowest likelihood is kept. Variation refits use one
+      start (from the nominal values), so that their parameter shifts stay on the nominal minimum.
+    """
     import ROOT
     if not params:
         return 0
     saved = [(v, v.isConstant()) for v in hold]
     for v, _ in saved:
         v.setConstant(True)
-    dh = ROOT.RooDataHist(f"{pdf.GetName()}_fitdata", "", ROOT.RooArgList(obs), hist)
-    opts = [ROOT.RooFit.Save(True), ROOT.RooFit.SumW2Error(True), ROOT.RooFit.PrintLevel(-1),
-            ROOT.RooFit.Warnings(False), ROOT.RooFit.PrintEvalErrors(-1)]
+    _, values, variances = arrays(hist)
+    scale = values.sum() / variances.sum() if values.sum() > 0 and variances.sum() > 0 else 1.
+    h = hist.Clone(f"{hist.GetName()}_m2c_fit")
+    h.SetDirectory(0)
+    h.Scale(scale)
+    dh = ROOT.RooDataHist(f"{pdf.GetName()}_fitdata", "", ROOT.RooArgList(obs), h)
+    opts = [ROOT.RooFit.Save(True), ROOT.RooFit.SumW2Error(True), ROOT.RooFit.PrintLevel(-1), ROOT.RooFit.Strategy(2),
+            ROOT.RooFit.Offset(False),  # comparable likelihoods across starts
+            ROOT.RooFit.IntegrateBins(1e-4), ROOT.RooFit.Warnings(False), ROOT.RooFit.PrintEvalErrors(-1)]
     if fit_range is not None:
         obs.setRange("m2c_fit", float(fit_range[0]), float(fit_range[1]))
         opts.append(ROOT.RooFit.Range("m2c_fit"))
-    result = pdf.fitTo(dh, *opts)
+    init = [p.getVal() for p in params]
+    rng = np.random.default_rng(seed)
+    best = None  # (status, nll, values)
+    for start in range(max(1, int(nstarts))):
+        for p, v in zip(params, init):
+            p.setVal(v if start == 0 else v + rng.uniform(0.2, 0.8) * (rng.uniform(p.getMin(), p.getMax()) - v))
+        result = pdf.fitTo(dh, *opts)
+        if not result:
+            continue
+        status, nll = result.status(), result.minNll()
+        if best is None or (status == 0, -nll) > (best[0] == 0, -best[1]):
+            best = (status, nll, [p.getVal() for p in params])
     for v, const in saved:
         v.setConstant(const)
-    return result.status() if result else -1
+    if best is None:
+        for p, v in zip(params, init):
+            p.setVal(v)
+        return -1
+    for p, v in zip(params, best[2]):
+        p.setVal(v)
+    return best[0]
+
+
+def fit_chi2(pdf, obs, hist, edges, nfloat, fit_range=None):
+    """(chi2, ndf) of the fitted PDF, normalized to the histogram in the fit range, against the histogram's bins
+    (MC errors; empty bins skipped)."""
+    _, values, variances = arrays(hist)
+    fractions = bin_fractions(pdf, obs, edges)
+    centers = 0.5 * (np.asarray(edges[1:]) + np.asarray(edges[:-1]))
+    use = variances > 0
+    if fit_range is not None:
+        use &= (centers > fit_range[0]) & (centers < fit_range[1])
+    expected = fractions * values[use].sum() / max(fractions[use].sum(), 1e-300)
+    chi2 = float(np.sum((expected[use] - values[use]) ** 2 / variances[use]))
+    return chi2, int(use.sum()) - nfloat - 1
 
 
 def add_nuisances(pdf, name, shifts, thetas):
